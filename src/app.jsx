@@ -215,7 +215,7 @@ function Header({ active, setActive, search, setSearch }) {
               </button>
               <div className="header-submenu">
                 <button onClick={() => setActive("stock")}>Stock</button>
-                <button onClick={() => setActive("items")}>Products</button>
+                <button onClick={() => setActive("items")}>Items</button>
                 <button onClick={() => setActive("receiving")}>FFB Receiving</button>
                 <button onClick={() => setActive("grading")}>FFB Grading</button>
               </div>
