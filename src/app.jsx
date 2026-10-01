@@ -17,6 +17,7 @@ import { SupplierDetails, SupplierForm, SuppliersPage } from "./commercial/Suppl
 import { PurchaseContractWorkspace as PurchaseContractsPage } from "./commercial/PurchaseContractWorkspace.jsx";
 import { ItemsPage } from "./inventory/Items.jsx";
 import { StorageAreaPage } from "./inventory/StorageAreas.jsx";
+import { DispatchPage } from "./inventory/Dispatch.jsx";
 import { FFBReceivingPage } from "./receiving/FFBReceiving.jsx";
 import { FFBGradingPage } from "./receiving/FFBGrading.jsx";
 import { ProductionSystem } from "./production/ProductionSystem.jsx";
@@ -205,10 +206,10 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "stock" ? (
             <div
               key={id}
-              className={`nav-group ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" ? "active-group" : ""}`}
+              className={`nav-group ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" || active === "dispatch" ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" ? "active" : ""}`}
+                className={`nav-item ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" || active === "dispatch" ? "active" : ""}`}
                 onClick={() => setActive("stock")}
               >
                 <span className="nav-icon">{icon}</span>
@@ -220,6 +221,7 @@ function Header({ active, setActive, search, setSearch }) {
                 <button onClick={() => setActive("tankFarm")}>Tank Farm</button>
                 <button onClick={() => setActive("kernelWarehouse")}>Kernel Warehouse</button>
                 <button onClick={() => setActive("efbStorage")}>EFB Storage</button>
+                <button onClick={() => setActive("dispatch")}>Dispatch</button>
                 <button onClick={() => setActive("receiving")}>FFB Receiving</button>
                 <button onClick={() => setActive("grading")}>FFB Grading</button>
               </div>
@@ -779,13 +781,14 @@ function App() {
     directPurchases: [],
     salesInvoices: [],
     payments: [],
+    dispatchOrders: [],
   });
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const load = async () => {
     setLoading(true);
-    const [dashboard, contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments] = await Promise.all([
+    const [dashboard, contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders] = await Promise.all([
       fetch("/api/dashboard").then((res) => res.json()),
       fetch("/api/sales-contracts").then((res) => res.json()),
       fetch("/api/customers").then((res) => res.json()),
@@ -797,8 +800,9 @@ function App() {
       fetch("/api/direct-purchases").then((res) => res.json()),
       fetch("/api/sales-invoices").then((res) => res.json()),
       fetch("/api/payments").then((res) => res.json()),
+      fetch("/api/dispatch-orders").then((res) => res.json()),
     ]);
-    setData({ ...dashboard, salesContracts: contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments });
+    setData({ ...dashboard, salesContracts: contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders });
     setLoading(false);
   };
   useEffect(() => {
@@ -904,6 +908,8 @@ function App() {
         <ItemsPage rows={data.items} onSaved={load} />
       ) : ["tankFarm", "kernelWarehouse", "efbStorage"].includes(active) ? (
         <StorageAreaPage area={active} rows={data.stock} quality={data.quality} dispatch={data.dispatch} />
+      ) : active === "dispatch" ? (
+        <DispatchPage rows={data.dispatchOrders} items={data.items} onSaved={load} />
       ) : active === "receiving" ? (
         <FFBReceivingPage rows={data.ffbReceiving} suppliers={data.suppliers} onSaved={load} onOpenGrading={(id) => { setGradingFocusId(id); setActive("grading"); }} />
       ) : active === "grading" ? (

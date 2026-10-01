@@ -10,6 +10,7 @@ import { registerPurchaseContractsModule } from './server/purchaseContracts.js';
 import { registerPurchasingModule } from './server/purchases.js';
 import { registerSalesInvoicesModule } from './server/salesInvoices.js';
 import { registerPaymentsModule } from './server/payments.js';
+import { registerDispatchModule } from './server/dispatch.js';
 
 const db = new Database(path.join(path.dirname(fileURLToPath(import.meta.url)), 'rockeye.sqlite'));
 db.pragma('journal_mode = WAL');
@@ -51,6 +52,7 @@ registerPurchaseContractsModule(app, db);
 registerPurchasingModule(app, db);
 registerSalesInvoicesModule(app, db);
 registerPaymentsModule(app, db);
+registerDispatchModule(app, db);
 app.get('/api/health', (_req, res) => res.json({ ok: true, database: 'sqlite' }));
 app.get('/api/dashboard', (_req, res) => res.json({ kpis: [{ label:'FFB Received', value: db.prepare("SELECT COALESCE(SUM(net),0) value FROM receiving WHERE status != 'Partial reject'").get().value, unit:'t', change:'+12.4%', tone:'red', icon:'↗' }, { label:'CPO Produced', value:64.8, unit:'t', change:'+8.2%', tone:'green', icon:'◉' }, { label:'Mill Utilization', value:82.4, unit:'%', change:'+4.1%', tone:'blue', icon:'↗' }, { label:'Quality Samples', value:db.prepare("SELECT COUNT(*) value FROM quality WHERE status = 'Review'").get().value, unit:'pending', change:'-3', tone:'amber', icon:'✓' }], receiving: db.prepare('SELECT * FROM receiving ORDER BY rowid DESC LIMIT 5').all(), stock: db.prepare('SELECT * FROM stock ORDER BY id').all(), quality: db.prepare('SELECT * FROM quality ORDER BY rowid DESC').all(), dispatch: db.prepare('SELECT * FROM dispatch ORDER BY rowid DESC').all(), users: db.prepare('SELECT * FROM users ORDER BY id').all() }));
 for (const table of ['receiving','stock','quality','dispatch','users']) app.get(`/api/${table}`, (_req, res) => res.json(db.prepare(`SELECT * FROM ${table} ORDER BY rowid DESC`).all()));
