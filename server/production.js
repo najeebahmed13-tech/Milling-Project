@@ -14,6 +14,12 @@ export function registerProductionModule(app, db) {
       capacity_per_shift REAL NOT NULL, capacity_uom TEXT NOT NULL DEFAULT 'MT', shift_hours REAL NOT NULL DEFAULT 8,
       status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS production_shifts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, line_id INTEGER NOT NULL, code TEXT NOT NULL,
+      name TEXT NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+      capacity_mt REAL, status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL,
+      FOREIGN KEY (line_id) REFERENCES production_lines(id), UNIQUE(line_id, code)
+    );
     CREATE TABLE IF NOT EXISTS production_machines (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
       station TEXT NOT NULL, line_id INTEGER, rated_capacity REAL, capacity_uom TEXT NOT NULL DEFAULT 'MT/HOUR',
@@ -37,8 +43,16 @@ export function registerProductionModule(app, db) {
       quality_required INTEGER NOT NULL DEFAULT 0, quality_frequency_minutes INTEGER,
       FOREIGN KEY (routing_id) REFERENCES production_routings(id), UNIQUE(routing_id, sequence)
     );
+    CREATE TABLE IF NOT EXISTS production_route_quality_checks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, route_step_id INTEGER NOT NULL, parameter TEXT NOT NULL,
+      timing TEXT NOT NULL DEFAULT 'AFTER_PROCESS', uom TEXT, required INTEGER NOT NULL DEFAULT 1,
+      frequency_minutes INTEGER, acceptance_rule TEXT, created_at TEXT NOT NULL,
+      FOREIGN KEY (route_step_id) REFERENCES production_route_steps(id),
+      UNIQUE(route_step_id, parameter, timing)
+    );
     CREATE TABLE IF NOT EXISTS production_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT, run_no TEXT NOT NULL UNIQUE, routing_id INTEGER NOT NULL, line_id INTEGER NOT NULL,
+      shift_id INTEGER,
       planned_ffb_qty REAL NOT NULL, status TEXT NOT NULL DEFAULT 'PLANNED', current_step_sequence INTEGER NOT NULL DEFAULT 1,
       started_at TEXT, completed_at TEXT, cpo_output REAL NOT NULL DEFAULT 0, pk_output REAL NOT NULL DEFAULT 0,
       total_loss REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
@@ -54,7 +68,7 @@ export function registerProductionModule(app, db) {
     CREATE TABLE IF NOT EXISTS production_quality_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT, sample_no TEXT NOT NULL UNIQUE, run_id INTEGER NOT NULL, stage_id INTEGER NOT NULL,
       parameter TEXT NOT NULL, result_value TEXT NOT NULL, uom TEXT, status TEXT NOT NULL,
-      tested_at TEXT NOT NULL, tested_by TEXT NOT NULL, remarks TEXT,
+      checkpoint_timing TEXT NOT NULL DEFAULT 'AFTER_PROCESS', tested_at TEXT NOT NULL, tested_by TEXT NOT NULL, remarks TEXT,
       FOREIGN KEY (run_id) REFERENCES production_runs(id), FOREIGN KEY (stage_id) REFERENCES production_run_stages(id)
     );
     CREATE TABLE IF NOT EXISTS production_inventory (
@@ -62,6 +76,8 @@ export function registerProductionModule(app, db) {
       uom TEXT NOT NULL DEFAULT 'MT', updated_at TEXT NOT NULL, PRIMARY KEY(material, location)
     );
   `);
+  try { db.exec('ALTER TABLE production_runs ADD COLUMN shift_id INTEGER REFERENCES production_shifts(id)'); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_quality_results ADD COLUMN checkpoint_timing TEXT NOT NULL DEFAULT 'AFTER_PROCESS'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
 
   const created = now();
   if (!db.prepare('SELECT COUNT(*) count FROM production_lines').get().count) {
@@ -69,6 +85,10 @@ export function registerProductionModule(app, db) {
       .run('LINE-01', 'Main Mill Production Line', 240, 'MT', 8, 'ACTIVE', created);
   }
   const line = db.prepare("SELECT id FROM production_lines WHERE code='LINE-01'").get();
+  if (line && !db.prepare('SELECT COUNT(*) count FROM production_shifts WHERE line_id=?').get(line.id).count) {
+    const insertShift = db.prepare('INSERT INTO production_shifts (line_id,code,name,start_time,end_time,capacity_mt,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
+    [['SHIFT-A','Morning Shift','06:00','14:00',240],['SHIFT-B','Evening Shift','14:00','22:00',240],['SHIFT-C','Night Shift','22:00','06:00',240]].forEach(([code,name,start,end,capacity]) => insertShift.run(line.id, code, name, start, end, capacity, 'ACTIVE', created));
+  }
   if (!db.prepare('SELECT COUNT(*) count FROM production_machines').get().count) {
     const insertMachine = db.prepare('INSERT INTO production_machines (code,name,station,line_id,rated_capacity,capacity_uom,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
     [
@@ -105,16 +125,25 @@ export function registerProductionModule(app, db) {
       [7,'KERNEL_RECOVERY','Nut & Kernel Recovery','Kernel Recovery','Kernel Recovery Line 01','Press Cake','PK + Fibre + Shell',120,1,120]
     ].forEach((step) => insertStep.run(routingId, ...step));
   }
+  const firstRouting = db.prepare("SELECT id FROM production_routings WHERE code='RT-FFB-CPO-PK-01'").get();
+  if (firstRouting && !db.prepare('SELECT COUNT(*) count FROM production_route_quality_checks WHERE route_step_id IN (SELECT id FROM production_route_steps WHERE routing_id=?)').get(firstRouting.id).count) {
+    const checks = db.prepare('INSERT INTO production_route_quality_checks (route_step_id,parameter,timing,uom,required,frequency_minutes,acceptance_rule,created_at) VALUES (?,?,?,?,?,?,?,?)');
+    const steps = db.prepare('SELECT id,sequence FROM production_route_steps WHERE routing_id=?').all(firstRouting.id);
+    steps.forEach((step) => {
+      if ([1, 2, 4, 5, 6].includes(step.sequence)) checks.run(step.id, step.sequence === 1 ? 'FFB Quality' : 'Moisture', step.sequence === 1 ? 'BEFORE_PROCESS' : 'AFTER_PROCESS', step.sequence === 1 ? '' : '%', 1, 120, '', created);
+    });
+  }
   const seedInventory = db.prepare('INSERT OR IGNORE INTO production_inventory (material,location,balance,uom,updated_at) VALUES (?,?,?,?,?)');
   seedInventory.run('CPO', 'CPO Tank 01', 486.2, 'MT', created);
   seedInventory.run('PK', 'Kernel Silo', 128.7, 'MT', created);
 
-  const routingWithSteps = (routing) => ({ ...routing, outputs: parseJson(routing.outputs_json), steps: db.prepare('SELECT * FROM production_route_steps WHERE routing_id=? ORDER BY sequence').all(routing.id) });
+  const routingWithSteps = (routing) => ({ ...routing, outputs: parseJson(routing.outputs_json), steps: db.prepare('SELECT * FROM production_route_steps WHERE routing_id=? ORDER BY sequence').all(routing.id).map((step) => ({ ...step, qualityChecks: db.prepare('SELECT * FROM production_route_quality_checks WHERE route_step_id=? ORDER BY id').all(step.id) })) });
   const runWithDetails = (run) => ({
     ...run,
     routing: db.prepare('SELECT code,name,version FROM production_routings WHERE id=?').get(run.routing_id),
     line: db.prepare('SELECT code,name,capacity_per_shift,capacity_uom FROM production_lines WHERE id=?').get(run.line_id),
-    stages: db.prepare('SELECT * FROM production_run_stages WHERE run_id=? ORDER BY sequence').all(run.id).map((stage) => ({ ...stage, qualityResults: db.prepare('SELECT * FROM production_quality_results WHERE stage_id=? ORDER BY tested_at DESC').all(stage.id) }))
+    shift: run.shift_id ? db.prepare('SELECT id,code,name,start_time,end_time FROM production_shifts WHERE id=?').get(run.shift_id) : null,
+    stages: db.prepare('SELECT * FROM production_run_stages WHERE run_id=? ORDER BY sequence').all(run.id).map((stage) => ({ ...stage, qualityChecks: db.prepare('SELECT * FROM production_route_quality_checks WHERE route_step_id=? ORDER BY id').all(stage.route_step_id), qualityResults: db.prepare('SELECT * FROM production_quality_results WHERE stage_id=? ORDER BY tested_at DESC').all(stage.id) }))
   });
   const availability = () => {
     const received = Number(db.prepare("SELECT COALESCE(SUM(COALESCE(accepted_qty,net_weight)),0) qty FROM ffb_receipts WHERE state='READY_TO_POST'").get().qty || 0);
@@ -129,6 +158,7 @@ export function registerProductionModule(app, db) {
     });
     res.json({
       availableFfb: availability(), lines,
+      shifts: db.prepare('SELECT * FROM production_shifts WHERE status=\'ACTIVE\' ORDER BY line_id,start_time').all(),
       stations: db.prepare('SELECT * FROM production_stations ORDER BY sequence,name').all(),
       machines: db.prepare('SELECT * FROM production_machines ORDER BY station,name').all(),
       routings: db.prepare('SELECT * FROM production_routings ORDER BY id DESC').all().map(routingWithSteps),
@@ -142,6 +172,14 @@ export function registerProductionModule(app, db) {
     if (!body.code || !body.name || !Number.isFinite(capacity) || capacity <= 0) return res.status(400).json({ message: 'Line code, name and positive capacity per shift are required.' });
     try { const info = db.prepare('INSERT INTO production_lines (code,name,capacity_per_shift,capacity_uom,shift_hours,status,created_at) VALUES (?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), capacity, body.capacityUom || 'MT', shiftHours, 'ACTIVE', now()); res.status(201).json(db.prepare('SELECT * FROM production_lines WHERE id=?').get(info.lastInsertRowid)); }
     catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Production line code must be unique.' : 'Unable to save production line.' }); }
+  });
+
+  app.post('/api/production/shifts', (req, res) => {
+    const body = req.body; const capacity = body.capacityMt === '' || body.capacityMt === undefined ? null : Number(body.capacityMt);
+    if (!body.lineId || !body.code || !body.name || !body.startTime || !body.endTime) return res.status(400).json({ message: 'Line, shift code, name, start time and end time are required.' });
+    if (capacity !== null && (!Number.isFinite(capacity) || capacity <= 0)) return res.status(400).json({ message: 'Shift capacity must be positive when supplied.' });
+    try { const info = db.prepare('INSERT INTO production_shifts (line_id,code,name,start_time,end_time,capacity_mt,status,created_at) VALUES (?,?,?,?,?,?,?,?)').run(Number(body.lineId), body.code.trim().toUpperCase(), body.name.trim(), body.startTime, body.endTime, capacity, 'ACTIVE', now()); res.status(201).json(db.prepare('SELECT * FROM production_shifts WHERE id=?').get(info.lastInsertRowid)); }
+    catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Shift code must be unique for this production line.' : 'Unable to save shift.' }); }
   });
 
   app.post('/api/production/machines', (req, res) => {
@@ -165,7 +203,12 @@ export function registerProductionModule(app, db) {
       const info = db.prepare('INSERT INTO production_routings (code,name,version,input_material,outputs_json,status,created_at) VALUES (?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), Number(body.version || 1), body.inputMaterial || 'FFB', JSON.stringify(body.outputs || ['CPO','PK']), 'ACTIVE', now());
       const routingId = Number(info.lastInsertRowid);
       const insert = db.prepare('INSERT INTO production_route_steps (routing_id,sequence,code,name,station,machine,input_material,output_material,planned_duration_minutes,quality_required,quality_frequency_minutes) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
-      body.steps.forEach((step, index) => insert.run(routingId, index + 1, step.code || `STEP-${index + 1}`, step.name, step.station, step.machine || '', step.inputMaterial || '', step.outputMaterial || '', Number(step.durationMinutes || 60), step.qualityRequired ? 1 : 0, step.qualityFrequencyMinutes ? Number(step.qualityFrequencyMinutes) : null));
+      body.steps.forEach((step, index) => {
+        const stepInfo = insert.run(routingId, index + 1, step.code || `STEP-${index + 1}`, step.name, step.station, step.machine || '', step.inputMaterial || '', step.outputMaterial || '', Number(step.durationMinutes || 60), Array.isArray(step.qualityChecks) && step.qualityChecks.length ? 1 : 0, step.qualityFrequencyMinutes ? Number(step.qualityFrequencyMinutes) : null);
+        const checks = Array.isArray(step.qualityChecks) ? step.qualityChecks : (step.qualityParameter ? [{ parameter: step.qualityParameter, timing: step.qualityTiming, uom: step.qualityUom, frequencyMinutes: step.qualityFrequencyMinutes }] : []);
+        const checkInsert = db.prepare('INSERT INTO production_route_quality_checks (route_step_id,parameter,timing,uom,required,frequency_minutes,acceptance_rule,created_at) VALUES (?,?,?,?,?,?,?,?)');
+        checks.filter((check) => check.parameter).forEach((check) => checkInsert.run(Number(stepInfo.lastInsertRowid), check.parameter.trim(), check.timing || 'AFTER_PROCESS', check.uom || '', check.required === false ? 0 : 1, check.frequencyMinutes ? Number(check.frequencyMinutes) : null, check.acceptanceRule || '', now()));
+      });
       return routingId;
     });
     try { const id = save(); res.status(201).json(routingWithSteps(db.prepare('SELECT * FROM production_routings WHERE id=?').get(id))); }
@@ -176,13 +219,14 @@ export function registerProductionModule(app, db) {
     const body = req.body; const quantity = Number(body.plannedFfbQty);
     const routing = db.prepare("SELECT * FROM production_routings WHERE id=? AND status='ACTIVE'").get(body.routingId);
     const lineRecord = db.prepare("SELECT * FROM production_lines WHERE id=? AND status='ACTIVE'").get(body.lineId);
-    if (!routing || !lineRecord || !Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ message: 'Active routing, production line and positive FFB quantity are required.' });
+    const shift = db.prepare("SELECT * FROM production_shifts WHERE id=? AND line_id=? AND status='ACTIVE'").get(body.shiftId, body.lineId);
+    if (!routing || !lineRecord || !shift || !Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ message: 'Active routing, production line, shift and positive FFB quantity are required.' });
     const reserved = Number(db.prepare("SELECT COALESCE(SUM(planned_ffb_qty),0) qty FROM production_runs WHERE line_id=? AND status IN ('PLANNED','IN_PROGRESS')").get(lineRecord.id).qty || 0);
     if (quantity > availability()) return res.status(409).json({ message: `Only ${availability().toFixed(3)} MT of received FFB is available.` });
     if (quantity > lineRecord.capacity_per_shift - reserved) return res.status(409).json({ message: `Only ${Math.max(0, lineRecord.capacity_per_shift - reserved).toFixed(3)} MT of line capacity is available.` });
     const createRun = db.transaction(() => {
       const runNo = reference('PR');
-      const info = db.prepare('INSERT INTO production_runs (run_no,routing_id,line_id,planned_ffb_qty,status,current_step_sequence,created_at) VALUES (?,?,?,?,?,?,?)').run(runNo, routing.id, lineRecord.id, quantity, 'PLANNED', 1, now());
+      const info = db.prepare('INSERT INTO production_runs (run_no,routing_id,line_id,shift_id,planned_ffb_qty,status,current_step_sequence,created_at) VALUES (?,?,?,?,?,?,?,?)').run(runNo, routing.id, lineRecord.id, shift.id, quantity, 'PLANNED', 1, now());
       const runId = Number(info.lastInsertRowid);
       const steps = db.prepare('SELECT * FROM production_route_steps WHERE routing_id=? ORDER BY sequence').all(routing.id);
       const insert = db.prepare('INSERT INTO production_run_stages (run_id,route_step_id,sequence,stage_name,station,machine,status,quality_required,quality_frequency_minutes) VALUES (?,?,?,?,?,?,?,?,?)');
@@ -221,7 +265,7 @@ export function registerProductionModule(app, db) {
     if (!stage) return res.status(404).json({ message: 'Production stage not found.' });
     if (!req.body.parameter || req.body.resultValue === undefined || !req.body.status) return res.status(400).json({ message: 'Quality parameter, result and status are required.' });
     const sampleNo = reference('QS');
-    const info = db.prepare('INSERT INTO production_quality_results (sample_no,run_id,stage_id,parameter,result_value,uom,status,tested_at,tested_by,remarks) VALUES (?,?,?,?,?,?,?,?,?,?)').run(sampleNo, req.params.runId, stage.id, req.body.parameter, String(req.body.resultValue), req.body.uom || '', req.body.status, now(), req.body.testedBy || 'Sean Shapiro', req.body.remarks || '');
+    const info = db.prepare('INSERT INTO production_quality_results (sample_no,run_id,stage_id,parameter,result_value,uom,status,checkpoint_timing,tested_at,tested_by,remarks) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(sampleNo, req.params.runId, stage.id, req.body.parameter, String(req.body.resultValue), req.body.uom || '', req.body.status, req.body.timing || 'AFTER_PROCESS', now(), req.body.testedBy || 'Sean Shapiro', req.body.remarks || '');
     res.status(201).json(db.prepare('SELECT * FROM production_quality_results WHERE id=?').get(info.lastInsertRowid));
   });
 

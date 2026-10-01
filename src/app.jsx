@@ -155,10 +155,10 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "masters" ? (
             <div
               key={id}
-              className={`nav-group ${active === "masters" || active === "items" || active === "masterProductionLines" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active-group" : ""}`}
+              className={`nav-group ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "masters" || active === "items" || active === "masterProductionLines" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active" : ""}`}
+                className={`nav-item ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active" : ""}`}
                 onClick={() => setActive("masters")}
               >
                 <span className="nav-icon">{icon}</span>
@@ -166,7 +166,6 @@ function Header({ active, setActive, search, setSearch }) {
               </button>
               <div className="header-submenu master-submenu">
                 <button onClick={() => setActive("masters")}>Master Data Overview</button>
-                <button onClick={() => setActive("masterProductionLines")}>Production Line Master</button>
                 <button onClick={() => setActive("masterStations")}>Station Master</button>
                 <button onClick={() => setActive("masterMachines")}>Machine Master</button>
                 <button onClick={() => setActive("master:uoms")}>Units of Measure</button>
@@ -187,10 +186,10 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "production" ? (
             <div
               key={id}
-              className={`nav-group ${active === "production" || active === "productionRouting" ? "active-group" : ""}`}
+              className={`nav-group ${active === "production" || active === "productionRouting" || active === "masterProductionLines" ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "production" || active === "productionRouting" ? "active" : ""}`}
+                className={`nav-item ${active === "production" || active === "productionRouting" || active === "masterProductionLines" ? "active" : ""}`}
                 onClick={() => setActive("production")}
               >
                 <span className="nav-icon">{icon}</span>
@@ -199,6 +198,7 @@ function Header({ active, setActive, search, setSearch }) {
               <div className="header-submenu">
                 <button onClick={() => setActive("production")}>Production Runs</button>
                 <button onClick={() => setActive("productionRouting")}>Routing</button>
+                <button onClick={() => setActive("masterProductionLines")}>Production Line</button>
               </div>
             </div>
           ) : id === "stock" ? (
