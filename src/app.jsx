@@ -150,7 +150,7 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "finance" ? (
             <div key={id} className={`nav-group ${active === "finance" || active === "purchaseInvoices" || active === "salesInvoice" || active === "salesInvoiceAdd" || active === "payments" || active === "paymentsAdd" ? "active-group" : ""}`}>
               <button className={`nav-item ${active === "finance" || active === "purchaseInvoices" || active === "salesInvoice" || active === "salesInvoiceAdd" || active === "payments" || active === "paymentsAdd" ? "active" : ""}`} onClick={() => setActive("finance")}><span className="nav-icon">{icon}</span><span>Finance</span></button>
-              <div className="header-submenu"><button onClick={() => setActive("finance")}>Finance Overview</button><button onClick={() => setActive("purchaseInvoices")}>Purchase Invoice</button><button onClick={() => setActive("salesInvoice")}>Sales Invoice</button><button onClick={() => setActive("salesInvoiceAdd")}>New Sales Invoice</button><button onClick={() => setActive("payments")}>Payments</button><button onClick={() => setActive("paymentsAdd")}>New Payment</button></div>
+              <div className="header-submenu"><button onClick={() => setActive("finance")}>Finance Overview</button><button onClick={() => setActive("purchaseInvoices")}>Purchase Invoice</button><button onClick={() => setActive("salesInvoice")}>Sales Invoice</button><button onClick={() => setActive("payments")}>Payments</button><button onClick={() => setActive("paymentsAdd")}>New Payment</button></div>
             </div>
           ) : id === "masters" ? (
             <div
@@ -871,7 +871,7 @@ function App() {
       ) : active === "purchaseInvoices" ? (
         <PurchaseInvoicesPage rows={data.purchaseInvoices} onRefresh={load} />
       ) : active === "salesInvoice" ? (
-        <SalesInvoicesPage rows={data.salesInvoices} onRefresh={load} />
+        <SalesInvoicesPage rows={data.salesInvoices} onRefresh={load} onNew={() => setActive("salesInvoiceAdd")} />
       ) : active === "salesInvoiceAdd" ? (
         <SalesInvoiceForm onSaved={() => setToast("Sales invoice saved as draft")} />
       ) : active === "payments" ? (
