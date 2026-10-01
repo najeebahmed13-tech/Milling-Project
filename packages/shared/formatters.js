@@ -1,6 +1,6 @@
 export function formatQuantity(value, uom = 't', maximumFractionDigits = 2) {
   const number = Number(value);
-  const displayUom = /^(t|mt)$/i.test(String(uom).trim()) ? 'Metric Ton MT' : uom;
+  const displayUom = /^(t|mt)$/i.test(String(uom).trim()) ? 'MT' : uom;
   if (!Number.isFinite(number)) return `— ${displayUom}`;
   return `${new Intl.NumberFormat(undefined, { maximumFractionDigits, minimumFractionDigits: 0 }).format(number)} ${displayUom}`;
 }

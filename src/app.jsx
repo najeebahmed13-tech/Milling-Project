@@ -51,7 +51,7 @@ const tone = (value) =>
       : /accepted|pass|released|available|completed/i.test(value)
         ? "success"
         : "neutral";
-const displayUom = (unit = "t") => /^(t|mt)$/i.test(String(unit).trim()) ? "Metric Ton MT" : unit;
+const displayUom = (unit = "t") => /^(t|mt)$/i.test(String(unit).trim()) ? "MT" : unit;
 const qty = (value, unit = "t") =>
   `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${displayUom(unit)}`;
 function Badge({ children }) {
