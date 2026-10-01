@@ -903,7 +903,7 @@ function App() {
       ) : active === "items" ? (
         <ItemsPage rows={data.items} onSaved={load} />
       ) : ["tankFarm", "kernelWarehouse", "efbStorage"].includes(active) ? (
-        <StorageAreaPage area={active} rows={data.stock} quality={data.quality} />
+        <StorageAreaPage area={active} rows={data.stock} quality={data.quality} dispatch={data.dispatch} />
       ) : active === "receiving" ? (
         <FFBReceivingPage rows={data.ffbReceiving} suppliers={data.suppliers} onSaved={load} onOpenGrading={(id) => { setGradingFocusId(id); setActive("grading"); }} />
       ) : active === "grading" ? (

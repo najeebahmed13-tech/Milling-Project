@@ -1,48 +1,40 @@
 import React, { useMemo, useState } from "react";
 import "./storage-areas.css";
+import "./storage-details.css";
 
 const areaConfig = {
-  tankFarm: {
-    title: "Tank Farm",
-    material: "CPO",
-    subtitle: "Bulk CPO storage, release status and tank inventory visibility.",
-    locations: ["CPO Tank 01"],
-    storageType: "Bulk liquid tank",
-    control: "FFA, moisture and dirt release checks",
-  },
-  kernelWarehouse: {
-    title: "Kernel Warehouse",
-    material: "Palm Kernel",
-    subtitle: "Palm Kernel warehouse stock, storage location and availability.",
-    locations: ["Kernel Silo"],
-    storageType: "Dry bulk warehouse / silo",
-    control: "Moisture, infestation and lot traceability",
-  },
-  efbStorage: {
-    title: "EFB Storage",
-    material: "EFB",
-    subtitle: "Empty Fruit Bunch storage balance, availability and handling information.",
-    locations: ["EFB Storage"],
-    storageType: "Covered residue storage",
-    control: "Moisture, yard condition and movement tracking",
-  },
+  tankFarm: { title: "Tank Farm", material: "CPO", subtitle: "Bulk CPO storage, release status and tank inventory visibility.", units: ["CPO Tank 01", "CPO Tank 02", "CPO Tank 03"], storageType: "Bulk liquid tank", control: "FFA, moisture and dirt release checks" },
+  kernelWarehouse: { title: "Kernel Warehouse", material: "Palm Kernel", subtitle: "Palm Kernel silo stock, storage location and availability.", units: ["Kernel Silo 01", "Kernel Silo 02", "Kernel Silo 03"], storageType: "Dry bulk warehouse / silo", control: "Moisture, infestation and lot traceability" },
+  efbStorage: { title: "EFB Storage", material: "EFB", subtitle: "Empty Fruit Bunch storage balance, availability and handling information.", units: ["EFB Storage"], storageType: "Covered residue storage", control: "Moisture, yard condition and movement tracking" },
 };
-
 const formatQty = (value) => `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 3 })} MT`;
+const statusClass = (value) => /release|available/i.test(value) ? "customer-status" : "customer-status warning";
 
-export function StorageAreaPage({ area, rows = [], quality = [] }) {
+function UnitDetails({ config, unit, row, quality, dispatch, onBack }) {
+  const [tab, setTab] = useState("summary");
+  const unitQuality = quality.filter((item) => item.source === unit || item.source.toLowerCase().includes(config.material.toLowerCase()));
+  const unitDispatch = dispatch.filter((item) => item.material === config.material && (item.status || "").toLowerCase() !== "cancelled");
+  const record = row || { material: config.material, location: unit, balance: 0, state: "No stock recorded", trend: "—" };
+  return <main className="storage-page">
+    <div className="customer-breadcrumb"><button className="table-link" onClick={onBack}>Stock</button><b>›</b><button className="table-link" onClick={onBack}>{config.title}</button><b>›</b><strong>{unit}</strong></div>
+    <div className="storage-detail-heading"><div><div className="eyebrow">{config.title.toUpperCase()} / STORAGE UNIT</div><h1>{unit}</h1><p>{config.material} inventory, quality history and dispatch activity.</p></div><button className="btn btn-secondary" onClick={onBack}>Back to {config.title}</button></div>
+    <div className="storage-tabs"><button className={tab === "summary" ? "active" : ""} onClick={() => setTab("summary")}>Summary</button><button className={tab === "quality" ? "active" : ""} onClick={() => setTab("quality")}>Quality <small>{unitQuality.length}</small></button><button className={tab === "dispatch" ? "active" : ""} onClick={() => setTab("dispatch")}>Dispatch <small>{unitDispatch.length}</small></button></div>
+    {tab === "summary" && <><section className="storage-kpis"><article><span>Current balance</span><strong>{formatQty(record.balance)}</strong><small>{record.material}</small></article><article><span>Storage unit</span><strong>{unit}</strong><small>{config.storageType}</small></article><article><span>Stock status</span><strong className={statusClass(record.state)}>{record.state}</strong><small>{record.trend || "—"} movement trend</small></article><article><span>Traceability</span><strong>Batch / lot</strong><small>{config.control}</small></article></section><section className="storage-lower-grid"><article className="panel storage-info"><h2>Storage information</h2><dl><div><dt>Material</dt><dd>{config.material}</dd></div><div><dt>Location / unit</dt><dd>{unit}</dd></div><div><dt>UOM</dt><dd>MT</dd></div><div><dt>Storage type</dt><dd>{config.storageType}</dd></div><div><dt>Quality control</dt><dd>{config.control}</dd></div></dl></article><article className="panel storage-info"><h2>Operational status</h2><dl><div><dt>Balance</dt><dd>{formatQty(record.balance)}</dd></div><div><dt>Availability</dt><dd>{record.state}</dd></div><div><dt>Movement trend</dt><dd>{record.trend || "—"}</dd></div><div><dt>Dispatch records</dt><dd>{unitDispatch.length}</dd></div></dl></article></section></>}
+    {tab === "quality" && <section className="panel storage-panel"><div className="storage-section-heading"><div><h2>Quality records</h2><p>Quality checks associated with {unit}.</p></div></div><div className="table-wrap"><table><thead><tr><th>Sample</th><th>Parameter</th><th>Result</th><th>Status</th><th>Due / Tested</th></tr></thead><tbody>{unitQuality.map((item) => <tr key={item.id}><td>{item.id}</td><td><strong>{item.parameter}</strong></td><td>{item.result}</td><td><span className={statusClass(item.status)}>{item.status}</span></td><td>{item.due}</td></tr>)}{!unitQuality.length && <tr><td colSpan="5" className="items-empty">No quality records are currently recorded for this storage unit.</td></tr>}</tbody></table></div></section>}
+    {tab === "dispatch" && <section className="panel storage-panel"><div className="storage-section-heading"><div><h2>Dispatch records</h2><p>Outbound movements for {config.material}.</p></div></div><div className="table-wrap"><table><thead><tr><th>Dispatch</th><th>Customer</th><th>Quantity</th><th>Status</th><th>Time</th></tr></thead><tbody>{unitDispatch.map((item) => <tr key={item.id}><td><strong>{item.id}</strong></td><td>{item.customer}</td><td>{formatQty(item.quantity)}</td><td><span className={statusClass(item.status)}>{item.status}</span></td><td>{item.time}</td></tr>)}{!unitDispatch.length && <tr><td colSpan="5" className="items-empty">No dispatch records are currently recorded for this storage unit.</td></tr>}</tbody></table></div></section>}
+  </main>;
+}
+
+export function StorageAreaPage({ area, rows = [], quality = [], dispatch = [] }) {
   const config = areaConfig[area] || areaConfig.tankFarm;
   const [search, setSearch] = useState("");
-  const records = useMemo(() => rows.filter((row) => row.material === config.material || config.locations.includes(row.location)).filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(search.toLowerCase()))), [rows, config, search]);
-  const primary = records[0] || { material: config.material, location: config.locations[0], balance: 0, state: "No stock recorded", trend: "—" };
-  const relatedQuality = quality.filter((row) => row.source === primary.location || row.source.toLowerCase().includes(config.material.toLowerCase()));
-  const statusClass = /release|available/i.test(primary.state) ? "storage-status available" : "storage-status";
-
+  const [selectedUnit, setSelectedUnit] = useState(null);
+  const units = useMemo(() => config.units.map((unit) => ({ location: unit, ...(rows.find((row) => row.location === unit || (row.material === config.material && config.units.length === 1)) || {}), material: config.material })).filter((unit) => Object.values(unit).some((value) => String(value).toLowerCase().includes(search.toLowerCase()))), [config, rows, search]);
+  if (selectedUnit) return <UnitDetails config={config} unit={selectedUnit.location} row={selectedUnit.id ? selectedUnit : null} quality={quality} dispatch={dispatch} onBack={() => setSelectedUnit(null)} />;
   return <main className="storage-page">
     <div className="customer-breadcrumb"><span>Stock</span><b>›</b><strong>{config.title}</strong></div>
     <div className="customer-list-heading"><div><div className="eyebrow">STOCK / STORAGE</div><h1>{config.title}</h1><p>{config.subtitle}</p></div></div>
-    <section className="storage-kpis"><article><span>Current balance</span><strong>{formatQty(primary.balance)}</strong><small>{primary.material}</small></article><article><span>Storage location</span><strong>{primary.location}</strong><small>{config.storageType}</small></article><article><span>Stock status</span><strong className={statusClass}>{primary.state}</strong><small>{primary.trend} movement trend</small></article><article><span>Control focus</span><strong>{config.control}</strong><small>Configured quality and handling controls</small></article></section>
-    <section className="panel storage-panel"><div className="items-toolbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${config.title.toLowerCase()} records...`} /><span>{records.length} storage record{records.length === 1 ? "" : "s"}</span></div><div className="table-wrap"><table><thead><tr><th>Material</th><th>Location / Unit</th><th>Balance</th><th>UOM</th><th>State</th><th>Trend</th></tr></thead><tbody>{records.map((row) => <tr key={row.id || `${row.material}-${row.location}`}><td><strong>{row.material}</strong></td><td>{row.location}</td><td>{formatQty(row.balance).replace(" MT", "")}</td><td>MT</td><td><span className={/release|available/i.test(row.state) ? "customer-status" : "customer-status warning"}>{row.state}</span></td><td>{row.trend || "—"}</td></tr>)}{!records.length && <tr><td colSpan="6" className="items-empty">No stock records found for this storage area.</td></tr>}</tbody></table></div></section>
-    <section className="storage-lower-grid"><article className="panel storage-info"><h2>Storage information</h2><dl><div><dt>Material</dt><dd>{config.material}</dd></div><div><dt>Storage type</dt><dd>{config.storageType}</dd></div><div><dt>Traceability</dt><dd>Batch / lot movement</dd></div><div><dt>Quality control</dt><dd>{config.control}</dd></div></dl></article><article className="panel storage-info"><h2>Latest quality checks</h2>{relatedQuality.length ? <div className="storage-quality-list">{relatedQuality.slice(0, 5).map((row) => <div key={row.id}><strong>{row.parameter}</strong><span>{row.result}</span><small>{row.status} · {row.due}</small></div>)}</div> : <p className="storage-empty-copy">No quality checks are currently recorded for this storage area.</p>}</article></section>
+    <section className="storage-kpis"><article><span>Storage units</span><strong>{units.length}</strong><small>Configured units</small></article><article><span>Total balance</span><strong>{formatQty(units.reduce((sum, unit) => sum + Number(unit.balance || 0), 0))}</strong><small>{config.material}</small></article><article><span>Storage type</span><strong>{config.storageType}</strong><small>Mill storage area</small></article><article><span>Control focus</span><strong>{config.control}</strong><small>Quality and handling controls</small></article></section>
+    <section className="panel storage-panel"><div className="items-toolbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${config.title.toLowerCase()} units...`} /><span>{units.length} unit{units.length === 1 ? "" : "s"}</span></div><div className="table-wrap"><table><thead><tr><th>Storage unit</th><th>Material</th><th>Balance</th><th>State</th><th>Trend</th><th>Action</th></tr></thead><tbody>{units.map((unit) => <tr key={unit.location}><td><strong>{unit.location}</strong></td><td>{unit.material}</td><td>{formatQty(unit.balance)}</td><td><span className={statusClass(unit.state || "No stock recorded")}>{unit.state || "No stock recorded"}</span></td><td>{unit.trend || "—"}</td><td><button className="table-link" onClick={() => setSelectedUnit(unit)}>View details</button></td></tr>)}{!units.length && <tr><td colSpan="6" className="items-empty">No storage units found.</td></tr>}</tbody></table></div></section>
   </main>;
 }
