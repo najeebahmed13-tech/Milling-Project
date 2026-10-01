@@ -166,7 +166,6 @@ function Header({ active, setActive, search, setSearch }) {
               </button>
               <div className="header-submenu master-submenu">
                 <button onClick={() => setActive("masters")}>Master Data Overview</button>
-                <button onClick={() => setActive("items")}>Item Master</button>
                 <button onClick={() => setActive("masterProductionLines")}>Production Line Master</button>
                 <button onClick={() => setActive("masterStations")}>Station Master</button>
                 <button onClick={() => setActive("masterMachines")}>Machine Master</button>
@@ -216,6 +215,7 @@ function Header({ active, setActive, search, setSearch }) {
               </button>
               <div className="header-submenu">
                 <button onClick={() => setActive("stock")}>Stock</button>
+                <button onClick={() => setActive("items")}>Products</button>
                 <button onClick={() => setActive("receiving")}>FFB Receiving</button>
                 <button onClick={() => setActive("grading")}>FFB Grading</button>
               </div>
