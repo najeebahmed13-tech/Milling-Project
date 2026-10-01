@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ROCKEYE ERP + MES Domain Event & Outbox Contracts",
+  "version": "1.0.0",
+  "standardEventEnvelope": {
+    "type": "object",
+    "required": ["eventId", "eventName", "tenantId", "millId", "entityType", "entityId", "timestamp", "payload"],
+    "properties": {
+      "eventId": { "type": "string" },
+      "eventName": { "type": "string" },
+      "tenantId": { "type": "string" },
+      "millId": { "type": "string" },
+      "entityType": { "type": "string" },
+      "entityId": { "type": "string" },
+      "timestamp": { "type": "string", "format": "date-time" },
+      "payload": { "type": "object" }
+    }
+  },
+  "events": [
+    "weighbridge.ticket.recorded",
+    "weighbridge.ticket.completed",
+    "ffb.receipt.created",
+    "ffb.receipt.graded",
+    "ffb.receipt.posted",
+    "ffb.receipt.reversed",
+    "production.run.started",
+    "production.stage.executed",
+    "production.run.completed",
+    "inventory.movement.posted",
+    "inventory.movement.reversed",
+    "quality.sample.recorded",
+    "contract.status.changed"
+  ]
+}
+

@@ -1,0 +1,11 @@
+# Production Environment Configuration
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=postgres://user:password@db-host:5432/rockeye_prod
+CORS_ORIGIN=https://milling.rockeye.internal
+SESSION_SECRET=REPLACE_WITH_SECURE_RANDOM_HEX_64_CHARS
+JWT_PRIVATE_KEY_PATH=/etc/rockeye/keys/jwt_private.pem
+AUDIT_LOG_STORAGE_PATH=/var/log/rockeye/audit.log
+ENABLE_RATE_LIMIT=true
+MAX_REQUESTS_PER_MINUTE=120
+

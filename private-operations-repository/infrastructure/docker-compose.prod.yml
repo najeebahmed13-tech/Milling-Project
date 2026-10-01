@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app-server:
+    image: rockeye/erp-mes-api:latest
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://rockeye_admin:${DB_PASSWORD}@db-primary:5432/rockeye_prod
+    depends_on:
+      - db-primary
+    ports:
+      - "3000:3000"
+
+  web-client:
+    image: rockeye/erp-mes-client:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+
+  db-primary:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: rockeye_prod
+      POSTGRES_USER: rockeye_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+

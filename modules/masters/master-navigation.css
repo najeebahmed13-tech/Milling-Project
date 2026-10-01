@@ -1,0 +1,12 @@
+.master-submenu {
+  left: auto;
+  right: 0;
+  transform: none;
+  min-width: 250px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.master-submenu button {
+  white-space: nowrap;
+}

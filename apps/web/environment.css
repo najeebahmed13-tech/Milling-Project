@@ -1,0 +1,6 @@
+/* Environment indicator intentionally sits before the product brand in the shell. */
+.topbar{padding-left:0}
+.brand-block{min-width:300px;gap:11px}
+.brand-block::before{content:'DEMO';width:24px;height:90px;display:flex;align-items:center;justify-content:center;background:#eef4ff;color:#3977d4;font-size:11px;font-weight:800;letter-spacing:1px;writing-mode:vertical-rl;transform:rotate(180deg);border-right:1px solid #dbe6fb;flex:0 0 24px}
+@media (max-width:1250px){.topbar{padding-left:0}.brand-block{min-width:270px}}
+@media (max-width:850px){.brand-block{min-width:0}.brand-block::before{width:18px;flex-basis:18px;font-size:9px}}

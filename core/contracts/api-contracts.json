@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ROCKEYE ERP + MES API Contracts",
+  "version": "1.0.0",
+  "description": "Standardized RESTful API contract specifications for multi-tenant palm oil mill operations",
+  "endpoints": {
+    "weighbridgeTickets": {
+      "basePath": "/api/v1/weighbridge-tickets",
+      "methods": {
+        "GET": {
+          "description": "List weighbridge tickets scoped by tenant and mill",
+          "queryParams": ["millId", "dateFrom", "dateTo", "status", "page", "pageSize"],
+          "response": { "type": "array", "itemType": "WeighbridgeTicket" }
+        },
+        "POST": {
+          "description": "Record gross or tare weighment",
+          "headers": ["Idempotency-Key"],
+          "body": {
+            "required": ["millId", "ticketNumber", "vehicleId", "driverName", "weighType", "weightKg"],
+            "properties": {
+              "millId": { "type": "string" },
+              "ticketNumber": { "type": "string" },
+              "vehicleId": { "type": "string" },
+              "driverName": { "type": "string" },
+              "weighType": { "type": "string", "enum": ["INBOUND_FIRST", "INBOUND_SECOND", "OUTBOUND_FIRST", "OUTBOUND_SECOND"] },
+              "weightKg": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "ffbReceipts": {
+      "basePath": "/api/v1/ffb-receipts",
+      "methods": {
+        "GET": {
+          "description": "List FFB receipts with grading and weighbridge status",
+          "queryParams": ["millId", "supplierId", "status", "page", "pageSize"]
+        },
+        "POST": {
+          "description": "Create FFB receiving delivery draft",
+          "headers": ["Idempotency-Key"],
+          "body": {
+            "required": ["millId", "supplierId", "purchaseContractId", "weighbridgeTicketId"],
+            "properties": {
+              "millId": { "type": "string" },
+              "supplierId": { "type": "string" },
+              "purchaseContractId": { "type": "string" },
+              "weighbridgeTicketId": { "type": "string" }
+            }
+          }
+        },
+        "POST_CONFIRM": {
+          "path": "/api/v1/ffb-receipts/:id/confirm",
+          "description": "Atomically confirm FFB receipt, validate disposition reconciliation, allocate contract, create lot, and post inventory ledger",
+          "headers": ["Idempotency-Key"],
+          "body": {
+            "required": ["acceptedWeightKg", "rejectedWeightKg"],
+            "properties": {
+              "acceptedWeightKg": { "type": "number", "minimum": 0 },
+              "rejectedWeightKg": { "type": "number", "minimum": 0 },
+              "rejectionReasonId": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "productionRuns": {
+      "basePath": "/api/v1/production-runs",
+      "methods": {
+        "GET": {
+          "description": "List production runs for a mill",
+          "queryParams": ["millId", "lineId", "status", "page", "pageSize"]
+        },
+        "POST": {
+          "description": "Create and start a new production run",
+          "headers": ["Idempotency-Key"],
+          "body": {
+            "required": ["millId", "productionLineId", "routingId", "shiftId", "targetFfbQuantityMt"],
+            "properties": {
+              "millId": { "type": "string" },
+              "productionLineId": { "type": "string" },
+              "routingId": { "type": "string" },
+              "shiftId": { "type": "string" },
+              "targetFfbQuantityMt": { "type": "number", "minimum": 0.01 }
+            }
+          }
+        },
+        "POST_STAGE_EXECUTE": {
+          "path": "/api/v1/production-runs/:id/execute-stage",
+          "description": "Post stage operation, machine parameters, inputs, outputs, and losses",
+          "body": {
+            "required": ["stageCode", "machineId", "inputs", "outputs"],
+            "properties": {
+              "stageCode": { "type": "string" },
+              "machineId": { "type": "string" },
+              "inputs": { "type": "array" },
+              "outputs": { "type": "array" },
+              "losses": { "type": "array" }
+            }
+          }
+        }
+      }
+    },
+    "contracts": {
+      "basePath": "/api/v1/contracts",
+      "methods": {
+        "GET": {
+          "description": "List purchase and sales contracts with utilization balances",
+          "queryParams": ["contractType", "partyId", "status", "page", "pageSize"]
+        },
+        "POST": {
+          "description": "Create contract draft",
+          "body": {
+            "required": ["contractNumber", "contractType", "partyId", "materialId", "totalQuantityMt", "unitPrice"],
+            "properties": {
+              "contractNumber": { "type": "string" },
+              "contractType": { "type": "string", "enum": ["PURCHASE", "SALES"] },
+              "partyId": { "type": "string" },
+              "materialId": { "type": "string" },
+              "totalQuantityMt": { "type": "number", "minimum": 0.01 },
+              "unitPrice": { "type": "number", "minimum": 0.01 }
+            }
+          }
+        }
+      }
+    },
+    "directPurchases": {
+      "basePath": "/api/direct-purchases",
+      "methods": {
+        "POST": {
+          "description": "Atomically post a tenant/mill-scoped direct purchase and create its mapped purchase invoice",
+          "headers": ["Idempotency-Key", "X-Tenant-Id", "X-Mill-Id"],
+          "body": {
+            "required": ["supplierId", "purchaseDate", "currency", "lines"],
+            "properties": {
+              "supplierId": { "type": "integer", "minimum": 1 },
+              "purchaseDate": { "type": "string", "format": "date" },
+              "currency": { "type": "string" },
+              "invoiceNumber": { "type": "string" },
+              "taxRate": { "type": "number", "minimum": 0 },
+              "lines": { "type": "array", "minItems": 1, "items": { "required": ["itemId", "quantity", "unitPrice"] } }
+            }
+          }
+        }
+      }
+    },
+    "purchaseInvoices": {
+      "basePath": "/api/purchase-invoices",
+      "methods": {
+        "GET": { "description": "List purchase invoices scoped by tenant and mill" },
+        "GET_DETAIL": { "path": "/api/purchase-invoices/:id", "description": "Read invoice lines and mapped direct purchase source" },
+        "PATCH": { "path": "/api/purchase-invoices/:id", "description": "Update a draft invoice only; posted and voided invoices are immutable", "body": { "required": ["invoiceDate", "currency", "lines"] } }
+      }
+    }
+  }
+}
+

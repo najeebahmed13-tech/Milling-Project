@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ROCKEYE ERP + MES Error Contracts",
+  "version": "1.0.0",
+  "standardEnvelope": {
+    "type": "object",
+    "required": ["success", "error"],
+    "properties": {
+      "success": { "type": "boolean", "const": false },
+      "error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": { "type": ["object", "null"] },
+          "correlationId": { "type": "string" }
+        }
+      }
+    }
+  },
+  "standardErrorCodes": {
+    "UNAUTHORIZED": "Caller identity is not authenticated",
+    "FORBIDDEN": "Caller lacks sufficient permission for this resource/action",
+    "TENANT_MISMATCH": "Resource does not belong to caller's authenticated tenant",
+    "VALIDATION_FAILED": "Payload does not conform to contract schema",
+    "INVALID_STATE_TRANSITION": "Requested operation is not allowed in current entity status",
+    "CONTRACT_BALANCE_EXCEEDED": "Requested delivery quantity exceeds available balance",
+    "DISPOSITION_WEIGHT_MISMATCH": "Accepted and rejected weights do not sum to net weight",
+    "IDEMPOTENCY_CONFLICT": "Duplicate request detected with identical idempotency key",
+    "RESOURCE_NOT_FOUND": "Target entity was not found in active scope"
+  }
+}
+
