@@ -16,6 +16,7 @@ import {
 import { SupplierDetails, SupplierForm, SuppliersPage } from "./commercial/Suppliers.jsx";
 import { PurchaseContractWorkspace as PurchaseContractsPage } from "./commercial/PurchaseContractWorkspace.jsx";
 import { ItemsPage } from "./inventory/Items.jsx";
+import { StorageAreaPage } from "./inventory/StorageAreas.jsx";
 import { FFBReceivingPage } from "./receiving/FFBReceiving.jsx";
 import { FFBGradingPage } from "./receiving/FFBGrading.jsx";
 import { ProductionSystem } from "./production/ProductionSystem.jsx";
@@ -204,10 +205,10 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "stock" ? (
             <div
               key={id}
-              className={`nav-group ${active === "stock" || active === "items" || active === "receiving" || active === "grading" ? "active-group" : ""}`}
+              className={`nav-group ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "stock" || active === "items" || active === "receiving" || active === "grading" ? "active" : ""}`}
+                className={`nav-item ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" ? "active" : ""}`}
                 onClick={() => setActive("stock")}
               >
                 <span className="nav-icon">{icon}</span>
@@ -216,6 +217,9 @@ function Header({ active, setActive, search, setSearch }) {
               <div className="header-submenu">
                 <button onClick={() => setActive("stock")}>Stock</button>
                 <button onClick={() => setActive("items")}>Items</button>
+                <button onClick={() => setActive("tankFarm")}>Tank Farm</button>
+                <button onClick={() => setActive("kernelWarehouse")}>Kernel Warehouse</button>
+                <button onClick={() => setActive("efbStorage")}>EFB Storage</button>
                 <button onClick={() => setActive("receiving")}>FFB Receiving</button>
                 <button onClick={() => setActive("grading")}>FFB Grading</button>
               </div>
@@ -898,6 +902,8 @@ function App() {
         <ProductionSystem mode="routing" />
       ) : active === "items" ? (
         <ItemsPage rows={data.items} onSaved={load} />
+      ) : ["tankFarm", "kernelWarehouse", "efbStorage"].includes(active) ? (
+        <StorageAreaPage area={active} rows={data.stock} quality={data.quality} />
       ) : active === "receiving" ? (
         <FFBReceivingPage rows={data.ffbReceiving} suppliers={data.suppliers} onSaved={load} onOpenGrading={(id) => { setGradingFocusId(id); setActive("grading"); }} />
       ) : active === "grading" ? (
