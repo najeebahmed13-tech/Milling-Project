@@ -786,24 +786,24 @@ function App() {
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
+  const [loadError, setLoadError] = useState("");
   const load = async () => {
     setLoading(true);
-    const [dashboard, contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders] = await Promise.all([
-      fetch("/api/dashboard").then((res) => res.json()),
-      fetch("/api/sales-contracts").then((res) => res.json()),
-      fetch("/api/customers").then((res) => res.json()),
-      fetch("/api/suppliers").then((res) => res.json()),
-      fetch("/api/items").then((res) => res.json()),
-      fetch("/api/ffb-receiving").then((res) => res.json()),
-      fetch("/api/purchase-contracts").then((res) => res.json()),
-      fetch("/api/purchase-invoices").then((res) => res.json()),
-      fetch("/api/direct-purchases").then((res) => res.json()),
-      fetch("/api/sales-invoices").then((res) => res.json()),
-      fetch("/api/payments").then((res) => res.json()),
-      fetch("/api/dispatch-orders").then((res) => res.json()),
-    ]);
-    setData({ ...dashboard, salesContracts: contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders });
-    setLoading(false);
+    setLoadError("");
+    const safeFetch = async (url, fallback) => {
+      try { const response = await fetch(url); if (!response.ok) return fallback; return await response.json(); }
+      catch { return fallback; }
+    };
+    try {
+      const [dashboard, contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders] = await Promise.all([
+        safeFetch("/api/dashboard", { kpis: [], receiving: [], stock: [], quality: [], dispatch: [], users: [] }),
+        safeFetch("/api/sales-contracts", []), safeFetch("/api/customers", []), safeFetch("/api/suppliers", []), safeFetch("/api/items", []),
+        safeFetch("/api/ffb-receiving", []), safeFetch("/api/purchase-contracts", []), safeFetch("/api/purchase-invoices", []),
+        safeFetch("/api/direct-purchases", []), safeFetch("/api/sales-invoices", []), safeFetch("/api/payments", []), safeFetch("/api/dispatch-orders", []),
+      ]);
+      setData({ ...dashboard, salesContracts: contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders });
+    } catch (error) { setLoadError(error.message || "Live mill data is temporarily unavailable."); }
+    finally { setLoading(false); }
   };
   useEffect(() => {
     load();
@@ -936,6 +936,7 @@ function App() {
         search={search}
         setSearch={setSearch}
       />
+      {loadError && <div style={{ margin: "12px 32px", padding: "10px 14px", border: "1px solid #f2b8b5", borderRadius: 6, color: "#b42318", background: "#fff5f5", fontSize: 12 }}>{loadError} <button className="btn btn-secondary" style={{ marginLeft: 10 }} onClick={load}>Retry</button></div>}
       {loading ? (
         <div className="loading">Loading live mill data…</div>
       ) : (
