@@ -791,8 +791,11 @@ function App() {
     setLoading(true);
     setLoadError("");
     const safeFetch = async (url, fallback) => {
-      try { const response = await fetch(url); if (!response.ok) return fallback; return await response.json(); }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try { const response = await fetch(url, { signal: controller.signal }); if (!response.ok) return fallback; return await response.json(); }
       catch { return fallback; }
+      finally { clearTimeout(timeout); }
     };
     try {
       const [dashboard, contracts, customers, suppliers, items, ffbReceiving, purchaseContracts, purchaseInvoices, directPurchases, salesInvoices, payments, dispatchOrders] = await Promise.all([
