@@ -505,6 +505,11 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
         // in the API contract for production backends that validate it before
         // applying their server-side default.
         vehicleType: form.vehicleType || "FFB Tipper",
+        // Legacy production APIs require an identity pair even though the
+        // license field is informational. Use a system reference only for
+        // that compatibility contract; never present it as a real license.
+        driverIdentityType: "System Reference",
+        driverIdentityNo: form.driverLicenseNo.trim() || `UNVERIFIED-${form.vehicleNo.trim().replace(/[^A-Za-z0-9]/g, "")}-${Date.now()}`,
         capturedAt: systemCapturedAt.toISOString(),
         attachments,
       }),
