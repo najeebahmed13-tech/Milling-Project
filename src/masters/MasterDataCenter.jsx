@@ -8,7 +8,14 @@ const masterKeys = masterDefinitions.filter((definition) => !excludedKeys.has(de
 function loadRecords(definition) {
   try {
     const stored = localStorage.getItem(`rockeye.master.${definition.key}`);
-    return stored ? JSON.parse(stored) : definition.seed.map((record) => ({ ...record }));
+    const seeded = definition.seed.map((record) => ({ ...record }));
+    if (!stored) return seeded;
+    const records = JSON.parse(stored);
+    const existing = Array.isArray(records) ? records : [];
+    return [
+      ...existing,
+      ...seeded.filter((seed) => !existing.some((record) => record.id === seed.id)),
+    ];
   } catch {
     return definition.seed.map((record) => ({ ...record }));
   }

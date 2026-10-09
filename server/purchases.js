@@ -45,15 +45,49 @@ export function registerPurchasingModule(app, db) {
       entity_id TEXT NOT NULL, details_json TEXT NOT NULL, created_at TEXT NOT NULL
     );
   `);
+
+  // source_id is intentionally polymorphic: DIRECT_PURCHASE invoices point to
+  // direct_purchases, while FFB_RECEIPT invoices point to ffb_receipts. A
+  // foreign key to direct_purchases therefore rejects valid FFB invoices.
+  // Migrate older local databases that were created with that over-specific FK.
+  const hasInvalidSourceForeignKey = db.prepare('PRAGMA foreign_key_list(purchase_invoices)').all()
+    .some((foreignKey) => foreignKey.table === 'direct_purchases' && foreignKey.from === 'source_id');
+  if (hasInvalidSourceForeignKey) {
+    const wasForeignKeysEnabled = Boolean(db.pragma('foreign_keys', { simple: true }));
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.exec(`
+        CREATE TABLE purchase_invoices_migrated (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tenant_id TEXT NOT NULL, mill_id TEXT NOT NULL,
+          invoice_number TEXT NOT NULL, supplier_id INTEGER NOT NULL REFERENCES suppliers(id),
+          source_type TEXT NOT NULL, source_id INTEGER NOT NULL,
+          invoice_date TEXT NOT NULL, currency TEXT NOT NULL, subtotal REAL NOT NULL,
+          tax_amount REAL NOT NULL DEFAULT 0, total_amount REAL NOT NULL,
+          status TEXT NOT NULL DEFAULT 'DRAFT', created_at TEXT NOT NULL,
+          UNIQUE(tenant_id, mill_id, invoice_number), UNIQUE(tenant_id, source_type, source_id)
+        );
+        INSERT INTO purchase_invoices_migrated
+          (id,tenant_id,mill_id,invoice_number,supplier_id,source_type,source_id,invoice_date,currency,subtotal,tax_amount,total_amount,status,created_at)
+          SELECT id,tenant_id,mill_id,invoice_number,supplier_id,source_type,source_id,invoice_date,currency,subtotal,tax_amount,total_amount,status,created_at
+          FROM purchase_invoices;
+        DROP TABLE purchase_invoices;
+        ALTER TABLE purchase_invoices_migrated RENAME TO purchase_invoices;
+      `);
+    } finally {
+      db.pragma(`foreign_keys = ${wasForeignKeysEnabled ? 'ON' : 'OFF'}`);
+    }
+  }
+
   for (const column of [
     "terms_master_code TEXT NOT NULL DEFAULT ''",
     "terms_text TEXT NOT NULL DEFAULT ''",
     "attachments_json TEXT NOT NULL DEFAULT '[]'",
   ]) { try { db.exec(`ALTER TABLE direct_purchases ADD COLUMN ${column}`); } catch {} }
 
-  const invoiceQuery = `SELECT i.*, s.name AS supplier_name, d.purchase_number
+  const invoiceQuery = `SELECT i.*, s.name AS supplier_name, COALESCE(d.purchase_number, i.source_type || ' #' || i.source_id) AS purchase_number
     FROM purchase_invoices i JOIN suppliers s ON s.id = i.supplier_id
-    JOIN direct_purchases d ON d.id = i.source_id
+    LEFT JOIN direct_purchases d ON d.id = i.source_id AND i.source_type = 'DIRECT_PURCHASE'
     WHERE i.tenant_id = ? AND i.mill_id = ?`;
 
   const purchaseQuery = `SELECT d.*, s.name AS supplier_name, i.invoice_number
@@ -158,4 +192,22 @@ export function registerPurchasingModule(app, db) {
       res.status(error.code === 'ITEM_NOT_FOUND' ? 400 : 409).json({ code: error.code || 'DIRECT_PURCHASE_CREATE_FAILED', message: error.message || 'Unable to create direct purchase.' });
     }
   });
+}
+
+export function createDraftPurchaseInvoiceForFfbReceipt(db, receipt, { tenantId = 'demo-tenant', millId = 'demo-mill', actorId = 'demo-user' } = {}) {
+  const existing = db.prepare("SELECT * FROM purchase_invoices WHERE tenant_id=? AND mill_id=? AND source_type='FFB_RECEIPT' AND source_id=?").get(tenantId, millId, receipt.id);
+  if (existing) return existing;
+  const supplier = db.prepare('SELECT * FROM suppliers WHERE name=? AND status=?').get(receipt.supplier, 'Active');
+  if (!supplier) throw Object.assign(new Error('Supplier linked to the FFB receipt was not found.'), { code: 'SUPPLIER_NOT_FOUND' });
+  const item = db.prepare("SELECT id,name,unit FROM items WHERE (name=? OR item_type=?) AND status='Active' ORDER BY CASE WHEN name=? THEN 0 ELSE 1 END, id LIMIT 1").get(receipt.product_type, receipt.product_type, receipt.product_type);
+  if (!item) throw Object.assign(new Error('The received item is not configured in the item master.'), { code: 'ITEM_NOT_FOUND' });
+  const quantity = Number(receipt.net_weight || receipt.gross_weight || 0);
+  if (!Number.isFinite(quantity) || quantity <= 0) throw Object.assign(new Error('A positive net quantity is required before creating the purchase invoice draft.'), { code: 'INVALID_RECEIPT_QUANTITY' });
+  const stamp = new Date().toISOString();
+  const invoiceNumber = `PI-FFB-${stamp.slice(0, 10).replaceAll('-', '')}-${String(receipt.id).padStart(5, '0')}`;
+  const currency = (() => { try { return JSON.parse(supplier.details_json || '{}').currency || 'MYR'; } catch { return 'MYR'; } })();
+  const invoice = db.prepare("INSERT INTO purchase_invoices (tenant_id,mill_id,invoice_number,supplier_id,source_type,source_id,invoice_date,currency,subtotal,tax_amount,total_amount,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?)").run(tenantId, millId, invoiceNumber, supplier.id, 'FFB_RECEIPT', receipt.id, stamp.slice(0, 10), currency, 0, 0, 0, stamp);
+  db.prepare('INSERT INTO purchase_invoice_lines (invoice_id,item_id,description,quantity,uom,unit_price,line_total) VALUES (?,?,?,?,?,?,?)').run(invoice.lastInsertRowid, item.id, item.name, quantity, item.unit, 0, 0);
+  db.prepare('INSERT INTO purchase_audit_events (tenant_id,mill_id,actor_id,action,entity_type,entity_id,details_json,created_at) VALUES (?,?,?,?,?,?,?,?)').run(tenantId, millId, actorId, 'FFB_RECEIPT_PURCHASE_INVOICE_DRAFT_CREATED', 'PURCHASE_INVOICE', String(invoice.lastInsertRowid), JSON.stringify({ receiptId: receipt.id, ticketNo: receipt.ticket_no, supplierId: supplier.id, quantity }), stamp);
+  return db.prepare('SELECT * FROM purchase_invoices WHERE id=?').get(invoice.lastInsertRowid);
 }

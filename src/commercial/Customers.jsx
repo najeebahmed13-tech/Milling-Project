@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ListingActions } from "../components/ListingActions.jsx";
+import "./customer-details-overrides.css";
 
 const Section = ({ title, action, children }) => (
   <section className="contract-section">

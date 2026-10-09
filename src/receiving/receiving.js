@@ -1,5 +1,14 @@
 export const RECEIPT_STATES = ['DRAFT', 'WEIGHING', 'GRADING', 'READY_TO_POST', 'POSTED', 'CANCELLED'];
 
+export function validateFfbReceiveForm(form) {
+  const gross = Number(form.grossWeight);
+  const declared = form.supplierDeclaredQty === '' || form.supplierDeclaredQty == null ? null : Number(form.supplierDeclaredQty);
+  const missing = ['driverName', 'vehicleNo', 'supplier', 'item'].filter((key) => !String(form[key] || '').trim());
+  if (missing.length || !Number.isFinite(gross) || gross <= 0) return { valid: false, code: 'INVALID_RECEIVING', missing, message: 'Driver name, lorry plate number, supplier, item and a positive gross weight are required.' };
+  if (declared !== null && (!Number.isFinite(declared) || declared < 0)) return { valid: false, code: 'INVALID_DECLARED_QTY', message: 'Supplier declared quantity must be zero or greater.' };
+  return { valid: true, gross, declared };
+}
+
 const transitions = {
   DRAFT: { startWeighing: 'WEIGHING', cancel: 'CANCELLED' },
   WEIGHING: { recordWeight: 'WEIGHING', completeWeighing: 'GRADING', cancel: 'CANCELLED' },

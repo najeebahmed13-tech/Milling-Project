@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { RichTextEditor } from "../components/RichTextEditor.jsx";
+import "./sales-contract-details.css";
 
 const emptyLine = {
   product: "Crude Palm Oil (CPO - FFA < 4.5%)",
@@ -451,6 +452,56 @@ export function SalesContractForm({ onClose, onSaved }) {
     </div>
   );
 }
+
+function formatActivityDate(value) {
+  if (!value) return "—";
+  const [year, month, day] = String(value).slice(0, 10).split("-");
+  return year && month && day ? day + "-" + month + "-" + year : value;
+}
+
+function SalesContractActivityTimeline({ contract, documents }) {
+  const activities = (contract.activities?.length ? contract.activities : [
+    { date: contract.created_at || contract.signing_date, time: "09:00 AM", user: contract.created_by || "System Admin", role: "Commercial User", action: "created this sales contract", detail: "Contract " + contract.contract_number + " was added for " + contract.customer + ".", tone: "created" },
+    { date: contract.signing_date, time: "10:30 AM", user: contract.created_by || "System Admin", role: "Commercial User", action: "recorded the agreement signing date", detail: "Agreement terms were recorded with " + (contract.contract_type || "Sales Contract") + " status.", tone: "updated" },
+    { date: contract.valid_from, time: "11:00 AM", user: contract.created_by || "System Admin", role: "Commercial User", action: "activated the contract validity period", detail: "Valid from " + formatActivityDate(contract.valid_from) + " to " + formatActivityDate(contract.valid_until) + ".", tone: "status" },
+    ...documents.map((document) => ({ date: document.date || contract.created_at || contract.signing_date, time: "11:15 AM", user: contract.created_by || "System Admin", role: "Commercial User", action: "attached a contract document", detail: (document.title || document.file) + " was added to the contract record.", tone: "document" })),
+  ]).sort((left, right) => String(right.date || "").localeCompare(String(left.date || "")));
+  const grouped = activities.reduce((groups, activity) => {
+    const key = activity.date || "unknown";
+    groups[key] = groups[key] || [];
+    groups[key].push(activity);
+    return groups;
+  }, {});
+
+  return <div className="sales-contract-activity-panel">
+    <div className="sales-contract-activity-toolbar">
+      <div><h2>Activities</h2><p>Audit trail for {contract.contract_number}</p></div>
+      <div className="sales-contract-activity-filters"><span className="sales-contract-activity-date-range">{formatActivityDate(activities[activities.length - 1]?.date)} - {formatActivityDate(activities[0]?.date)}</span></div>
+    </div>
+    <div className="sales-contract-activity-timeline">
+      {Object.entries(grouped).map(([date, items]) => <section className="sales-contract-activity-day" key={date}>
+        <div className="sales-contract-activity-date"><span>{formatActivityDate(date)}</span></div>
+        <div className="sales-contract-activity-events">{items.map((activity, index) => <article className="sales-contract-activity-event" key={date + "-" + activity.action + "-" + index}>
+          <time>{activity.time || "—"}</time>
+          <span className={"sales-contract-activity-marker " + (activity.tone || "updated")} aria-hidden="true"><i /></span>
+          <div className="sales-contract-activity-card"><p><strong>{activity.user || "System User"}</strong> <span>({activity.role || "User"})</span> {activity.action}.</p><small>{activity.detail}</small></div>
+        </article>)}</div>
+      </section>)}
+    </div>
+  </div>;
+}
+
+export function ContractDetails({ contract, onClose }) {
+  const [tab, setTab] = useState("Summary");
+  const tabs = ["Summary", "Outbound Deliveries", "Sales Invoices", "Documents", "Activities"];
+  const products = contract.products || [];
+  const documents = contract.documents || [];
+  const empty = (message) => message === "No activities recorded"
+    ? <SalesContractActivityTimeline contract={contract} documents={documents} />
+    : <div className="sales-contract-empty"><strong>{message}</strong><span>Records linked to this contract will appear here.</span></div>;
+
+  return <main className="sales-contract-details-page"><div className="sales-contract-breadcrumb"><span>Customers</span><b>›</b><span>Sales Contracts</span><b>›</b><strong>Details</strong></div><div className="sales-contract-details-heading"><div><div className="sales-contract-title-line"><h1>{contract.title}</h1><span className="sales-contract-code">{contract.contract_number}</span><span className="customer-status">{contract.state}</span></div><p>{contract.customer} · {contract.contract_type || "Sales Contract"} · {contract.currency || "—"}</p></div><div className="sales-contract-detail-actions"><button className="btn btn-secondary" onClick={onClose}>Back to Listing</button></div></div><div className="sales-contract-tabs">{tabs.map((name) => <button key={name} className={tab === name ? "selected" : ""} onClick={() => setTab(name)}>{name}{name === "Documents" && <b>{documents.length}</b>}{name === "Outbound Deliveries" && <b>0</b>}{name === "Sales Invoices" && <b>0</b>}</button>)}</div>{tab === "Summary" && <div className="sales-contract-detail-layout"><div className="sales-contract-main"><section className="sales-contract-card"><h2>1. Contract Identification & Agreement Details</h2><div className="sales-contract-grid">{[["Contract Number", contract.contract_number], ["Contract Title / Subject", contract.title], ["Contract Type", contract.contract_type], ["Contract Signing Date", contract.signing_date], ["Validity Start Date", contract.valid_from], ["Validity End Date", contract.valid_until], ["Buyer Reference", contract.buyer_reference]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || "—"}</strong></div>)}</div></section><section className="sales-contract-card"><h2>2. Customer & Buyer Information</h2><div className="sales-contract-grid">{[["Customer", contract.customer], ["Authorized Representative", contract.representative], ["Email Address", contract.email], ["Direct Phone", contract.phone], ["Billing / Legal Address", contract.legal_address]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || "—"}</strong></div>)}</div></section><section className="sales-contract-card"><h2>3. Commercial Terms & Discharge</h2><div className="sales-contract-grid">{[["Currency", contract.currency], ["Incoterm", contract.incoterm], ["Discharge / Nearest Port", contract.discharge_port], ["Payment Mode", contract.payment_mode], ["Bank", contract.bank], ["Payment Terms", contract.payment_terms]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || "—"}</strong></div>)}</div></section><section className="sales-contract-card"><h2>4. Contracted Commodities & Specifications</h2>{products.length ? products.map((line, index) => <article className="sales-contract-product" key={index}><h3>{index + 1}. {line.product}</h3><div className="sales-contract-grid">{[["Contracted Quantity (MT)", line.quantity], ["Unit Price", line.unitPrice], ["FFA Max (%)", line.ffa], ["Moisture Max (%)", line.moisture], ["Dirt & Impurities (%)", line.dirt], ["DOBI Min Value", line.dobi], ["Certification", line.certification]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || "—"}</strong></div>)}</div></article>) : empty("No contracted products recorded.")}</section><section className="sales-contract-card"><h2>5. Terms & Conditions</h2><p className="sales-contract-terms">{contract.terms || "No terms recorded."}</p></section></div><aside className="sales-contract-side"><section className="sales-contract-card"><h2>Quick Contract Snapshot</h2>{[["Customer", contract.customer], ["Contract Type", contract.contract_type], ["Validity", `${contract.valid_from || "—"} — ${contract.valid_until || "—"}`], ["Products", `${products.length} Configured`], ["Documents", `${documents.length} Uploaded`]].map(([label, value]) => <div className="sales-contract-snapshot" key={label}><span>{label}</span><strong>{value || "—"}</strong></div>)}</section><section className="sales-contract-card"><h2>Contract Status</h2><p className="sales-contract-status-copy">This contract is currently <strong>{contract.state}</strong>.</p><p className="muted">Outbound deliveries and sales invoices will be linked here as the contract is used.</p></section></aside></div>}{tab === "Outbound Deliveries" && <div className="sales-contract-tab-panel">{empty("No outbound deliveries linked")}</div>}{tab === "Sales Invoices" && <div className="sales-contract-tab-panel">{empty("No sales invoices linked")}</div>}{tab === "Documents" && <div className="sales-contract-tab-panel">{documents.length ? documents.map((document) => <article className="sales-contract-record" key={document.file}><strong>{document.title}</strong><span>{document.file} · {document.size}</span></article>) : empty("No documents attached")}</div>}{tab === "Activities" && <div className="sales-contract-tab-panel">{empty("No activities recorded")}</div>}</main>;
+}
 function Select({ label, value, onChange, options, required = false }) {
   return (
     <label className="contract-field">
@@ -469,7 +520,7 @@ function Select({ label, value, onChange, options, required = false }) {
   );
 }
 
-export function ContractDetails({ contract, onClose }) {
+function LegacyContractDetails({ contract, onClose }) {
   return (
     <div className="contract-screen">
       <div className="contract-detail-page">

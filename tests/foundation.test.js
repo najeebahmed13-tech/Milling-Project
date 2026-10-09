@@ -6,7 +6,7 @@ import { getVisibleNavigation } from '../src/app/navigation.js';
 import { can } from '../src/security/permissions.js';
 import { masterDefinitions, getMasterDefinition } from '../src/config/masterData.js';
 import { transitionContract, validateContractDraft, quantitySummary, isContractEligible } from '../src/commercial/contracts.js';
-import { calculateNetWeight, validateDisposition, transitionReceipt, traceabilityChain } from '../src/receiving/receiving.js';
+import { calculateNetWeight, validateDisposition, transitionReceipt, traceabilityChain, validateFfbReceiveForm } from '../src/receiving/receiving.js';
 
 test('quantity and percentage formatters produce readable values', () => {
   assert.equal(formatQuantity(24.35, 't'), '24.35 t');
@@ -66,4 +66,10 @@ test('receipt state transitions and genealogy chain are explicit', () => {
   assert.deepEqual(transitionReceipt({ state: 'GRADING' }, 'completeGrading'), { ok: true, state: 'READY_TO_POST' });
   assert.equal(transitionReceipt({ state: 'DRAFT' }, 'post').code, 'INVALID_STATE_TRANSITION');
   assert.equal(traceabilityChain({ supplier: 'Estate', purchaseContract: 'PC-1', vehicle: 'JQK 4812', weighbridgeId: 'WB-1', id: 'FFBR-1', gradingId: 'GR-1' }).lot, null);
+});
+
+test('FFB receive form enforces required master selections and optional declared quantity', () => {
+  assert.equal(validateFfbReceiveForm({ driverName: 'A', vehicleNo: 'JQK 4812', supplier: 'Estate', item: 'FFB', grossWeight: '20.250' }).valid, true);
+  assert.equal(validateFfbReceiveForm({ driverName: 'A', vehicleNo: 'JQK 4812', supplier: 'Estate', item: '', grossWeight: '20.250' }).code, 'INVALID_RECEIVING');
+  assert.equal(validateFfbReceiveForm({ driverName: 'A', vehicleNo: 'JQK 4812', supplier: 'Estate', item: 'FFB', grossWeight: '20.250', supplierDeclaredQty: '-1' }).code, 'INVALID_DECLARED_QTY');
 });

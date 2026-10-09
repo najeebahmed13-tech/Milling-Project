@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Boxes, Building2, CircleDollarSign, ClipboardCheck, Factory, House, LayoutGrid, Settings, Truck, Users, Warehouse } from "lucide-react";
 import "./styles.css";
 import "./react-app.css";
 import {
@@ -17,34 +18,47 @@ import { SupplierDetails, SupplierForm, SuppliersPage } from "./commercial/Suppl
 import { PurchaseContractWorkspace as PurchaseContractsPage } from "./commercial/PurchaseContractWorkspace.jsx";
 import { ItemsPage } from "./inventory/Items.jsx";
 import { StorageAreaPage } from "./inventory/StorageAreas.jsx";
-import { DispatchPage } from "./inventory/Dispatch.jsx";
 import { FFBReceivingPage } from "./receiving/FFBReceiving.jsx";
 import { FFBGradingPage } from "./receiving/FFBGrading.jsx";
 import { ProductionSystem } from "./production/ProductionSystem.jsx";
 import { MasterDataCenter } from "./masters/MasterDataCenter.jsx";
 import "./masters/master-navigation.css";
 import { LogisticsMaster } from "./masters/LogisticsMasters.jsx";
+import { TransporterMaster } from "./masters/TransporterMaster.jsx";
+import { DriversMaster } from "./masters/DriversMaster.jsx";
 import { ListingActions } from "./components/ListingActions.jsx";
 import { DirectPurchasePage, PurchaseInvoicesPage } from "./commercial/Purchasing.jsx";
 import { SalesInvoiceForm } from "./finance/FinanceForms.jsx";
 import { PaymentForm, PaymentsPage } from "./finance/Payments.jsx";
 import { SalesInvoicesPage } from "./finance/SalesInvoices.jsx";
+import { DeliveryRequestsPage } from "./commercial/DeliveryRequests.jsx";
+import { LoadingPlansPage } from "./logistics/LoadingPlans.jsx";
+import { QCRequestsPage } from "./quality/QCRequests.jsx";
+
+class DeliveryRequestBoundary extends React.Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) return <main className="masters-page"><div className="master-error">Unable to render New Delivery Request. Please refresh and try again. <small>{this.state.error.message}</small></div></main>;
+    return this.props.children;
+  }
+}
 
 const nav = [
   ["dashboard", "Home", "⌂"],
   ["users", "Users", "♙"],
   ["customers", "Customers", "♧"],
   ["vendors", "Suppliers", "▣"],
-  ["finance", "Finance", "$"],
   ["production", "Production", "◫"],
+  ["qualityAfterProduction", "Quality", "✓"],
   ["stock", "Stock", "◇"],
-  ["configuration", "Configuration", "⚙"],
-];
-nav.splice(
-  nav.findIndex(([id]) => id === "configuration"),
-  0,
+  ["logistics", "Logistics", "L"],
   ["masters", "Masters", "▦"],
-);
+];
+
+const navIcons = { dashboard: House, users: Users, customers: Building2, vendors: Warehouse, finance: CircleDollarSign, production: Factory, qualityAfterProduction: ClipboardCheck, stock: Boxes, logistics: Truck, masters: LayoutGrid, configuration: Settings };
+nav.forEach((entry) => { entry[2] = navIcons[entry[0]] || Settings; });
+
 const tone = (value) =>
   /reject|review/i.test(value)
     ? "danger"
@@ -91,7 +105,7 @@ function Header({ active, setActive, search, setSearch }) {
         </button>
       </div>
       <nav className="topnav">
-        {nav.map(([id, label, icon]) =>
+        {nav.map(([id, label, Icon]) =>
           id === "users" ? (
             <div
               key={id}
@@ -101,7 +115,7 @@ function Header({ active, setActive, search, setSearch }) {
                 className={`nav-item ${active === id ? "active" : ""}`}
                 onClick={() => setActive(id)}
               >
-                <span className="nav-icon">{icon}</span>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>{id === "vendors" ? "Suppliers" : label}</span>
               </button>
               <div className="header-submenu">
@@ -111,13 +125,13 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "customers" ? (
             <div
               key={id}
-              className={`nav-group ${active === "customers" || active === "salesContracts" ? "active-group" : ""}`}
+              className={`nav-group ${active === "customers" || active === "salesContracts" || active === "deliveryRequests" ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "customers" || active === "salesContracts" ? "active" : ""}`}
+                className={`nav-item ${active === "customers" || active === "salesContracts" || active === "deliveryRequests" ? "active" : ""}`}
                 onClick={() => setActive("customers")}
               >
-                <span className="nav-icon">{icon}</span>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>{id === "vendors" ? "Suppliers" : label}</span>
               </button>
               <div className="header-submenu">
@@ -126,6 +140,9 @@ function Header({ active, setActive, search, setSearch }) {
                 </button>
                 <button onClick={() => setActive("salesContracts")}>
                   Sales Contracts
+                </button>
+                <button onClick={() => setActive("deliveryRequests")}>
+                  Delivery Requests
                 </button>
               </div>
             </div>
@@ -138,7 +155,7 @@ function Header({ active, setActive, search, setSearch }) {
                 className={`nav-item ${active === "vendors" || active === "purchaseContracts" || active === "directPurchase" ? "active" : ""}`}
                 onClick={() => setActive("vendors")}
               >
-                <span className="nav-icon">{icon}</span>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>Suppliers</span>
               </button>
               <div className="header-submenu">
@@ -151,7 +168,7 @@ function Header({ active, setActive, search, setSearch }) {
             </div>
           ) : id === "finance" ? (
             <div key={id} className={`nav-group ${active === "finance" || active === "purchaseInvoices" || active === "salesInvoice" || active === "salesInvoiceAdd" || active === "payments" || active === "paymentsAdd" ? "active-group" : ""}`}>
-              <button className={`nav-item ${active === "finance" || active === "purchaseInvoices" || active === "salesInvoice" || active === "salesInvoiceAdd" || active === "payments" || active === "paymentsAdd" ? "active" : ""}`} onClick={() => setActive("finance")}><span className="nav-icon">{icon}</span><span>Finance</span></button>
+              <button className={`nav-item ${active === "finance" || active === "purchaseInvoices" || active === "salesInvoice" || active === "salesInvoiceAdd" || active === "payments" || active === "paymentsAdd" ? "active" : ""}`} onClick={() => setActive("finance")}><span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span><span>Finance</span></button>
               <div className="header-submenu"><button onClick={() => setActive("finance")}>Finance Overview</button><button onClick={() => setActive("purchaseInvoices")}>Purchase Invoice</button><button onClick={() => setActive("salesInvoice")}>Sales Invoice</button><button onClick={() => setActive("payments")}>Payments</button></div>
             </div>
           ) : id === "masters" ? (
@@ -163,7 +180,7 @@ function Header({ active, setActive, search, setSearch }) {
                 className={`nav-item ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active" : ""}`}
                 onClick={() => setActive("masters")}
               >
-                <span className="nav-icon">{icon}</span>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>Masters</span>
               </button>
               <div className="header-submenu master-submenu">
@@ -171,11 +188,8 @@ function Header({ active, setActive, search, setSearch }) {
                 <button onClick={() => setActive("masterStations")}>Station Master</button>
                 <button onClick={() => setActive("masterMachines")}>Machine Master</button>
                 <button onClick={() => setActive("master:uoms")}>Units of Measure</button>
-                <button onClick={() => setActive("master:transporters")}>Transporter Master</button>
-                <button onClick={() => setActive("master:vehicleTypes")}>Vehicle Type Master</button>
-                <button onClick={() => setActive("master:vehicles")}>Vehicle Master</button>
                 <button onClick={() => setActive("master:storageLocations")}>Storage Location Master</button>
-                <button onClick={() => setActive("master:tanks")}>Tank & Storage Unit Master</button>
+                <button onClick={() => setActive("master:tanks")}>Tank Master</button>
                 <button onClick={() => setActive("master:processDefinitions")}>Process Definition Master</button>
                 <button onClick={() => setActive("master:qualityParameters")}>Quality Parameter Master</button>
                 <button onClick={() => setActive("master:samplingPlans")}>Sampling Plan Master</button>
@@ -194,7 +208,7 @@ function Header({ active, setActive, search, setSearch }) {
                 className={`nav-item ${active === "production" || active === "productionRouting" || active === "masterProductionLines" ? "active" : ""}`}
                 onClick={() => setActive("production")}
               >
-                <span className="nav-icon">{icon}</span>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>Production</span>
               </button>
               <div className="header-submenu">
@@ -203,27 +217,56 @@ function Header({ active, setActive, search, setSearch }) {
                 <button onClick={() => setActive("masterProductionLines")}>Production Line</button>
               </div>
             </div>
+          ) : id === "qualityAfterProduction" ? (
+            <div key={id} className={`nav-group ${active === "qcRequests" ? "active-group" : ""}`}>
+              <button className={`nav-item ${active === "qcRequests" ? "active" : ""}`} onClick={() => setActive("qcRequests")}>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
+                <span>Quality</span>
+              </button>
+              <div className="header-submenu">
+                <button onClick={() => setActive("qcRequests")}>QC Request</button>
+              </div>
+            </div>
+          ) : id === "logistics" ? (
+            <div
+              key={id}
+              className={`nav-group ${active === "master:transporters" || active === "master:vehicleTypes" || active === "master:vehicles" || active === "master:drivers" || active === "loadingPlans" ? "active-group" : ""}`}
+            >
+              <button
+                className={`nav-item ${active === "master:transporters" || active === "master:vehicleTypes" || active === "master:vehicles" || active === "master:drivers" || active === "loadingPlans" ? "active" : ""}`}
+                onClick={() => setActive("master:vehicles")}
+              >
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
+                <span>Logistics</span>
+              </button>
+              <div className="header-submenu">
+                <button onClick={() => setActive("loadingPlans")}>Loading Plans</button>
+                <button onClick={() => setActive("master:transporters")}>Transporters</button>
+                <button onClick={() => setActive("master:vehicleTypes")}>Vehicle Types</button>
+                <button onClick={() => setActive("master:vehicles")}>Vehicles</button>
+                <button onClick={() => setActive("master:drivers")}>Drivers</button>
+              </div>
+            </div>
           ) : id === "stock" ? (
             <div
               key={id}
-              className={`nav-group ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" || active === "dispatch" ? "active-group" : ""}`}
+              className={`nav-group ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" || active === "dispatch" ? "active" : ""}`}
+                className={`nav-item ${active === "stock" || active === "items" || active === "receiving" || active === "grading" || active === "tankFarm" || active === "kernelWarehouse" || active === "efbStorage" ? "active" : ""}`}
                 onClick={() => setActive("stock")}
               >
-                <span className="nav-icon">{icon}</span>
+                <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>Stock</span>
               </button>
               <div className="header-submenu">
                 <button onClick={() => setActive("stock")}>Stock</button>
                 <button onClick={() => setActive("items")}>Items</button>
+                <button onClick={() => setActive("receiving")}>FFB Receiving</button>
+                <button onClick={() => setActive("grading")}>FFB Grading</button>
                 <button onClick={() => setActive("tankFarm")}>Tank Farm</button>
                 <button onClick={() => setActive("kernelWarehouse")}>Kernel Warehouse</button>
                 <button onClick={() => setActive("efbStorage")}>EFB Storage</button>
-                <button onClick={() => setActive("dispatch")}>Dispatch</button>
-                <button onClick={() => setActive("receiving")}>FFB Receiving</button>
-                <button onClick={() => setActive("grading")}>FFB Grading</button>
               </div>
             </div>
           ) : (
@@ -232,7 +275,7 @@ function Header({ active, setActive, search, setSearch }) {
               className={`nav-item ${active === id ? "active" : ""}`}
               onClick={() => setActive(id)}
             >
-              <span className="nav-icon">{icon}</span>
+              <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
               <span>{id === "vendors" ? "Suppliers" : label}</span>
             </button>
           ),
@@ -836,20 +879,37 @@ function App() {
           onSelect={setSelectedUser}
         />
       ) : active === "salesContracts" ? (
-        <SalesContractsPage
-          rows={data.salesContracts}
-          onNew={() => setShowContractForm(true)}
-          onSelect={setSelectedContract}
-        />
+        selectedContract ? (
+          <ContractDetails
+            contract={selectedContract}
+            onClose={() => setSelectedContract(null)}
+          />
+        ) : (
+          <SalesContractsPage
+            rows={data.salesContracts}
+            onNew={() => setShowContractForm(true)}
+            onSelect={setSelectedContract}
+          />
+        )
+      ) : active === "deliveryRequests" ? (
+        <DeliveryRequestBoundary><DeliveryRequestsPage customers={data.customers} contracts={data.salesContracts} /></DeliveryRequestBoundary>
       ) : active === "customers" ? (
-        <CustomersPage
-          rows={data.customers}
-          onNew={() => {
-            setSelectedCustomer(null);
-            setShowCustomerForm(true);
-          }}
-          onSelect={setSelectedCustomer}
-        />
+        selectedCustomer ? (
+          <CustomerDetailsReference
+            customer={selectedCustomer}
+            onBack={() => setSelectedCustomer(null)}
+            onEdit={() => setShowCustomerForm(true)}
+          />
+        ) : (
+          <CustomersPage
+            rows={data.customers}
+            onNew={() => {
+              setSelectedCustomer(null);
+              setShowCustomerForm(true);
+            }}
+            onSelect={setSelectedCustomer}
+          />
+        )
       ) : active === "supplierAdd" ? (
         <SupplierForm
           items={data.items}
@@ -899,8 +959,16 @@ function App() {
         <ProductionSystem mode="machineMaster" />
       ) : active === "master:vehicleTypes" ? (
         <LogisticsMaster mode="vehicleTypes" />
+      ) : active === "master:transporters" ? (
+        <TransporterMaster />
       ) : active === "master:vehicles" ? (
         <LogisticsMaster mode="vehicles" />
+      ) : active === "master:drivers" ? (
+        <DriversMaster />
+      ) : active === "loadingPlans" ? (
+        <LoadingPlansPage />
+      ) : active === "qcRequests" ? (
+        <QCRequestsPage />
       ) : active.startsWith("master:") ? (
         <MasterDataCenter masterKey={active.split(":")[1]} onNavigate={setActive} />
       ) : active === "production" ? (
@@ -911,10 +979,8 @@ function App() {
         <ItemsPage rows={data.items} onSaved={load} />
       ) : ["tankFarm", "kernelWarehouse", "efbStorage"].includes(active) ? (
         <StorageAreaPage area={active} rows={data.stock} quality={data.quality} dispatch={data.dispatch} />
-      ) : active === "dispatch" ? (
-        <DispatchPage rows={data.dispatchOrders} items={data.items} onSaved={load} />
       ) : active === "receiving" ? (
-        <FFBReceivingPage rows={data.ffbReceiving} suppliers={data.suppliers} onSaved={load} onOpenGrading={(id) => { setGradingFocusId(id); setActive("grading"); }} />
+        <FFBReceivingPage rows={data.ffbReceiving} suppliers={data.suppliers} items={data.items} onSaved={load} onOpenGrading={(id) => { setGradingFocusId(id); setActive("grading"); }} />
       ) : active === "grading" ? (
         <FFBGradingPage rows={data.ffbReceiving} onSaved={load} focusId={gradingFocusId} />
       ) : (
@@ -926,7 +992,7 @@ function App() {
           onNew={() => active === "receiving" && setModal(true)}
         />
       ),
-    [active, data, search, selectedSupplier],
+    [active, data, search, selectedSupplier, selectedCustomer, selectedContract],
   );
   return (
     <>
@@ -992,19 +1058,6 @@ function App() {
             await load();
             setTimeout(() => setToast(""), 2500);
           }}
-        />
-      )}
-      {selectedContract && active === "salesContracts" && (
-        <ContractDetails
-          contract={selectedContract}
-          onClose={() => setSelectedContract(null)}
-        />
-      )}
-      {selectedCustomer && active === "customers" && (
-        <CustomerDetailsReference
-          customer={selectedCustomer}
-          onBack={() => setSelectedCustomer(null)}
-          onEdit={() => setShowCustomerForm(true)}
         />
       )}
       {selectedUser && active === "users" && (

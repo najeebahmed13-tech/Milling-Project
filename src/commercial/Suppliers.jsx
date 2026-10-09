@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "./commercial.css";
 import "./supplier-details-overrides.css";
 import { ListingActions } from "../components/ListingActions.jsx";
+import { formatDate } from "../shared/formatters.js";
 
 const Building2 = ({ className = "w-4 h-4 mr-2" }) => (
   <svg
@@ -65,11 +66,25 @@ const Trash2 = ({ className = "w-3.5 h-3.5" }) => (
 );
 
 const Breadcrumb = ({ items = [] }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: "#6B7280", marginBottom: "14px" }}>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      fontSize: "11.5px",
+      color: "#6B7280",
+      marginBottom: "14px",
+    }}
+  >
     {items.map((item, idx) => (
       <React.Fragment key={idx}>
         {idx > 0 && <span style={{ color: "#9CA3AF" }}>›</span>}
-        <span style={{ fontWeight: idx === items.length - 1 ? 600 : 400, color: idx === items.length - 1 ? "#111827" : "#6B7280" }}>
+        <span
+          style={{
+            fontWeight: idx === items.length - 1 ? 600 : 400,
+            color: idx === items.length - 1 ? "#111827" : "#6B7280",
+          }}
+        >
           {item.label}
         </span>
       </React.Fragment>
@@ -86,17 +101,65 @@ const SectionHeader = ({ title, action }) => (
 
 const COUNTRY_STATES = {
   Indonesia: [
-    "Riau", "North Sumatra", "West Sumatra", "Jambi", "South Sumatra", "Bengkulu", "Lampung",
-    "West Kalimantan", "Central Kalimantan", "South Kalimantan", "East Kalimantan", "North Kalimantan",
-    "Aceh", "DKI Jakarta", "West Java", "Central Java", "East Java"
+    "Riau",
+    "North Sumatra",
+    "West Sumatra",
+    "Jambi",
+    "South Sumatra",
+    "Bengkulu",
+    "Lampung",
+    "West Kalimantan",
+    "Central Kalimantan",
+    "South Kalimantan",
+    "East Kalimantan",
+    "North Kalimantan",
+    "Aceh",
+    "DKI Jakarta",
+    "West Java",
+    "Central Java",
+    "East Java",
   ],
   Malaysia: [
-    "Johor", "Pahang", "Perak", "Sabah", "Sarawak", "Selangor", "Kedah", "Kelantan", "Melaka",
-    "Negeri Sembilan", "Penang", "Perlis", "Terengganu", "Kuala Lumpur", "Labuan"
+    "Johor",
+    "Pahang",
+    "Perak",
+    "Sabah",
+    "Sarawak",
+    "Selangor",
+    "Kedah",
+    "Kelantan",
+    "Melaka",
+    "Negeri Sembilan",
+    "Penang",
+    "Perlis",
+    "Terengganu",
+    "Kuala Lumpur",
+    "Labuan",
   ],
-  "United Arab Emirates": ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al-Quwain"],
-  Singapore: ["Central Community", "North East Community", "North West Community", "South East Community"],
-  India: ["Andhra Pradesh", "Gujarat", "Karnataka", "Kerala", "Maharashtra", "Tamil Nadu", "Delhi"],
+  "United Arab Emirates": [
+    "Abu Dhabi",
+    "Dubai",
+    "Sharjah",
+    "Ajman",
+    "Ras Al Khaimah",
+    "Fujairah",
+    "Umm Al-Quwain",
+  ],
+  Singapore: [
+    "Central Community",
+    "North East Community",
+    "North West Community",
+    "South East Community",
+  ],
+  India: [
+    "Andhra Pradesh",
+    "Gujarat",
+    "Karnataka",
+    "Kerala",
+    "Maharashtra",
+    "Tamil Nadu",
+    "Delhi",
+  ],
 };
 
 const DEFAULT_DELIVERY_TERMS = [
@@ -110,8 +173,12 @@ function configuredDeliveryTerms() {
   try {
     const stored = localStorage.getItem("rockeye.master.deliveryTerms");
     const records = stored ? JSON.parse(stored) : [];
-    const active = records.filter((record) => record.active !== false && record.name);
-    return active.length ? active.map((record) => record.name) : DEFAULT_DELIVERY_TERMS;
+    const active = records.filter(
+      (record) => record.active !== false && record.name,
+    );
+    return active.length
+      ? active.map((record) => record.name)
+      : DEFAULT_DELIVERY_TERMS;
   } catch {
     return DEFAULT_DELIVERY_TERMS;
   }
@@ -143,7 +210,6 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
     bankName: "",
     bankAccountNo: "",
     taxRegistrationNo: "",
-
   });
 
   const [contacts, setContacts] = useState([
@@ -190,10 +256,16 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     const val = type === "checkbox" ? e.target.checked : value;
-    if (name === "sustainabilityCert" && value === "Non-certified") setSustainabilityDocument(null);
+    if (name === "sustainabilityCert" && value === "Non-certified")
+      setSustainabilityDocument(null);
     if (name === "category" && !value.startsWith("FFB Supplier")) {
       setSustainabilityDocument(null);
-      setFormData((prev) => ({ ...prev, [name]: val, supplierType: "", sustainabilityCert: "Non-certified" }));
+      setFormData((prev) => ({
+        ...prev,
+        [name]: val,
+        supplierType: "",
+        sustainabilityCert: "Non-certified",
+      }));
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: val }));
@@ -231,7 +303,7 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
           return { ...c, isPrimary: false };
         }
         return c;
-      })
+      }),
     );
   };
 
@@ -271,7 +343,7 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
           return { ...a, isDefault: false };
         }
         return a;
-      })
+      }),
     );
   };
 
@@ -296,7 +368,7 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
 
   const handleSupplyItemChange = (id, field, value) => {
     setSupplyItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
     );
   };
 
@@ -321,7 +393,8 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
       registrationNo: formData.registrationNo,
       incorporationDate: formData.incorporationDate,
       companyEmail: formData.companyEmail || primaryContact?.email || "",
-      phone: `${primaryContact?.mobileCode || "+60"} ${primaryContact?.mobile || formData.phone}`.trim(),
+      phone:
+        `${primaryContact?.mobileCode || "+60"} ${primaryContact?.mobile || formData.phone}`.trim(),
       companyWebsite: formData.companyWebsite,
       sustainabilityCert: formData.sustainabilityCert,
       city: defaultAddress?.city || "Johor",
@@ -337,7 +410,16 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
       contacts,
       addresses,
       supplyItems,
-      documents: sustainabilityDocument ? [{ type: "Sustainability Certificate", name: sustainabilityDocument.name, fileType: sustainabilityDocument.type, size: sustainabilityDocument.size }] : [],
+      documents: sustainabilityDocument
+        ? [
+            {
+              type: "Sustainability Certificate",
+              name: sustainabilityDocument.name,
+              fileType: sustainabilityDocument.type,
+              size: sustainabilityDocument.size,
+            },
+          ]
+        : [],
     };
 
     try {
@@ -373,7 +455,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
   return (
     <div className="supplier-add-screen">
       <div className="supplier-add-container">
-        <Breadcrumb items={[{ label: "Suppliers" }, { label: "Listing" }, { label: "Add Supplier" }]} />
+        <Breadcrumb
+          items={[
+            { label: "Suppliers" },
+            { label: "Listing" },
+            { label: "Add Supplier" },
+          ]}
+        />
 
         <div className="supplier-form-header">
           <div>
@@ -384,10 +472,10 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
               Add Supplier
             </h1>
             <p>
-              Register new FFB supplier, estate cooperative, CPO transporter, or mill contractor
+              Register new FFB supplier, estate cooperative, CPO transporter, or
+              mill contractor
             </p>
           </div>
-
         </div>
 
         {error && (
@@ -444,9 +532,7 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
               </div>
 
               <div>
-                <label className="form-label">
-                  Registration No.
-                </label>
+                <label className="form-label">Registration No.</label>
                 <input
                   type="text"
                   name="registrationNo"
@@ -469,9 +555,7 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
               </div>
 
               <div>
-                <label className="form-label">
-                  Company Email
-                </label>
+                <label className="form-label">Company Email</label>
                 <input
                   type="email"
                   name="companyEmail"
@@ -514,49 +598,110 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <label className="form-label">
                   Primary Supplier Category <span className="req">*</span>
                 </label>
-                <select name="category" className="form-input" required value={formData.category} onChange={handleChange}>
+                <select
+                  name="category"
+                  className="form-input"
+                  required
+                  value={formData.category}
+                  onChange={handleChange}
+                >
                   <option value="">Select primary supplier category...</option>
-                  <option value="FFB Supplier (Estate)">FFB Supplier (Commercial Estate)</option>
-                  <option value="FFB Supplier (Smallholder / Koperasi)">FFB Supplier (Smallholder / Koperasi)</option>
-                  <option value="FFB Supplier (Dealer)">FFB Supplier (Dealer)</option>
-                  <option value="Logistics & Transport (CPO/PK Tankers)">Logistics & Transport (CPO/PK Tankers)</option>
-                  <option value="Mill Machinery & Spare Parts">Mill Machinery & Spare Parts</option>
-                  <option value="Chemicals & Water Treatment">Chemicals & Water Treatment</option>
-                  <option value="Fuel & Biomass Services">Fuel & Biomass Services</option>
-                  <option value="Weighbridge & Calibration Services">Weighbridge & Calibration Services</option>
-                  <option value="Civil & Mill Maintenance">Civil & Mill Maintenance</option>
+                  <option value="FFB Supplier (Estate)">
+                    FFB Supplier (Commercial Estate)
+                  </option>
+                  <option value="FFB Supplier (Smallholder / Koperasi)">
+                    FFB Supplier (Smallholder / Koperasi)
+                  </option>
+                  <option value="FFB Supplier (Dealer)">
+                    FFB Supplier (Dealer)
+                  </option>
+                  <option value="Logistics & Transport (CPO/PK Tankers)">
+                    Logistics & Transport (CPO/PK Tankers)
+                  </option>
+                  <option value="Mill Machinery & Spare Parts">
+                    Mill Machinery & Spare Parts
+                  </option>
+                  <option value="Chemicals & Water Treatment">
+                    Chemicals & Water Treatment
+                  </option>
+                  <option value="Fuel & Biomass Services">
+                    Fuel & Biomass Services
+                  </option>
+                  <option value="Weighbridge & Calibration Services">
+                    Weighbridge & Calibration Services
+                  </option>
+                  <option value="Civil & Mill Maintenance">
+                    Civil & Mill Maintenance
+                  </option>
                 </select>
               </div>
-              {formData.category.startsWith("FFB Supplier") && <div>
-                <label className="form-label">Supplier Type <small>(Optional)</small></label>
-                <select name="supplierType" className="form-input" value={formData.supplierType} onChange={handleChange}>
-                  <option value="">Select supplier type...</option>
-                  <option value="Company">Company / Corporate Entity</option>
-                  <option value="Cooperative">Plantation Cooperative (Koperasi)</option>
-                  <option value="Individual">Individual Smallholder (Pekebun Kecil)</option>
-                </select>
-              </div>}
+              {formData.category.startsWith("FFB Supplier") && (
+                <div>
+                  <label className="form-label">
+                    Supplier Type <small>(Optional)</small>
+                  </label>
+                  <select
+                    name="supplierType"
+                    className="form-input"
+                    value={formData.supplierType}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select supplier type...</option>
+                    <option value="Company">Company / Corporate Entity</option>
+                    <option value="Cooperative">
+                      Plantation Cooperative (Koperasi)
+                    </option>
+                    <option value="Individual">
+                      Individual Smallholder (Pekebun Kecil)
+                    </option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="form-label">
                   Supplier Group <span className="req">*</span>
                 </label>
-                <select name="group" className="form-input" value={formData.group} onChange={handleChange}>
+                <select
+                  name="group"
+                  className="form-input"
+                  value={formData.group}
+                  onChange={handleChange}
+                >
                   <option value="External">External Supplier</option>
                   <option value="Internal">Internal / Own Mill Group</option>
-                  <option value="Cooperative">Smallholder Cooperative Scheme</option>
+                  <option value="Cooperative">
+                    Smallholder Cooperative Scheme
+                  </option>
                   <option value="Intercompany">Intercompany</option>
                 </select>
               </div>
-              {formData.category.startsWith("FFB Supplier") && <div>
-                <label className="form-label">Sustainability Certification</label>
-                <select name="sustainabilityCert" className="form-input" value={formData.sustainabilityCert} onChange={handleChange}>
-                  <option value="RSPO Certified (Identity Preserved)">RSPO Certified (Identity Preserved)</option>
-                  <option value="RSPO Certified (Mass Balance)">RSPO Certified (Mass Balance)</option>
-                  <option value="MSPO Certified">MSPO Supply Chain Certified</option>
-                  <option value="ISCC EU Certified">ISCC EU Certified</option>
-                  <option value="Non-certified">Non-certified / Conventional</option>
-                </select>
-              </div>}
+              {formData.category.startsWith("FFB Supplier") && (
+                <div>
+                  <label className="form-label">
+                    Sustainability Certification
+                  </label>
+                  <select
+                    name="sustainabilityCert"
+                    className="form-input"
+                    value={formData.sustainabilityCert}
+                    onChange={handleChange}
+                  >
+                    <option value="RSPO Certified (Identity Preserved)">
+                      RSPO Certified (Identity Preserved)
+                    </option>
+                    <option value="RSPO Certified (Mass Balance)">
+                      RSPO Certified (Mass Balance)
+                    </option>
+                    <option value="MSPO Certified">
+                      MSPO Supply Chain Certified
+                    </option>
+                    <option value="ISCC EU Certified">ISCC EU Certified</option>
+                    <option value="Non-certified">
+                      Non-certified / Conventional
+                    </option>
+                  </select>
+                </div>
+              )}
 
               <div className="col-span-3">
                 <label className="form-label">Description</label>
@@ -578,24 +723,84 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <button
                   type="button"
                   onClick={handleAddContact}
-                  style={{ background: "none", border: "none", color: "#c51d2c", fontSize: "11.5px", fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#c51d2c",
+                    fontSize: "11.5px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
                 >
                   <Plus /> Add Contact
                 </button>
               }
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
               {contacts.map((contact, index) => (
-                <div key={contact.id} style={{ border: "1px solid #E2E2E2", borderRadius: "4px", padding: "12px", background: "#FDFDFD" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Contact #{index + 1}</span>
-                      <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", fontSize: "11px", color: "#4B5563", fontWeight: 500 }}>
+                <div
+                  key={contact.id}
+                  style={{
+                    border: "1px solid #E2E2E2",
+                    borderRadius: "4px",
+                    padding: "12px",
+                    background: "#FDFDFD",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          color: "#374151",
+                        }}
+                      >
+                        Contact #{index + 1}
+                      </span>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          color: "#4B5563",
+                          fontWeight: 500,
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={contact.isPrimary}
-                          onChange={(e) => handleContactChange(contact.id, "isPrimary", e.target.checked)}
-                          style={{ accentColor: "#c51d2c", width: "14px", height: "14px" }}
+                          onChange={(e) =>
+                            handleContactChange(
+                              contact.id,
+                              "isPrimary",
+                              e.target.checked,
+                            )
+                          }
+                          style={{
+                            accentColor: "#c51d2c",
+                            width: "14px",
+                            height: "14px",
+                          }}
                         />
                         <span>Primary Contact</span>
                       </label>
@@ -604,7 +809,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <button
                         type="button"
                         onClick={() => handleRemoveContact(contact.id)}
-                        style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", padding: "2px" }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#9CA3AF",
+                          cursor: "pointer",
+                          padding: "2px",
+                        }}
                         title="Remove Contact"
                       >
                         <Trash2 />
@@ -618,13 +829,29 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <select
                         className="form-input"
                         value={contact.type}
-                        onChange={(e) => handleContactChange(contact.id, "type", e.target.value)}
+                        onChange={(e) =>
+                          handleContactChange(
+                            contact.id,
+                            "type",
+                            e.target.value,
+                          )
+                        }
                       >
-                        <option value="Procurement / Dispatch">Procurement / Dispatch</option>
-                        <option value="Estate Manager">Estate Manager / Harvester</option>
-                        <option value="Logistics / Fleet Manager">Logistics / Fleet Manager</option>
-                        <option value="Finance / Billing">Finance / Billing</option>
-                        <option value="Executive / Owner">Executive / Owner</option>
+                        <option value="Procurement / Dispatch">
+                          Procurement / Dispatch
+                        </option>
+                        <option value="Estate Manager">
+                          Estate Manager / Harvester
+                        </option>
+                        <option value="Logistics / Fleet Manager">
+                          Logistics / Fleet Manager
+                        </option>
+                        <option value="Finance / Billing">
+                          Finance / Billing
+                        </option>
+                        <option value="Executive / Owner">
+                          Executive / Owner
+                        </option>
                       </select>
                     </div>
 
@@ -638,7 +865,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                         className="form-input"
                         placeholder="Full Name"
                         value={contact.name}
-                        onChange={(e) => handleContactChange(contact.id, "name", e.target.value)}
+                        onChange={(e) =>
+                          handleContactChange(
+                            contact.id,
+                            "name",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -649,7 +882,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                         className="form-input"
                         placeholder="e.g. Operations Manager"
                         value={contact.designation}
-                        onChange={(e) => handleContactChange(contact.id, "designation", e.target.value)}
+                        onChange={(e) =>
+                          handleContactChange(
+                            contact.id,
+                            "designation",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -663,7 +902,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                         className="form-input"
                         placeholder="contact@supplier.com"
                         value={contact.email}
-                        onChange={(e) => handleContactChange(contact.id, "email", e.target.value)}
+                        onChange={(e) =>
+                          handleContactChange(
+                            contact.id,
+                            "email",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -676,7 +921,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                           className="form-input"
                           style={{ width: "95px", flexShrink: 0 }}
                           value={contact.mobileCode}
-                          onChange={(e) => handleContactChange(contact.id, "mobileCode", e.target.value)}
+                          onChange={(e) =>
+                            handleContactChange(
+                              contact.id,
+                              "mobileCode",
+                              e.target.value,
+                            )
+                          }
                         >
                           <option value="+60">+60 (MY)</option>
                           <option value="+62">+62 (ID)</option>
@@ -691,7 +942,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                           style={{ flex: 1 }}
                           placeholder="12 345 6789"
                           value={contact.mobile}
-                          onChange={(e) => handleContactChange(contact.id, "mobile", e.target.value)}
+                          onChange={(e) =>
+                            handleContactChange(
+                              contact.id,
+                              "mobile",
+                              e.target.value,
+                            )
+                          }
                         />
                       </div>
                     </div>
@@ -707,24 +964,84 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <button
                   type="button"
                   onClick={handleAddAddress}
-                  style={{ background: "none", border: "none", color: "#c51d2c", fontSize: "11.5px", fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#c51d2c",
+                    fontSize: "11.5px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
                 >
                   <Plus /> Add Address
                 </button>
               }
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
               {addresses.map((address, index) => (
-                <div key={address.id} style={{ border: "1px solid #E2E2E2", borderRadius: "4px", padding: "12px", background: "#FDFDFD" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Location #{index + 1}</span>
-                      <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", fontSize: "11px", color: "#4B5563", fontWeight: 500 }}>
+                <div
+                  key={address.id}
+                  style={{
+                    border: "1px solid #E2E2E2",
+                    borderRadius: "4px",
+                    padding: "12px",
+                    background: "#FDFDFD",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          color: "#374151",
+                        }}
+                      >
+                        Location #{index + 1}
+                      </span>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          color: "#4B5563",
+                          fontWeight: 500,
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={address.isDefault}
-                          onChange={(e) => handleAddressChange(address.id, "isDefault", e.target.checked)}
-                          style={{ accentColor: "#c51d2c", width: "14px", height: "14px" }}
+                          onChange={(e) =>
+                            handleAddressChange(
+                              address.id,
+                              "isDefault",
+                              e.target.checked,
+                            )
+                          }
+                          style={{
+                            accentColor: "#c51d2c",
+                            width: "14px",
+                            height: "14px",
+                          }}
                         />
                         <span>Default Location</span>
                       </label>
@@ -733,7 +1050,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <button
                         type="button"
                         onClick={() => handleRemoveAddress(address.id)}
-                        style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", padding: "2px" }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#9CA3AF",
+                          cursor: "pointer",
+                          padding: "2px",
+                        }}
                         title="Remove Location"
                       >
                         <Trash2 />
@@ -747,11 +1070,23 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <select
                         className="form-input"
                         value={address.type}
-                        onChange={(e) => handleAddressChange(address.id, "type", e.target.value)}
+                        onChange={(e) =>
+                          handleAddressChange(
+                            address.id,
+                            "type",
+                            e.target.value,
+                          )
+                        }
                       >
-                        <option value="Plantation Estate Site">Plantation Estate Site</option>
-                        <option value="Depot / Warehouse">Depot / Warehouse / Garage</option>
-                        <option value="Registered Office">Registered Corporate Office</option>
+                        <option value="Plantation Estate Site">
+                          Plantation Estate Site
+                        </option>
+                        <option value="Depot / Warehouse">
+                          Depot / Warehouse / Garage
+                        </option>
+                        <option value="Registered Office">
+                          Registered Corporate Office
+                        </option>
                         <option value="Billing Address">Billing Address</option>
                       </select>
                     </div>
@@ -766,7 +1101,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                         className="form-input"
                         placeholder="Street / Estate Division / KM Marker"
                         value={address.line1}
-                        onChange={(e) => handleAddressChange(address.id, "line1", e.target.value)}
+                        onChange={(e) =>
+                          handleAddressChange(
+                            address.id,
+                            "line1",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -777,11 +1118,19 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <select
                         className="form-input"
                         value={address.country}
-                        onChange={(e) => handleAddressChange(address.id, "country", e.target.value)}
+                        onChange={(e) =>
+                          handleAddressChange(
+                            address.id,
+                            "country",
+                            e.target.value,
+                          )
+                        }
                       >
                         <option value="Malaysia">Malaysia</option>
                         <option value="Indonesia">Indonesia</option>
-                        <option value="United Arab Emirates">United Arab Emirates</option>
+                        <option value="United Arab Emirates">
+                          United Arab Emirates
+                        </option>
                         <option value="Singapore">Singapore</option>
                         <option value="India">India</option>
                       </select>
@@ -794,7 +1143,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <select
                         className="form-input"
                         value={address.state}
-                        onChange={(e) => handleAddressChange(address.id, "state", e.target.value)}
+                        onChange={(e) =>
+                          handleAddressChange(
+                            address.id,
+                            "state",
+                            e.target.value,
+                          )
+                        }
                       >
                         {(COUNTRY_STATES[address.country] || []).map((st) => (
                           <option key={st} value={st}>
@@ -814,7 +1169,13 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                         className="form-input"
                         placeholder="e.g. Pekanbaru or Pasir Gudang"
                         value={address.city}
-                        onChange={(e) => handleAddressChange(address.id, "city", e.target.value)}
+                        onChange={(e) =>
+                          handleAddressChange(
+                            address.id,
+                            "city",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -829,22 +1190,62 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <button
                   type="button"
                   onClick={handleAddSupplyItem}
-                  style={{ background: "none", border: "none", color: "#c51d2c", fontSize: "11.5px", fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#c51d2c",
+                    fontSize: "11.5px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
                 >
                   <Plus /> Add Supply Item
                 </button>
               }
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
               {supplyItems.map((item, index) => (
-                <div key={item.id} style={{ border: "1px solid #E2E2E2", borderRadius: "4px", padding: "12px", background: "#FDFDFD" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Commodity / Item #{index + 1}</span>
+                <div
+                  key={item.id}
+                  style={{
+                    border: "1px solid #E2E2E2",
+                    borderRadius: "4px",
+                    padding: "12px",
+                    background: "#FDFDFD",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        color: "#374151",
+                      }}
+                    >
+                      Commodity / Item #{index + 1}
+                    </span>
                     {supplyItems.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveSupplyItem(item.id)}
-                        style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", padding: "2px" }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#9CA3AF",
+                          cursor: "pointer",
+                          padding: "2px",
+                        }}
                         title="Remove Item"
                       >
                         <Trash2 />
@@ -857,20 +1258,49 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <label className="form-label">
                         Item <span className="req">*</span>
                       </label>
-                      <select required className="form-input" value={item.item} onChange={(e) => handleSupplyItemChange(item.id, "item", e.target.value)}>
-                        <option value="">Select item from Item Master...</option>
-                        {items.filter((masterItem) => masterItem.status === "Active").map((masterItem) => <option key={masterItem.id} value={masterItem.name}>{masterItem.item_code} · {masterItem.name}</option>)}
+                      <select
+                        required
+                        className="form-input"
+                        value={item.item}
+                        onChange={(e) =>
+                          handleSupplyItemChange(
+                            item.id,
+                            "item",
+                            e.target.value,
+                          )
+                        }
+                      >
+                        <option value="">
+                          Select item from Item Master...
+                        </option>
+                        {items
+                          .filter(
+                            (masterItem) => masterItem.status === "Active",
+                          )
+                          .map((masterItem) => (
+                            <option key={masterItem.id} value={masterItem.name}>
+                              {masterItem.item_code} · {masterItem.name}
+                            </option>
+                          ))}
                       </select>
                     </div>
 
                     <div>
-                      <label className="form-label">Estimated Monthly Supply Capacity</label>
+                      <label className="form-label">
+                        Estimated Monthly Supply Capacity
+                      </label>
                       <input
                         type="text"
                         className="form-input"
                         placeholder="e.g. 3,000 MT / Month or 80 Trips / Month"
                         value={item.supplyCapacity}
-                        onChange={(e) => handleSupplyItemChange(item.id, "supplyCapacity", e.target.value)}
+                        onChange={(e) =>
+                          handleSupplyItemChange(
+                            item.id,
+                            "supplyCapacity",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -879,9 +1309,19 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                       <select
                         className="form-input"
                         value={item.deliveryTerm}
-                        onChange={(e) => handleSupplyItemChange(item.id, "deliveryTerm", e.target.value)}
+                        onChange={(e) =>
+                          handleSupplyItemChange(
+                            item.id,
+                            "deliveryTerm",
+                            e.target.value,
+                          )
+                        }
                       >
-                        {deliveryTerms.map((term) => <option key={term} value={term}>{term}</option>)}
+                        {deliveryTerms.map((term) => (
+                          <option key={term} value={term}>
+                            {term}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -896,7 +1336,12 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <label className="form-label">
                   Default Currency <span className="req">*</span>
                 </label>
-                <select name="currency" className="form-input" value={formData.currency} onChange={handleChange}>
+                <select
+                  name="currency"
+                  className="form-input"
+                  value={formData.currency}
+                  onChange={handleChange}
+                >
                   <option value="MYR">MYR - Malaysian Ringgit</option>
                   <option value="IDR">IDR - Indonesian Rupiah</option>
                   <option value="USD">USD - US Dollar</option>
@@ -908,8 +1353,15 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <label className="form-label">
                   Payment Terms <span className="req">*</span>
                 </label>
-                <select name="paymentTerms" className="form-input" value={formData.paymentTerms} onChange={handleChange}>
-                  <option value="Immediate / Cash">Immediate / Cash upon Weighment</option>
+                <select
+                  name="paymentTerms"
+                  className="form-input"
+                  value={formData.paymentTerms}
+                  onChange={handleChange}
+                >
+                  <option value="Immediate / Cash">
+                    Immediate / Cash upon Weighment
+                  </option>
                   <option value="Weekly Cash">Weekly Settlement</option>
                   <option value="15 Days">15 Days</option>
                   <option value="30 Days">30 Days</option>
@@ -922,10 +1374,17 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
                 <label className="form-label">
                   Payment Mode <span className="req">*</span>
                 </label>
-                <select name="paymentMode" className="form-input" value={formData.paymentMode} onChange={handleChange}>
+                <select
+                  name="paymentMode"
+                  className="form-input"
+                  value={formData.paymentMode}
+                  onChange={handleChange}
+                >
                   <option value="Bank Transfer">Direct Bank Wire / GIRO</option>
                   <option value="Cheque">Cheque</option>
-                  <option value="Letter of Credit">Letter of Credit (LC)</option>
+                  <option value="Letter of Credit">
+                    Letter of Credit (LC)
+                  </option>
                   <option value="Cash">Cash on Delivery</option>
                 </select>
               </div>
@@ -973,49 +1432,206 @@ export function SupplierForm({ onClose, onSaved, items = [] }) {
             <SectionHeader title="7. Compliance Documents" />
             <div className="supplier-grid-2">
               <div>
-                <label className="form-label">Business Registration Certificate (SSM / NIB)</label>
+                <label className="form-label">
+                  Business Registration Certificate (SSM / NIB)
+                </label>
                 <div style={{ position: "relative", height: "32px" }}>
-                  <input type="file" style={{ opacity: 0, position: "absolute", inset: 0, width: "100%", height: "100%", cursor: "pointer", zIndex: 10 }} />
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #D1D5DB", borderRadius: "4px", padding: "0 10px", background: "#fff", pointerEvents: "none" }}>
-                    <span style={{ color: "#9CA3AF", fontSize: "11px" }}>Choose file...</span>
-                    <span style={{ fontSize: "11px", color: "#374151", fontWeight: 500, background: "#F3F4F6", padding: "2px 8px", borderRadius: "3px", border: "1px solid #E5E7EB" }}>Browse</span>
+                  <input
+                    type="file"
+                    style={{
+                      opacity: 0,
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      cursor: "pointer",
+                      zIndex: 10,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      border: "1px solid #D1D5DB",
+                      borderRadius: "4px",
+                      padding: "0 10px",
+                      background: "#fff",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <span style={{ color: "#9CA3AF", fontSize: "11px" }}>
+                      Choose file...
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "#374151",
+                        fontWeight: 500,
+                        background: "#F3F4F6",
+                        padding: "2px 8px",
+                        borderRadius: "3px",
+                        border: "1px solid #E5E7EB",
+                      }}
+                    >
+                      Browse
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {formData.category.startsWith("FFB Supplier") && formData.sustainabilityCert !== "Non-certified" ? <div>
-                <label className="form-label">{formData.sustainabilityCert} Document</label>
-                <input type="file" className="form-input" accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => setSustainabilityDocument(event.target.files?.[0] || null)} />
-              </div> : <div className="supplier-document-note">No sustainability document is required for a non-certified supplier.</div>}
+              {formData.category.startsWith("FFB Supplier") &&
+              formData.sustainabilityCert !== "Non-certified" ? (
+                <div>
+                  <label className="form-label">
+                    {formData.sustainabilityCert} Document
+                  </label>
+                  <input
+                    type="file"
+                    className="form-input"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(event) =>
+                      setSustainabilityDocument(event.target.files?.[0] || null)
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="supplier-document-note">
+                  No sustainability document is required for a non-certified
+                  supplier.
+                </div>
+              )}
 
               <div>
-                <label className="form-label">Tax ID Proof (NPWP / TRN / VAT)</label>
+                <label className="form-label">
+                  Tax ID Proof (NPWP / TRN / VAT)
+                </label>
                 <div style={{ position: "relative", height: "32px" }}>
-                  <input type="file" style={{ opacity: 0, position: "absolute", inset: 0, width: "100%", height: "100%", cursor: "pointer", zIndex: 10 }} />
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #D1D5DB", borderRadius: "4px", padding: "0 10px", background: "#fff", pointerEvents: "none" }}>
-                    <span style={{ color: "#9CA3AF", fontSize: "11px" }}>Choose file...</span>
-                    <span style={{ fontSize: "11px", color: "#374151", fontWeight: 500, background: "#F3F4F6", padding: "2px 8px", borderRadius: "3px", border: "1px solid #E5E7EB" }}>Browse</span>
+                  <input
+                    type="file"
+                    style={{
+                      opacity: 0,
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      cursor: "pointer",
+                      zIndex: 10,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      border: "1px solid #D1D5DB",
+                      borderRadius: "4px",
+                      padding: "0 10px",
+                      background: "#fff",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <span style={{ color: "#9CA3AF", fontSize: "11px" }}>
+                      Choose file...
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "#374151",
+                        fontWeight: 500,
+                        background: "#F3F4F6",
+                        padding: "2px 8px",
+                        borderRadius: "3px",
+                        border: "1px solid #E5E7EB",
+                      }}
+                    >
+                      Browse
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="form-label">Bank Account Verification Letter</label>
+                <label className="form-label">
+                  Bank Account Verification Letter
+                </label>
                 <div style={{ position: "relative", height: "32px" }}>
-                  <input type="file" style={{ opacity: 0, position: "absolute", inset: 0, width: "100%", height: "100%", cursor: "pointer", zIndex: 10 }} />
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #D1D5DB", borderRadius: "4px", padding: "0 10px", background: "#fff", pointerEvents: "none" }}>
-                    <span style={{ color: "#9CA3AF", fontSize: "11px" }}>Choose file...</span>
-                    <span style={{ fontSize: "11px", color: "#374151", fontWeight: 500, background: "#F3F4F6", padding: "2px 8px", borderRadius: "3px", border: "1px solid #E5E7EB" }}>Browse</span>
+                  <input
+                    type="file"
+                    style={{
+                      opacity: 0,
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      cursor: "pointer",
+                      zIndex: 10,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      border: "1px solid #D1D5DB",
+                      borderRadius: "4px",
+                      padding: "0 10px",
+                      background: "#fff",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <span style={{ color: "#9CA3AF", fontSize: "11px" }}>
+                      Choose file...
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "#374151",
+                        fontWeight: 500,
+                        background: "#F3F4F6",
+                        padding: "2px 8px",
+                        borderRadius: "3px",
+                        border: "1px solid #E5E7EB",
+                      }}
+                    >
+                      Browse
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", marginTop: "32px", paddingTop: "16px", borderTop: "1px solid #E2E2E2" }}>
-              <button type="submit" disabled={saving} className="btn-primary" style={{ width: "145px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "12px",
+                marginTop: "32px",
+                paddingTop: "16px",
+                borderTop: "1px solid #E2E2E2",
+              }}
+            >
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary"
+                style={{ width: "145px" }}
+              >
                 {saving ? "Saving..." : "Save Supplier"}
               </button>
-              <button type="button" onClick={handleCancel} className="btn-secondary" style={{ width: "145px" }}>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="btn-secondary"
+                style={{ width: "145px" }}
+              >
                 Discard
               </button>
             </div>
@@ -1036,7 +1652,9 @@ const DetailSection = ({ title, children }) => (
 );
 
 const DetailValue = ({ label, value, wide }) => (
-  <div className={wide ? "supplier-detail-value wide" : "supplier-detail-value"}>
+  <div
+    className={wide ? "supplier-detail-value wide" : "supplier-detail-value"}
+  >
     <span>{label}</span>
     <strong>{value || "-"}</strong>
   </div>
@@ -1048,13 +1666,18 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
   const contacts = details.contacts || [];
   const addresses = details.addresses || [];
   const supplyItems = details.supplyItems || [];
+  const deliveries = supplier.deliveries || [];
+  const purchaseInvoices = supplier.purchaseInvoices || [];
   const primary = contacts.find((contact) => contact.isPrimary) || contacts[0];
   const tabs = [
     ["Summary", "▣"],
     ["Contacts", contacts.length],
     ["Addresses", addresses.length],
     ["Supply Item(s)", supplyItems.length],
-    ["Transactions", 0],
+    ["Vehicles", (details.vehicles || []).length],
+    ["Drivers", (details.drivers || []).length],
+    ["Deliveries", deliveries.length],
+    ["Purchase Invoices", purchaseInvoices.length],
     ["Documents", (details.documents || []).length],
   ];
 
@@ -1073,7 +1696,8 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
             <span className="supplier-active">{supplier.status}</span>
           </div>
           <p>
-            {supplier.name} • {supplier.category} • {supplier.supplier_group} Entity • {details.addresses?.[0]?.country || supplier.location}
+            {supplier.name} • {supplier.category} • {supplier.supplier_group}{" "}
+            Entity • {details.addresses?.[0]?.country || supplier.location}
           </p>
         </div>
         <div className="supplier-detail-actions">
@@ -1087,7 +1711,11 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
       </div>
       <div className="supplier-detail-tabs">
         {tabs.map(([label, count]) => (
-          <button key={label} className={tab === label ? "active" : ""} onClick={() => setTab(label)}>
+          <button
+            key={label}
+            className={tab === label ? "active" : ""}
+            onClick={() => setTab(label)}
+          >
             {label}
             {typeof count === "number" && <small>{count}</small>}
           </button>
@@ -1100,47 +1728,117 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
               <DetailSection title="1. Basic Information">
                 <DetailValue label="Supplier Name" value={supplier.name} />
                 <DetailValue label="Trade Name" value={details.displayName} />
-                <DetailValue label="Registration No." value={details.registrationNo} />
-                <DetailValue label="Incorporation Date" value={details.incorporationDate} />
+                <DetailValue
+                  label="Registration No."
+                  value={details.registrationNo}
+                />
+                <DetailValue
+                  label="Incorporation Date"
+                  value={details.incorporationDate}
+                />
                 <DetailValue label="Company Email" value={supplier.email} />
-                <DetailValue label="Company Website" value={details.companyWebsite} />
+                <DetailValue
+                  label="Company Website"
+                  value={details.companyWebsite}
+                />
               </DetailSection>
               <DetailSection title="2. Classification & Sustainability">
-                <DetailValue label="Supplier Category" value={supplier.category} />
-                <DetailValue label="Supplier Type" value={details.supplierType || details.vendorType} />
-                <DetailValue label="Supplier Group" value={supplier.supplier_group} />
-                <DetailValue label="Sustainability Certification" value={details.sustainabilityCert} />
-                <DetailValue label="Description" value={details.businessDescription} wide />
+                <DetailValue
+                  label="Supplier Category"
+                  value={supplier.category}
+                />
+                <DetailValue
+                  label="Supplier Type"
+                  value={details.supplierType || details.vendorType}
+                />
+                <DetailValue
+                  label="Supplier Group"
+                  value={supplier.supplier_group}
+                />
+                <DetailValue
+                  label="Sustainability Certification"
+                  value={details.sustainabilityCert}
+                />
+                <DetailValue
+                  label="Description"
+                  value={details.businessDescription}
+                  wide
+                />
               </DetailSection>
               <DetailSection title="3. Commercial & Banking Profile">
-                <DetailValue label="Operating Currency" value={details.currency} />
-                <DetailValue label="Payment Terms" value={supplier.payment_terms} />
+                <DetailValue
+                  label="Operating Currency"
+                  value={details.currency}
+                />
+                <DetailValue
+                  label="Payment Terms"
+                  value={supplier.payment_terms}
+                />
                 <DetailValue label="Payment Mode" value={details.paymentMode} />
-                <DetailValue label="Tax Registration No." value={details.taxRegistrationNo} />
+                <DetailValue
+                  label="Tax Registration No."
+                  value={details.taxRegistrationNo}
+                />
                 <DetailValue label="Bank Name" value={details.bankName} />
-                <DetailValue label="Account Number / IBAN" value={details.bankAccountNo} />
+                <DetailValue
+                  label="Account Number / IBAN"
+                  value={details.bankAccountNo}
+                />
               </DetailSection>
             </div>
             <aside>
               <div className="supplier-snapshot">
                 <h3>Quick Supplier Snapshot</h3>
-                <DetailValue label="Supplier Category" value={supplier.category} />
-                <DetailValue label="Supplier Group" value={supplier.supplier_group} />
-                <DetailValue label="Entity Type" value={details.supplierType || details.vendorType || "—"} />
-                <DetailValue label="Location" value={supplier.location || details.addresses?.[0]?.country} />
-                <DetailValue label="Registered On" value={details.registeredOn || "30-09-2026"} />
+                <DetailValue
+                  label="Supplier Category"
+                  value={supplier.category}
+                />
+                <DetailValue
+                  label="Supplier Group"
+                  value={supplier.supplier_group}
+                />
+                <DetailValue
+                  label="Entity Type"
+                  value={details.supplierType || details.vendorType || "—"}
+                />
+                <DetailValue
+                  label="Location"
+                  value={supplier.location || details.addresses?.[0]?.country}
+                />
+                <DetailValue
+                  label="Registered On"
+                  value={details.registeredOn || "30-09-2026"}
+                />
                 <DetailValue label="Hotline / Mobile" value={supplier.phone} />
-                <DetailValue label="Active Contacts" value={`${contacts.length} Registered`} />
-                <DetailValue label="Configured Locations" value={`${addresses.length} Sites`} />
-                <DetailValue label="Supply Lines" value={`${supplyItems.length} Configured`} />
-                <DetailValue label="Documents Status" value={(details.documents || []).length ? "Uploaded" : "Pending"} />
+                <DetailValue
+                  label="Active Contacts"
+                  value={`${contacts.length} Registered`}
+                />
+                <DetailValue
+                  label="Configured Locations"
+                  value={`${addresses.length} Sites`}
+                />
+                <DetailValue
+                  label="Supply Lines"
+                  value={`${supplyItems.length} Configured`}
+                />
+                <DetailValue
+                  label="Documents Status"
+                  value={
+                    (details.documents || []).length ? "Uploaded" : "Pending"
+                  }
+                />
               </div>
               <div className="supplier-primary-contact">
                 <span>PRIMARY CONTACT</span>
                 <h3>{primary?.name || supplier.contact_person}</h3>
                 <p>{primary?.designation || "Supplier Representative"}</p>
                 <p>{primary?.email || supplier.email}</p>
-                <p>{primary ? `${primary.mobileCode || "+60"} ${primary.mobile || ""}` : supplier.phone}</p>
+                <p>
+                  {primary
+                    ? `${primary.mobileCode || "+60"} ${primary.mobile || ""}`
+                    : supplier.phone}
+                </p>
               </div>
             </aside>
           </div>
@@ -1164,7 +1862,9 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
                   </article>
                 ))
               ) : (
-                <p className="muted">No contacts configured for this supplier.</p>
+                <p className="muted">
+                  No contacts configured for this supplier.
+                </p>
               )}
             </div>
           </DetailSection>
@@ -1188,7 +1888,9 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
                   </article>
                 ))
               ) : (
-                <p className="muted">No addresses configured for this supplier.</p>
+                <p className="muted">
+                  No addresses configured for this supplier.
+                </p>
               )}
             </div>
           </DetailSection>
@@ -1227,14 +1929,200 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
             </div>
           </DetailSection>
         )}
-        {tab === "Transactions" && (
-          <DetailSection title="Purchase Orders, Inbound Weighbridge & Invoices">
-            <p className="muted">No transactions recorded for this supplier yet.</p>
+        {tab === "Vehicles" && (
+          <DetailSection title="Supplier Vehicles">
+            <div className="supplier-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Vehicle Plate No.</th>
+                    <th>Vehicle Type</th>
+                    <th>Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(details.vehicles || []).length ? (
+                    details.vehicles.map((vehicle, index) => (
+                      <tr key={`${vehicle.plateNo || "vehicle"}-${index}`}>
+                        <td>{vehicle.plateNo || "—"}</td>
+                        <td>{vehicle.vehicleType || "—"}</td>
+                        <td>
+                          {vehicle.lastSeenAt
+                            ? formatDate(vehicle.lastSeenAt)
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3">
+                        No vehicles recorded for this supplier.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </DetailSection>
+        )}
+        {tab === "Drivers" && (
+          <DetailSection title="Supplier Drivers">
+            <div className="supplier-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Driver Name</th>
+                    <th>Driver ID / License</th>
+                    <th>Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(details.drivers || []).length ? (
+                    details.drivers.map((driver, index) => (
+                      <tr
+                        key={`${driver.licenseNo || driver.name || "driver"}-${index}`}
+                      >
+                        <td>{driver.name || "—"}</td>
+                        <td>{driver.licenseNo || "—"}</td>
+                        <td>
+                          {driver.lastSeenAt
+                            ? formatDate(driver.lastSeenAt)
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3">
+                        No drivers recorded for this supplier.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </DetailSection>
+        )}
+        {tab === "Deliveries" && (
+          <DetailSection title="Successful FFB Deliveries">
+            <div className="supplier-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ticket</th>
+                    <th>Date</th>
+                    <th>Lorry</th>
+                    <th>Item</th>
+                    <th>Gross</th>
+                    <th>Tare</th>
+                    <th>Net</th>
+                    <th>Invoice</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deliveries.length ? (
+                    deliveries.map((delivery) => (
+                      <tr key={delivery.id}>
+                        <td>{delivery.ticket_no}</td>
+                        <td>
+                          {formatDate(delivery.entry_at)}
+                        </td>
+                        <td>{delivery.vehicle_no}</td>
+                        <td>{delivery.product_type}</td>
+                        <td>{Number(delivery.gross_weight).toFixed(3)} MT</td>
+                        <td>
+                          {delivery.tare_weight
+                            ? `${Number(delivery.tare_weight).toFixed(3)} MT`
+                            : "—"}
+                        </td>
+                        <td>
+                          {delivery.net_weight
+                            ? `${Number(delivery.net_weight).toFixed(3)} MT`
+                            : "—"}
+                        </td>
+                        <td>
+                          {delivery.purchase_invoice_id ? "Draft created" : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8">
+                        No successful deliveries recorded for this supplier.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </DetailSection>
+        )}
+        {tab === "Purchase Invoices" && (
+          <DetailSection title="Purchase Invoices">
+            <div className="supplier-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Source</th>
+                    <th>Date</th>
+                    <th>Currency</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchaseInvoices.length ? (
+                    purchaseInvoices.map((invoice) => (
+                      <tr key={invoice.id}>
+                        <td>{invoice.invoice_number}</td>
+                        <td>
+                          {invoice.source_type === "FFB_RECEIPT"
+                            ? `FFB Receipt #${invoice.source_id}`
+                            : invoice.purchase_number}
+                        </td>
+                        <td>{invoice.invoice_date}</td>
+                        <td>{invoice.currency}</td>
+                        <td>
+                          {invoice.currency}{" "}
+                          {Number(invoice.total_amount || 0).toFixed(2)}
+                        </td>
+                        <td>
+                          <span className="customer-status">
+                            {invoice.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6">
+                        No purchase invoices recorded for this supplier.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </DetailSection>
         )}
         {tab === "Documents" && (
           <DetailSection title="Compliance, Sustainability & Regulatory Documents">
-            {(details.documents || []).length ? <div className="supplier-card-list">{details.documents.map((document, index) => <article key={index}><span>{document.type || "Supplier Document"}</span><h3>{document.name}</h3><p>{document.fileType || "Document"}</p></article>)}</div> : <p className="muted">No documents uploaded for this supplier yet.</p>}
+            {(details.documents || []).length ? (
+              <div className="supplier-card-list">
+                {details.documents.map((document, index) => (
+                  <article key={index}>
+                    <span>{document.type || "Supplier Document"}</span>
+                    <h3>{document.name}</h3>
+                    <p>{document.fileType || "Document"}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">
+                No documents uploaded for this supplier yet.
+              </p>
+            )}
           </DetailSection>
         )}
       </div>
@@ -1244,7 +2132,11 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
 
 export function SuppliersPage({ rows, onNew, onSelect }) {
   const [search, setSearch] = useState("");
-  const filteredRows = rows.filter((row) => `${row.name} ${row.supplier_code} ${row.category} ${row.supplier_group} ${row.contact_person}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredRows = rows.filter((row) =>
+    `${row.name} ${row.supplier_code} ${row.category} ${row.supplier_group} ${row.contact_person}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
   return (
     <main className="customer-list-page supplier-list-page">
       <div className="customer-breadcrumb">
@@ -1255,7 +2147,23 @@ export function SuppliersPage({ rows, onNew, onSelect }) {
       <div className="customer-list-heading">
         <h1>Suppliers</h1>
         <div className="customer-list-actions">
-          <ListingActions search={search} setSearch={setSearch} rows={filteredRows} columns={["name", "supplier_code", "category", "supplier_group", "contact_person", "phone", "email", "location", "payment_terms", "status"]} />
+          <ListingActions
+            search={search}
+            setSearch={setSearch}
+            rows={filteredRows}
+            columns={[
+              "name",
+              "supplier_code",
+              "category",
+              "supplier_group",
+              "contact_person",
+              "phone",
+              "email",
+              "location",
+              "payment_terms",
+              "status",
+            ]}
+          />
           <button title="Search">⌕</button>
           <button title="Refresh">↻</button>
           <button title="Download">⇩</button>
