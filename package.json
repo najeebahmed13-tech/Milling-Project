@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm:server\" \"npm:client\"",
+    "start": "node server.js",
     "client": "vite --host 0.0.0.0",
     "server": "node server.js",
     "build": "vite build",
@@ -20,6 +21,9 @@
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.52.0",
+    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   }
