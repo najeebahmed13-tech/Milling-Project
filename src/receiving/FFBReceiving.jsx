@@ -501,7 +501,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
               found: true,
               message: "Driver license found. Driver name was prefilled.",
             }
-          : { found: false, message: "No matching driver license was found." },
+          : { found: false, message: "New license will be registered when this receipt is saved." },
       );
       if (payload.found)
         setForm((current) => ({
