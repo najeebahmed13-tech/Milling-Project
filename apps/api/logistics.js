@@ -24,10 +24,13 @@ export function registerLogisticsModule(app, db) {
     );
   `);
   for (const column of [
+    "receipt_code TEXT",
     "driver_identity_type TEXT", "driver_identity_no TEXT", "driver_license_no TEXT",
     "driver_id INTEGER", "vehicle_id INTEGER", "gate_status TEXT NOT NULL DEFAULT 'PENDING'",
     "entry_authorized_at TEXT", "entry_authorized_by TEXT"
   ]) { try { db.exec(`ALTER TABLE ffb_receipts ADD COLUMN ${column}`); } catch {} }
+  // Backfill records created before receipt references were persisted.
+  db.exec("UPDATE ffb_receipts SET receipt_code = 'RC-' || replace(substr(entry_at,1,10),'-','') || '-' || printf('%06d', id) WHERE receipt_code IS NULL OR receipt_code='' ");
 
   if (!db.prepare('SELECT COUNT(*) count FROM vehicle_types').get().count) {
     const insert = db.prepare('INSERT INTO vehicle_types (code,name,usage,default_capacity,capacity_uom,requires_tare,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
@@ -76,7 +79,7 @@ export function createFfbReceiptHandler(db) {
     if (!body.driverName) return res.status(400).json({ code: 'DRIVER_REQUIRED', message: 'Driver name is required before mill entry can be authorized.' });
     const driverIdentityType = String(body.driverIdentityType || '').trim() || null;
     const driverIdentityNo = String(body.driverIdentityNo || '').trim().toUpperCase() || null;
-    const stamp = now(); const ticket = `WB-${stamp.slice(0,10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const stamp = now(); const dateCode = stamp.slice(0,10).replaceAll('-', ''); const ticket = `WB-${dateCode}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
     try {
       const create = db.transaction(() => {
         const type = db.prepare('SELECT * FROM vehicle_types WHERE name=?').get(body.vehicleType);
@@ -93,6 +96,7 @@ export function createFfbReceiptHandler(db) {
         }
         const info = db.prepare(`INSERT INTO ffb_receipts (ticket_no,vehicle_no,vehicle_type,driver_name,driver_phone,delivery_order,supplier,supplier_plant,supplier_category,transporter,product_type,gross_weight,weight_uom,operator_name,entry_at,remarks,attachments_json,driver_identity_type,driver_identity_no,driver_license_no,driver_id,vehicle_id,gate_status,entry_authorized_at,entry_authorized_by,created_at)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ticket, registration, body.vehicleType, body.driverName.trim(), body.driverPhone || '', body.deliveryOrder || '', body.supplier, body.supplierPlant || '', body.supplierCategory || '', body.transporter || '', body.productType || 'FFB', gross, body.weightUom || 'MT', 'Sean Shapiro', stamp, body.remarks || '', JSON.stringify(body.attachments || []), driverIdentityType, driverIdentityNo, body.driverLicenseNo || '', driver?.id || null, vehicle.id, 'AUTHORIZED_INSIDE', stamp, 'Sean Shapiro', stamp);
+        db.prepare('UPDATE ffb_receipts SET receipt_code=? WHERE id=?').run(`RC-${dateCode}-${String(info.lastInsertRowid).padStart(6, '0')}`, info.lastInsertRowid);
         return info.lastInsertRowid;
       });
       const id = create(); res.status(201).json(db.prepare('SELECT * FROM ffb_receipts WHERE id=?').get(id));

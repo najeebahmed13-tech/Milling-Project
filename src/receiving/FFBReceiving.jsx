@@ -45,6 +45,18 @@ const parseFiles = (value) => {
     return [];
   }
 };
+// Older API deployments may not return receipt_code yet. Keep the receipt
+// reference visible from the immutable receipt id while the API catches up.
+const receiptCode = (record) => {
+  if (record?.receipt_code) return record.receipt_code;
+  const ticketDate = String(record?.ticket_no || "").match(/^WB-(\d{8})-/)?.[1];
+  const fallbackDate = String(record?.entry_at || record?.created_at || "")
+    .slice(0, 10)
+    .replaceAll("-", "");
+  return record?.id && (ticketDate || fallbackDate)
+    ? `RC-${ticketDate || fallbackDate}-${String(record.id).padStart(6, "0")}`
+    : "—";
+};
 const gradingComplete = (row) => {
   if (row?.state === "GRADING_COMPLETED") return true;
   if (
@@ -249,7 +261,7 @@ function ReceiptSlip({ record, onClose }) {
             <em>OFFICIALLY VERIFIED</em>
           </header>
           <h2>INBOUND WEIGHT CERTIFICATE / TICKET</h2>
-          <div className="receipt-slip-identification"><div><span>Ticket Identification:</span><b>{record.ticket_no || "—"}</b></div><div><span>Official Receipt Ref:</span><b>{record.receipt_code || "—"}</b></div></div>
+          <div className="receipt-slip-identification"><div><span>Ticket Identification:</span><b>{record.ticket_no || "—"}</b></div><div><span>Official Receipt Ref:</span><b>{receiptCode(record)}</b></div></div>
           <div className="receipt-slip-details"><div><span>Supplier:</span><b>{record.supplier || "—"}</b></div><div><span>Vehicle Plate:</span><b className="plate">{record.vehicle_no || "—"}</b></div><div><span>Driver Name:</span><b>{record.driver_name || "—"}</b></div><div><span>Commodity / Item:</span><b>{record.product_type || "—"}</b></div></div>
           <h3>Weight Measurement Breakdown</h3>
           <div className="receipt-slip-weight-table"><div className="receipt-slip-weight-head"><span>Description</span><span>Timestamp</span><span>Station Scale</span><span>Reading (MT)</span></div>{weightRow("Gross Weight (First Weighing)", record.entry_at, record.gross_weight)}{weightRow("Tare Weight (Second Weighing)", record.exit_at, record.tare_weight)}</div>
@@ -288,7 +300,7 @@ function FfbReceiptGrid({
                   onSelect(row);
                 }}
               >
-                {row.receipt_code || "—"}
+                {receiptCode(row)}
               </button>
             </div>
             <span
@@ -620,7 +632,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
               {filtered.map((row) => (
                 <tr key={row.id} onClick={() => setSelected(row)}>
                   <td className="receipt-code-cell">
-                    {row.receipt_code || "—"}
+                    {receiptCode(row)}
                   </td>
                   <td className="ticket-cell">{row.ticket_no}</td>
                   <td>{formatDateTime(row.entry_at)}</td>
@@ -725,7 +737,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                       ? `${stage.ticket_no} · ${stage.vehicle_no} · ${stage.supplier}`
                       : stage.ticket_no}
                 </p>
-                {stage.type === "grading" && <small className="grading-form-reference">Ref: {stage.receipt_code || "—"} · {stage.ticket_no}</small>}
+                {stage.type === "grading" && <small className="grading-form-reference">Ref: {receiptCode(stage)} · {stage.ticket_no}</small>}
               </div>
               {stage.type === "grading" && <span className="grading-form-header-status">First Weighing</span>}
               {stage.type === "exit" && <span className="second-weighing-header-status">Second Weighing</span>}
@@ -965,7 +977,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
             <div className="drawer-head">
               <div>
                 <div className="eyebrow">STOCK / FFB RECEIVING · DETAILS</div>
-                <h2>{selected.receipt_code || selected.ticket_no}</h2>
+                <h2>{receiptCode(selected) || selected.ticket_no}</h2>
                 <p className="drawer-subtitle">
                   {selected.ticket_no} · {formatDateTime(selected.entry_at)}
                 </p>
