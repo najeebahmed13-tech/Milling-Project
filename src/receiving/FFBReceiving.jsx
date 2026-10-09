@@ -441,7 +441,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
   const [tarePreview, setTarePreview] = useState("");
   const [error, setError] = useState("");
   const [capturedAt, setCapturedAt] = useState(() => new Date());
-  const [licenseLookup, setLicenseLookup] = useState(null);
   const [vehicleLookup, setVehicleLookup] = useState(null);
   const activeItems = items.filter((item) => item.status === "Active");
   const filtered = useMemo(
@@ -465,7 +464,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
     setError("");
     setForm({ ...emptyReceive });
     setCapturedAt(new Date());
-    setLicenseLookup(null);
     setVehicleLookup(null);
     setTarePreview("");
     setStage({ type: "receive" });
@@ -488,30 +486,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
           }),
       ),
     );
-  const lookupLicense = async () => {
-    if (!form.driverLicenseNo.trim()) return;
-    try {
-      const response = await fetch(
-        `/api/driver-lookup?identityNo=${encodeURIComponent(form.driverLicenseNo.trim())}`,
-      );
-      const payload = await response.json();
-      setLicenseLookup(
-        payload.found
-          ? {
-              found: true,
-              message: "Driver license found. Driver name was prefilled.",
-            }
-          : { found: false, message: "New license will be registered when this receipt is saved." },
-      );
-      if (payload.found)
-        setForm((current) => ({
-          ...current,
-          driverName: payload.driver.name || current.driverName,
-        }));
-    } catch {
-      setLicenseLookup(null);
-    }
-  };
   useEffect(() => {
     if (stage?.type !== "receive" || form.vehicleNo.trim().length < 3) return;
     const timer = setTimeout(() => lookupVehicle(), 350);
@@ -553,7 +527,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
     setCapturedAt(systemCapturedAt);
     const validation = validateFfbReceiveForm(form);
     if (!validation.valid) return setError(validation.message);
-    if (!form.driverLicenseNo.trim()) return setError("Driver ID (License) is required before mill entry can be authorized.");
     const attachments = await readAttachments(
       Array.from(
         event.currentTarget.querySelector('input[type="file"]')?.files || [],
@@ -568,8 +541,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
         // in the API contract for production backends that validate it before
         // applying their server-side default.
         vehicleType: form.vehicleType || "FFB Tipper",
-        driverIdentityType: "Driving License",
-        driverIdentityNo: form.driverLicenseNo.trim(),
         capturedAt: systemCapturedAt.toISOString(),
         attachments,
       }),
@@ -819,26 +790,14 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                   />
                 </label>
                 <label className="contract-field">
-                  Driver ID (License)<em>*</em>
+                  Driver ID (License)<small> (Informational · Optional)</small>
                   <input
                     value={form.driverLicenseNo}
                     onChange={(event) => {
                       update("driverLicenseNo", event.target.value);
-                      setLicenseLookup(null);
                     }}
-                    onBlur={lookupLicense}
                   />
                 </label>
-                {licenseLookup && (
-                  <div
-                    className={`smart-lookup ${licenseLookup.found ? "found" : "new"}`}
-                  >
-                    <strong>
-                      {licenseLookup.found ? "Driver match" : "License lookup"}
-                    </strong>
-                    <span>{licenseLookup.message}</span>
-                  </div>
-                )}
                 <label className="contract-field">
                   Lorry Plate No.<em>*</em>
                   <input
