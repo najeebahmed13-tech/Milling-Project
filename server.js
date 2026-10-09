@@ -280,9 +280,6 @@ seed(
   "INSERT INTO users (name, email, phone, group_name, status, avatar, add_date, modify_date, language) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 );
 db.prepare(
-  "UPDATE users SET group_name = 'Mill Admin' WHERE group_name = 'Company Admin'",
-).run();
-db.prepare(
   "UPDATE users SET group_name = 'Production Admin' WHERE group_name = 'Sales Executive'",
 ).run();
 db.prepare(
