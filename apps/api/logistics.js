@@ -73,7 +73,9 @@ export function createFfbReceiptHandler(db) {
   return (req, res) => {
     const body = req.body; const gross = Number(body.grossWeight); const registration = normalizeRegistration(body.vehicleNo);
     if (!registration || !body.supplier || !body.vehicleType || !Number.isFinite(gross) || gross <= 0) return res.status(400).json({ code: 'INVALID_RECEIVING', message: 'Vehicle, vehicle type, supplier and a positive gross weight are required.' });
-    if (!body.driverName || !body.driverIdentityType || !body.driverIdentityNo) return res.status(400).json({ code: 'DRIVER_IDENTITY_REQUIRED', message: 'Driver name, identity type and identity number are required before mill entry can be authorized.' });
+    if (!body.driverName) return res.status(400).json({ code: 'DRIVER_REQUIRED', message: 'Driver name is required before mill entry can be authorized.' });
+    const driverIdentityType = String(body.driverIdentityType || '').trim() || null;
+    const driverIdentityNo = String(body.driverIdentityNo || '').trim().toUpperCase() || null;
     const stamp = now(); const ticket = `WB-${stamp.slice(0,10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
     try {
       const create = db.transaction(() => {
@@ -82,12 +84,15 @@ export function createFfbReceiptHandler(db) {
           VALUES (?,?,?,?,?,?,?,?,?,'ACTIVE',?,?) ON CONFLICT(registration_no) DO UPDATE SET vehicle_type_id=excluded.vehicle_type_id,vehicle_type=excluded.vehicle_type,supplier_name=excluded.supplier_name,supplier_plant=excluded.supplier_plant,supplier_category=excluded.supplier_category,transporter=excluded.transporter,updated_at=excluded.updated_at`)
           .run(registration, type?.id || null, body.vehicleType, body.supplier, body.supplierPlant || '', body.supplierCategory || '', body.transporter || '', body.declaredCapacity ? Number(body.declaredCapacity) : type?.default_capacity || null, body.weightUom || 'MT', stamp, stamp);
         const vehicle = db.prepare('SELECT * FROM vehicles WHERE registration_no=?').get(registration);
-        db.prepare(`INSERT INTO drivers (identity_type,identity_no,name,phone,license_no,status,last_verified_at,created_at,updated_at)
-          VALUES (?,?,?,?,?,'ACTIVE',?,?,?) ON CONFLICT(identity_no) DO UPDATE SET identity_type=excluded.identity_type,name=excluded.name,phone=excluded.phone,license_no=excluded.license_no,last_verified_at=excluded.last_verified_at,updated_at=excluded.updated_at`)
-          .run(body.driverIdentityType, body.driverIdentityNo.trim().toUpperCase(), body.driverName.trim(), body.driverPhone || '', body.driverLicenseNo || '', stamp, stamp, stamp);
-        const driver = db.prepare('SELECT * FROM drivers WHERE identity_no=?').get(body.driverIdentityNo.trim().toUpperCase());
+        let driver = null;
+        if (driverIdentityNo) {
+          db.prepare(`INSERT INTO drivers (identity_type,identity_no,name,phone,license_no,status,last_verified_at,created_at,updated_at)
+            VALUES (?,?,?,?,?,'ACTIVE',?,?,?) ON CONFLICT(identity_no) DO UPDATE SET identity_type=excluded.identity_type,name=excluded.name,phone=excluded.phone,license_no=excluded.license_no,last_verified_at=excluded.last_verified_at,updated_at=excluded.updated_at`)
+            .run(driverIdentityType || 'Driving License', driverIdentityNo, body.driverName.trim(), body.driverPhone || '', body.driverLicenseNo || '', stamp, stamp, stamp);
+          driver = db.prepare('SELECT * FROM drivers WHERE identity_no=?').get(driverIdentityNo);
+        }
         const info = db.prepare(`INSERT INTO ffb_receipts (ticket_no,vehicle_no,vehicle_type,driver_name,driver_phone,delivery_order,supplier,supplier_plant,supplier_category,transporter,product_type,gross_weight,weight_uom,operator_name,entry_at,remarks,attachments_json,driver_identity_type,driver_identity_no,driver_license_no,driver_id,vehicle_id,gate_status,entry_authorized_at,entry_authorized_by,created_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ticket, registration, body.vehicleType, body.driverName.trim(), body.driverPhone || '', body.deliveryOrder || '', body.supplier, body.supplierPlant || '', body.supplierCategory || '', body.transporter || '', body.productType || 'FFB', gross, body.weightUom || 'MT', 'Sean Shapiro', stamp, body.remarks || '', JSON.stringify(body.attachments || []), body.driverIdentityType, body.driverIdentityNo.trim().toUpperCase(), body.driverLicenseNo || '', driver.id, vehicle.id, 'AUTHORIZED_INSIDE', stamp, 'Sean Shapiro', stamp);
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ticket, registration, body.vehicleType, body.driverName.trim(), body.driverPhone || '', body.deliveryOrder || '', body.supplier, body.supplierPlant || '', body.supplierCategory || '', body.transporter || '', body.productType || 'FFB', gross, body.weightUom || 'MT', 'Sean Shapiro', stamp, body.remarks || '', JSON.stringify(body.attachments || []), driverIdentityType, driverIdentityNo, body.driverLicenseNo || '', driver?.id || null, vehicle.id, 'AUTHORIZED_INSIDE', stamp, 'Sean Shapiro', stamp);
         return info.lastInsertRowid;
       });
       const id = create(); res.status(201).json(db.prepare('SELECT * FROM ffb_receipts WHERE id=?').get(id));

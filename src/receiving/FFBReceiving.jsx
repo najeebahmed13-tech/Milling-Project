@@ -1,79 +1,1061 @@
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  ChevronDown,
+  ClipboardCheck,
+  Eye,
+  Printer,
+  Scale,
+  Ticket,
+  X,
+} from "lucide-react";
 import "./receiving.css";
+import "./ffb-receive-form-order.css";
 import "./receiving-smart.css";
+import { validateFfbReceiveForm } from "./receiving.js";
+import { formatDate, formatDateTime, formatTime } from "../shared/formatters.js";
 
-const emptyReceive = { vehicleNo: "", vehicleType: "FFB Tipper", driverName: "", driverPhone: "+60 ", driverIdentityType: "National ID", driverIdentityNo: "", driverLicenseNo: "", deliveryOrder: "", supplier: "", supplierPlant: "", supplierCategory: "Estate", transporter: "", productType: "FFB", grossWeight: "", weightUom: "MT", remarks: "" };
-const parseAttachments = (value) => { try { return JSON.parse(value || "[]"); } catch { return []; } };
+const emptyReceive = {
+  vehicleNo: "",
+  driverName: "",
+  driverLicenseNo: "",
+  supplier: "",
+  item: "",
+  supplierDeclaredQty: "",
+  grossWeight: "",
+  weightUom: "MT",
+  remarks: "",
+};
+const gradingFields = [
+  ["unripe", "Unripe", false],
+  ["overripe", "Overripe", false],
+  ["ripe", "Ripe", true],
+  ["underRipe", "Under-ripe", false],
+  ["rotten", "Rotten", false],
+  ["emptyBunch", "Empty Bunch", false],
+  ["dirtyContaminated", "Dirty / Contaminated", false],
+  ["old", "Old", false],
+  ["dura", "Dura", false],
+  ["longStalk", "Long Stalk", false],
+  ["wetWeight", "Wet Weight / Wet Load", false],
+];
+const parseFiles = (value) => {
+  try {
+    return JSON.parse(value || "[]");
+  } catch {
+    return [];
+  }
+};
+const gradingComplete = (row) => {
+  if (row?.state === "GRADING_COMPLETED") return true;
+  if (
+    !row?.grading_id ||
+    !row?.grading_parameters_json ||
+    row?.state === "READY_TO_POST"
+  )
+    return false;
+  try {
+    return Number.isFinite(
+      Number(JSON.parse(row.grading_parameters_json).ripe),
+    );
+  } catch {
+    return false;
+  }
+};
+const statusLabel = (state, record = null) => {
+  if (state === "READY_TO_POST" && (record?.exit_at || record?.net_weight)) return "Completed";
+  return (
+    {
+      FIRST_WEIGHT_RECORDED: "First Weighing",
+      GRADING_COMPLETED: "Grading",
+      READY_TO_POST: "Second Weighing",
+      POSTED: "Completed",
+      COMPLETED: "Completed",
+    }[state] || "First Weighing"
+  );
+};
 
-export function FFBReceivingPage({ rows, suppliers, onSaved, onOpenGrading }) {
+function ReceiptDetails({ record, onClose, onAction }) {
+  const attachments = parseFiles(record.exit_attachments_json);
+  return (
+    <div className="receipt-detail-view">
+      <section className="receipt-detail-section">
+        <div className="receipt-detail-heading">
+          <div>
+            <h3>Receipt summary</h3>
+            <p>Inbound FFB weighbridge ticket details.</p>
+          </div>
+          <span
+            className={`receipt-state ${(record.state || "").toLowerCase()}`}
+          >
+            {statusLabel(record.state, record)}
+          </span>
+        </div>
+        <div className="receipt-detail-grid">
+          <div>
+            <span>Weighbridge ticket</span>
+            <strong className="highlight">{record.ticket_no}</strong>
+          </div>
+          <div>
+            <span>Entry date / time</span>
+            <strong>{formatDateTime(record.entry_at)}</strong>
+          </div>
+          <div>
+            <span>Item</span>
+            <strong>{record.product_type || "—"}</strong>
+          </div>
+          <div>
+            <span>Supplier</span>
+            <strong>{record.supplier || "—"}</strong>
+          </div>
+        </div>
+      </section>
+      <section className="receipt-detail-section">
+        <div className="receipt-detail-heading compact"><h3>Weight Overview &amp; Balance</h3><span>Unit: Metric Tonnes (MT)</span></div>
+        <div className="weight-preview drawer-weights">
+          <div>
+            <span>Gross weight</span>
+            <strong>{Number(record.gross_weight).toFixed(3)} MT</strong>
+          </div>
+          <div>
+            <span>Tare weight</span>
+            <strong>
+              {record.tare_weight
+                ? `${Number(record.tare_weight).toFixed(3)} MT`
+                : "Pending"}
+            </strong>
+          </div>
+          <div className="net">
+            <span>Net weight</span>
+            <strong>
+              {record.net_weight
+                ? `${Number(record.net_weight).toFixed(3)} MT`
+                : "Pending"}
+            </strong>
+          </div>
+        </div>
+        {record.exit_at && (
+          <div className="completion-note">
+            Second weighing completed · Vehicle exit recorded {formatDateTime(record.exit_at)}
+          </div>
+        )}
+      </section>
+      <section className="receipt-detail-section">
+        <h3>Vehicle and supplier details</h3>
+        <div className="receipt-detail-grid">
+          <div>
+            <span>Vehicle Plate</span>
+            <strong>{record.vehicle_no || "—"}</strong>
+          </div>
+          <div>
+            <span>Driver name</span>
+            <strong>{record.driver_name || "—"}</strong>
+          </div>
+          <div>
+            <span>Declared quantity</span>
+            <strong>
+              {record.supplier_declared_qty
+                ? `${Number(record.supplier_declared_qty).toFixed(3)} MT`
+                : "—"}
+            </strong>
+          </div>
+        </div>
+      </section>
+      <section className="receipt-detail-section">
+        <h3>Remarks and attachments</h3>
+        <div className="receipt-detail-copy">
+          <span>Remarks</span>
+          <strong>
+            {record.exit_remarks || record.remarks || "No remarks recorded"}
+          </strong>
+        </div>
+        {attachments.length ? (
+          <div className="attachment-preview-list">
+            {attachments.map((file, index) => (
+              <article
+                className="attachment-preview-card"
+                key={`${file.name}-${index}`}
+              >
+                {file.type?.startsWith("image/") ? (
+                  <img src={file.data} alt={file.name} />
+                ) : (
+                  <iframe src={file.data} title={file.name} />
+                )}
+                <div className="attachment-preview-meta">
+                  <strong title={file.name}>{file.name}</strong>
+                  <a
+                    href={file.data}
+                    download={file.name}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open / download
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="attachment-empty">No exit files attached.</div>
+        )}
+      </section>
+      <div className="drawer-action-strip receiving-drawer-actions">
+        <strong>Next action</strong>
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
+          Close
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={
+            record.state !== "FIRST_WEIGHT_RECORDED" || gradingComplete(record)
+          }
+          onClick={() => onAction("grading", record)}
+        >
+          Grade FFB
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!gradingComplete(record)}
+          onClick={() => onAction("exit", record)}
+        >
+          Second Weighing
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReceiptSlip({ record, onClose }) {
+  const weightRow = (label, timestamp, value) => (
+    <div className="receipt-slip-weight-row">
+      <strong>{label}</strong>
+      <span>{timestamp ? formatDateTime(timestamp) : "Pending"}</span>
+      <span>Mill Weighbridge</span>
+      <b>{value ? `${Number(value).toFixed(3)} MT` : "Pending"}</b>
+    </div>
+  );
+  return (
+    <div className="receipt-slip-backdrop" onClick={onClose}>
+      <section className="receipt-slip" onClick={(event) => event.stopPropagation()}>
+        <div className="receipt-slip-toolbar">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
+          <button type="button" className="btn btn-primary" onClick={() => window.print()}><Printer size={15} /> Print Slip</button>
+        </div>
+        <div className="receipt-slip-paper">
+          <header className="receipt-slip-header">
+            <strong>ROCKEYE MILLING OPERATIONS</strong>
+            <span>Inbound Processing Division · Weighbridge Station</span>
+            <em>OFFICIALLY VERIFIED</em>
+          </header>
+          <h2>INBOUND WEIGHT CERTIFICATE / TICKET</h2>
+          <div className="receipt-slip-identification"><div><span>Ticket Identification:</span><b>{record.ticket_no || "—"}</b></div><div><span>Official Receipt Ref:</span><b>{record.receipt_code || "—"}</b></div></div>
+          <div className="receipt-slip-details"><div><span>Supplier:</span><b>{record.supplier || "—"}</b></div><div><span>Vehicle Plate:</span><b className="plate">{record.vehicle_no || "—"}</b></div><div><span>Driver Name:</span><b>{record.driver_name || "—"}</b></div><div><span>Commodity / Item:</span><b>{record.product_type || "—"}</b></div></div>
+          <h3>Weight Measurement Breakdown</h3>
+          <div className="receipt-slip-weight-table"><div className="receipt-slip-weight-head"><span>Description</span><span>Timestamp</span><span>Station Scale</span><span>Reading (MT)</span></div>{weightRow("Gross Weight (First Weighing)", record.entry_at, record.gross_weight)}{weightRow("Tare Weight (Second Weighing)", record.exit_at, record.tare_weight)}</div>
+          <div className="receipt-slip-net"><span>Net Certified Weight:</span><b>{record.net_weight ? `${Number(record.net_weight).toFixed(3)} MT` : "Pending second weighing"}</b></div>
+          <footer>Generated from the ROCKEYE FFB Receiving transaction record.</footer>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function FfbReceiptGrid({
+  rows,
+  onSelect,
+  onViewSlip,
+  onStage,
+  openActions,
+  setOpenActions,
+}) {
+  return (
+    <div className="ffb-receiving-grid">
+      {rows.map((row) => (
+        <article
+          className="ffb-receipt-card"
+          key={row.id}
+          onClick={() => onSelect(row)}
+        >
+          <div className="ffb-card-header">
+            <div>
+              <span>Receipt Code</span>
+              <button
+                type="button"
+                className="ffb-receipt-link"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(row);
+                }}
+              >
+                {row.receipt_code || "—"}
+              </button>
+            </div>
+            <span
+              className={`receipt-state ${(row.state || "").toLowerCase()}`}
+            >
+              {statusLabel(row.state, row)}
+            </span>
+          </div>
+          <div className="ffb-ticket-panel">
+            <div>
+              <span>Weighbridge Ticket</span>
+              <strong>{row.ticket_no}</strong>
+            </div>
+            <Ticket size={18} />
+          </div>
+          <div className="ffb-card-summary">
+            <div>
+              <span>Supplier</span>
+              <strong>{row.supplier || "—"}</strong>
+            </div>
+            <div>
+              <span>Item</span>
+              <strong>{row.product_type || "—"}</strong>
+            </div>
+          </div>
+          <div className="ffb-vehicle-strip">
+            <div>
+              <span>Vehicle Plate</span>
+              <strong>{row.vehicle_no || "—"}</strong>
+            </div>
+            <div>
+              <span>Driver</span>
+              <strong>{row.driver_name || "—"}</strong>
+            </div>
+          </div>
+          <div className="ffb-card-divider" />
+          <div className="ffb-weight-heading">
+            Weight Measurements (Metric Tons)
+          </div>
+          <div className="ffb-weight-grid">
+            <div>
+              <span>Gross (MT)</span>
+              <strong>{Number(row.gross_weight || 0).toFixed(3)}</strong>
+            </div>
+            <div>
+              <span>Tare (MT)</span>
+              <strong>
+                {row.tare_weight
+                  ? Number(row.tare_weight).toFixed(3)
+                  : "Pending"}
+              </strong>
+            </div>
+            <div className="net">
+              <span>Net (MT)</span>
+              <strong>
+                {row.net_weight ? Number(row.net_weight).toFixed(3) : "Pending"}
+              </strong>
+            </div>
+          </div>
+          <div className="ffb-card-footer">
+            <span>◷ {formatDateTime(row.entry_at)}</span>
+            <button
+              type="button"
+              className="ffb-view-slip"
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewSlip(row);
+              }}
+            >
+              <Printer size={15} /> View Slip
+            </button>
+            <div className="ffb-actions-menu">
+              <button
+                type="button"
+                className="ffb-actions-trigger"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setOpenActions(openActions === row.id ? null : row.id);
+                }}
+              >
+                Actions <ChevronDown size={15} />
+              </button>
+              {openActions === row.id && (
+                <div
+                  className="ffb-actions-dropdown"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenActions(null);
+                      onSelect(row);
+                    }}
+                  >
+                    <Eye size={15} /> View details
+                  </button>
+                  {statusLabel(row.state, row) !== "Completed" && (
+                    <>
+                      {row.state === "FIRST_WEIGHT_RECORDED" &&
+                        !gradingComplete(row) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActions(null);
+                              onStage("grading", row);
+                            }}
+                          >
+                            <ClipboardCheck size={15} /> Grading
+                          </button>
+                        )}
+                      <button
+                        type="button"
+                        disabled={!gradingComplete(row)}
+                        onClick={() => {
+                          if (!gradingComplete(row)) return;
+                          setOpenActions(null);
+                          onStage("exit", row);
+                        }}
+                      >
+                        <Scale size={15} /> Second weighing
+                      </button>
+                      {row.state === "FIRST_WEIGHT_RECORDED" &&
+                        !gradingComplete(row) && (
+                          <button
+                            type="button"
+                            onClick={() => setOpenActions(null)}
+                          >
+                            <X size={15} /> Cancel
+                          </button>
+                        )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [slip, setSlip] = useState(null);
+  const [openActions, setOpenActions] = useState(null);
   const [form, setForm] = useState(emptyReceive);
+  const [tarePreview, setTarePreview] = useState("");
   const [error, setError] = useState("");
-  const [vehicleTypes, setVehicleTypes] = useState([]);
+  const [capturedAt, setCapturedAt] = useState(() => new Date());
+  const [licenseLookup, setLicenseLookup] = useState(null);
   const [vehicleLookup, setVehicleLookup] = useState(null);
-  const [driverLookup, setDriverLookup] = useState(null);
-
-  useEffect(() => { fetch("/api/vehicle-types").then((response) => response.json()).then((payload) => setVehicleTypes(Array.isArray(payload) ? payload : payload.data || payload.value || [])).catch(() => setVehicleTypes([])); }, []);
-  const filtered = useMemo(() => rows.filter((row) => `${row.ticket_no} ${row.vehicle_no} ${row.supplier} ${row.delivery_order}`.toLowerCase().includes(search.toLowerCase())), [rows, search]);
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
-  const lookupVehicle = async () => {
-    const registration = form.vehicleNo.trim(); if (!registration) return;
-    try { const response = await fetch(`/api/vehicle-lookup?registration=${encodeURIComponent(registration)}`); const payload = await response.json();
-      if (payload.found) { const vehicle = payload.vehicle; setForm((current) => ({ ...current, vehicleNo: vehicle.registration_no, vehicleType: vehicle.vehicle_type || current.vehicleType, supplier: vehicle.supplier_name || current.supplier, supplierPlant: vehicle.supplier_plant || current.supplierPlant, supplierCategory: vehicle.supplier_category || current.supplierCategory, transporter: vehicle.transporter || current.transporter })); setVehicleLookup({ found: true, message: "Vehicle found. Supplier and transporter details were prefilled." }); }
-      else setVehicleLookup({ found: false, message: "New vehicle. Complete the supplier details once and this vehicle will be linked for future entries." });
-    } catch { setVehicleLookup(null); }
+  const activeItems = items.filter((item) => item.status === "Active");
+  const filtered = useMemo(
+    () =>
+      rows.filter((row) =>
+        `${row.ticket_no} ${row.vehicle_no} ${row.supplier} ${row.product_type} ${row.delivery_order}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
+    [rows, search],
+  );
+  const update = (key, value) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const openForm = (type, row) => {
+    setError("");
+    setSelected(null);
+    setTarePreview("");
+    setStage({ type, ...row });
   };
-  const lookupDriver = async () => {
-    const identityNo = form.driverIdentityNo.trim(); if (!identityNo) return;
-    try { const response = await fetch(`/api/driver-lookup?identityNo=${encodeURIComponent(identityNo)}`); const payload = await response.json();
-      if (payload.found) { const driver = payload.driver; setForm((current) => ({ ...current, driverName: driver.name || current.driverName, driverPhone: driver.phone || current.driverPhone, driverLicenseNo: driver.license_no || current.driverLicenseNo })); setDriverLookup({ found: true, message: "Driver identity found. Details were prefilled." }); }
-      else setDriverLookup({ found: false, message: "New driver identity. It will be registered when this weighing is saved." });
-    } catch { setDriverLookup(null); }
+  const openNew = () => {
+    setError("");
+    setForm({ ...emptyReceive });
+    setCapturedAt(new Date());
+    setLicenseLookup(null);
+    setVehicleLookup(null);
+    setTarePreview("");
+    setStage({ type: "receive" });
+  };
+  const readAttachments = async (files) =>
+    Promise.all(
+      files.map(
+        (file) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: reader.result,
+              });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+  const lookupLicense = async () => {
+    if (!form.driverLicenseNo.trim()) return;
+    try {
+      const response = await fetch(
+        `/api/driver-lookup?identityNo=${encodeURIComponent(form.driverLicenseNo.trim())}`,
+      );
+      const payload = await response.json();
+      setLicenseLookup(
+        payload.found
+          ? {
+              found: true,
+              message: "Driver license found. Driver name was prefilled.",
+            }
+          : { found: false, message: "No matching driver license was found." },
+      );
+      if (payload.found)
+        setForm((current) => ({
+          ...current,
+          driverName: payload.driver.name || current.driverName,
+        }));
+    } catch {
+      setLicenseLookup(null);
+    }
+  };
+  useEffect(() => {
+    if (stage?.type !== "receive" || form.vehicleNo.trim().length < 3) return;
+    const timer = setTimeout(() => lookupVehicle(), 350);
+    return () => clearTimeout(timer);
+  }, [form.vehicleNo, stage?.type]);
+  const lookupVehicle = async () => {
+    if (!form.vehicleNo.trim()) return;
+    try {
+      const response = await fetch(
+        `/api/vehicle-lookup?registration=${encodeURIComponent(form.vehicleNo.trim())}`,
+      );
+      const payload = await response.json();
+      setVehicleLookup(
+        payload.found
+          ? {
+              found: true,
+              message: `Vehicle found${payload.vehicle.transporter ? ` · ${payload.vehicle.transporter}` : ""}`,
+            }
+          : { found: false, message: "No registered vehicle match found." },
+      );
+      if (payload.found) {
+        const vehicle = payload.vehicle;
+        setForm((current) => ({
+          ...current,
+          vehicleNo: vehicle.registration_no,
+          supplier: vehicle.supplier_name || current.supplier,
+          driverName: vehicle.driver_name || current.driverName,
+          driverLicenseNo: vehicle.driver_license_no || current.driverLicenseNo,
+        }));
+      }
+    } catch {
+      setVehicleLookup(null);
+    }
   };
   const submitReceive = async (event) => {
-    event.preventDefault(); setError(""); const files = Array.from(event.currentTarget.querySelector('input[type="file"]')?.files || []);
-    const attachments = await Promise.all(files.map((file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve({ name: file.name, type: file.type, size: file.size, data: reader.result }); reader.onerror = reject; reader.readAsDataURL(file); })));
-    const response = await fetch("/api/ffb-receiving", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, attachments }) }); const payload = await response.json(); if (!response.ok) { setError(payload.message); return; }
-    setStage(null); setForm({ ...emptyReceive }); setVehicleLookup(null); setDriverLookup(null); onSaved();
+    event.preventDefault();
+    setError("");
+    const systemCapturedAt = new Date();
+    setCapturedAt(systemCapturedAt);
+    const validation = validateFfbReceiveForm(form);
+    if (!validation.valid) return setError(validation.message);
+    const attachments = await readAttachments(
+      Array.from(
+        event.currentTarget.querySelector('input[type="file"]')?.files || [],
+      ),
+    );
+    const response = await fetch("/api/ffb-receiving", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        // Vehicle type is system-derived for FFB receiving. Keep it explicit
+        // in the API contract for production backends that validate it before
+        // applying their server-side default.
+        vehicleType: form.vehicleType || "FFB Tipper",
+        capturedAt: systemCapturedAt.toISOString(),
+        attachments,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) return setError(payload.message);
+    setStage(null);
+    setForm({ ...emptyReceive });
+    onSaved();
   };
-  const submitGrading = async (event) => { event.preventDefault(); setError(""); const data = new FormData(event.currentTarget); const response = await fetch(`/api/ffb-receiving/${stage.id}/grading`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ripeness: data.get("ripeness"), ramp: data.get("ramp"), graderName: data.get("graderName"), gradingResult: data.get("gradingResult") }) }); const payload = await response.json(); if (!response.ok) { setError(payload.message); return; } setStage(null); onSaved(); };
-  const submitExit = async (event) => { event.preventDefault(); setError(""); const data = new FormData(event.currentTarget); const response = await fetch(`/api/ffb-receiving/${stage.id}/vehicle-exit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tareWeight: data.get("tareWeight") }) }); const payload = await response.json(); if (!response.ok) { setError(payload.message); return; } setStage(null); onSaved(); };
-  const statusLabel = (state) => ({ FIRST_WEIGHT_RECORDED: "Grading Pending", GRADING_COMPLETED: "Vehicle Exit Pending", READY_TO_POST: "Ready to Finalize" }[state] || state);
-  const openNew = () => { setError(""); setForm({ ...emptyReceive }); setVehicleLookup(null); setDriverLookup(null); setStage({ type: "receive" }); };
-  const openStage = (type, row) => { setError(""); setStage({ type, ...row }); };
-  const vehicleOptions = vehicleTypes.length ? vehicleTypes : [{ name: "FFB Tipper" }, { name: "Lorry" }, { name: "Truck" }, { name: "CPO Tanker" }];
+  const submitGrading = async (event) => {
+    event.preventDefault();
+    setError("");
+    const data = new FormData(event.currentTarget);
+    const attachments = await readAttachments(Array.from(event.currentTarget.querySelector('input[type="file"]')?.files || []));
+    const gradingParameters = Object.fromEntries(
+      gradingFields.map(([key]) => [key, data.get(key)]),
+    );
+    const response = await fetch(`/api/ffb-receiving/${stage.id}/grading`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gradingParameters,
+        gradingResult: "Pending Vehicle Exit",
+        remarks: data.get("gradingRemarks") || "",
+        attachments,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) return setError(payload.message);
+    setStage(null);
+    onSaved();
+  };
+  const submitExit = async (event) => {
+    event.preventDefault();
+    setError("");
+    const data = new FormData(event.currentTarget);
+    const attachments = await readAttachments(
+      Array.from(
+        event.currentTarget.querySelector('input[type="file"]')?.files || [],
+      ),
+    );
+    const response = await fetch(
+      `/api/ffb-receiving/${stage.id}/vehicle-exit`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tareWeight: data.get("tareWeight"),
+          remarks: data.get("exitRemarks") || "",
+          attachments,
+        }),
+      },
+    );
+    const payload = await response.json();
+    if (!response.ok) return setError(payload.message);
+    setStage(null);
+    onSaved();
+  };
 
-  return <main className="receiving-page">
-    <div className="receiving-breadcrumb"><span>Stock</span><b>›</b><strong>FFB Receiving</strong></div>
-    <div className="receiving-heading"><div><h1>FFB Receiving</h1><p>Linked first weighing, grading and return vehicle weighing for inbound Fresh Fruit Bunches.</p></div><button className="btn btn-primary" onClick={openNew}>＋ New FFB Receive</button></div>
-    <div className="receiving-banner"><strong>Controlled workflow:</strong> First Weighing → Grading → Vehicle Exit / Tare → Ready to Finalize. Contract utilization and inventory posting remain blocked until the approved basis is confirmed.</div>
-    <article className="panel receiving-panel"><div className="receiving-toolbar"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ticket, vehicle, supplier or delivery order..." /><span>{filtered.length} tickets</span></div><div className="table-wrap"><table className="receiving-table"><thead><tr><th>Weighbridge Ticket</th><th>Entry Date / Time</th><th>Vehicle</th><th>Supplier</th><th>Delivery Order</th><th>Gross (MT)</th><th>Tare (MT)</th><th>Net (MT)</th><th>Grading Reference</th><th>Status</th><th>Action</th></tr></thead><tbody>{filtered.map((row) => <tr key={row.id} onClick={() => setSelected(row)}><td className="ticket-cell">{row.ticket_no}</td><td>{new Date(row.entry_at).toLocaleString()}</td><td>{row.vehicle_no}</td><td>{row.supplier}</td><td>{row.delivery_order || "—"}</td><td>{Number(row.gross_weight).toFixed(3)}</td><td>{row.tare_weight ? Number(row.tare_weight).toFixed(3) : "—"}</td><td>{row.net_weight ? Number(row.net_weight).toFixed(3) : "—"}</td><td>{row.grading_id ? <button className="grading-reference-link" onClick={(e) => { e.stopPropagation(); onOpenGrading?.(row.id); }}>{row.grading_id}</button> : <span className="muted">Pending</span>}</td><td><span className={`receipt-state ${(row.state || "").toLowerCase()}`}>{statusLabel(row.state)}</span></td><td>{row.state === "FIRST_WEIGHT_RECORDED" && <button className="item-edit" onClick={(e) => { e.stopPropagation(); openStage("grading", row); }}>Grade</button>}{row.state === "GRADING_COMPLETED" && <button className="item-edit" onClick={(e) => { e.stopPropagation(); openStage("exit", row); }}>Tare</button>}</td></tr>)}{!filtered.length && <tr><td colSpan="11" className="items-empty">No FFB receiving tickets found.</td></tr>}</tbody></table></div></article>
-    {stage && <div className="items-modal-backdrop"><form className="receiving-form" onSubmit={stage.type === "receive" ? submitReceive : stage.type === "grading" ? submitGrading : submitExit}><div className="items-form-heading"><div><span className="eyebrow">STOCK / FFB RECEIVING</span><h2>{stage.type === "receive" ? "First Weighing / FFB Receive" : stage.type === "grading" ? "FFB Grading" : "Vehicle Exit / Second Weighing"}</h2><p>{stage.type === "receive" ? "Create one traceable weighbridge ticket for the loaded vehicle." : `${stage.ticket_no} · ${stage.vehicle_no} · ${stage.supplier}`}</p></div><button type="button" className="icon-button" onClick={() => setStage(null)}>×</button></div>{error && <div className="form-error">{error}</div>}
-      {stage.type === "receive" ? <div className="contract-grid two">
-        <label className="contract-field">Vehicle Number<em>*</em><input required value={form.vehicleNo} onChange={(e) => { update("vehicleNo", e.target.value); setVehicleLookup(null); }} onBlur={lookupVehicle} placeholder="e.g. JQK 4812" /></label>
-        <label className="contract-field">Vehicle Type<em>*</em><select required value={form.vehicleType} onChange={(e) => update("vehicleType", e.target.value)}>{vehicleOptions.map((type) => <option key={type.name}>{type.name}</option>)}</select></label>
-        {vehicleLookup && <div className={`smart-lookup ${vehicleLookup.found ? "found" : "new"}`}><strong>{vehicleLookup.found ? "Vehicle match" : "New vehicle"}</strong><span>{vehicleLookup.message}</span></div>}
-        <label className="contract-field">Driver Identity Type<em>*</em><select required value={form.driverIdentityType} onChange={(e) => { update("driverIdentityType", e.target.value); setDriverLookup(null); }}><option>National ID</option><option>Passport</option><option>Driving License</option><option>Employee ID</option></select></label>
-        <label className="contract-field">Driver Identity Number<em>*</em><input required value={form.driverIdentityNo} onChange={(e) => { update("driverIdentityNo", e.target.value); setDriverLookup(null); }} onBlur={lookupDriver} placeholder="Enter identity number" /></label>
-        {driverLookup && <div className={`smart-lookup ${driverLookup.found ? "found" : "new"}`}><strong>{driverLookup.found ? "Driver match" : "New driver"}</strong><span>{driverLookup.message}</span></div>}
-        <label className="contract-field">Driver Name<em>*</em><input required value={form.driverName} onChange={(e) => update("driverName", e.target.value)} /></label>
-        <label className="contract-field">Driver Contact Number<input value={form.driverPhone} onChange={(e) => update("driverPhone", e.target.value)} /></label>
-        <label className="contract-field">Driver License Number <small>(Optional)</small><input value={form.driverLicenseNo} onChange={(e) => update("driverLicenseNo", e.target.value)} /></label>
-        <label className="contract-field">Supplier<em>*</em><select required value={form.supplier} onChange={(e) => update("supplier", e.target.value)}><option value="">Select supplier...</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}</select></label>
-        <label className="contract-field">Supplier Plant<input value={form.supplierPlant} onChange={(e) => update("supplierPlant", e.target.value)} /></label>
-        <label className="contract-field">Supplier Category<em>*</em><select value={form.supplierCategory} onChange={(e) => update("supplierCategory", e.target.value)}><option>Estate</option><option>Dealer</option></select></label>
-        <label className="contract-field">Transporter Name<input value={form.transporter} onChange={(e) => update("transporter", e.target.value)} /></label>
-        <label className="contract-field">Delivery Order Number<input value={form.deliveryOrder} onChange={(e) => update("deliveryOrder", e.target.value)} /></label>
-        <label className="contract-field">Product / Material<em>*</em><select value={form.productType} onChange={(e) => update("productType", e.target.value)}><option>FFB</option><option>Chemical</option></select></label>
-        <label className="contract-field receiving-weight-field">Gross Weight (MT)<em>*</em><input required type="number" min="0.001" step="0.001" value={form.grossWeight} onChange={(e) => update("grossWeight", e.target.value)} placeholder="0.000" /></label>
-        <div className="gate-authorization"><strong>Mill Gate Entry</strong><span>Driver identity will be recorded and this vehicle will be authorized to enter when the first weighing is saved.</span><b>Authorization: On save</b></div>
-        <label className="contract-field form-wide-field">Remarks <small>(Optional)</small><textarea rows="3" value={form.remarks} onChange={(e) => update("remarks", e.target.value)} placeholder="Add receiving notes, exceptions or observations..." /></label>
-        <label className="contract-field form-wide-field">Attachments <small>(Optional · multiple files)</small><input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" /></label>
-      </div> : stage.type === "grading" ? <div className="contract-grid two"><div className="weight-preview"><div><span>Ticket</span><strong>{stage.ticket_no}</strong></div><div><span>Gross Weight</span><strong>{Number(stage.gross_weight).toFixed(3)} MT</strong></div></div><label className="contract-field">Ripeness / Grading Input<em>*</em><input required name="ripeness" placeholder="TBD — FFB Ripeness Grading Configuration" /></label><label className="contract-field">Ramp Number<em>*</em><select required name="ramp"><option value="">Select configured ramp...</option><option>FFB Ramp</option><option>Loading Ramp</option></select></label><label className="contract-field">Grader Name<em>*</em><select required name="graderName"><option>Sean Shapiro</option></select></label><label className="contract-field">Grading Result<em>*</em><select name="gradingResult"><option>Pending Vehicle Exit</option><option>Accepted</option><option>Partially Accepted</option><option>Rejected</option></select></label></div> : <div><div className="weight-preview"><div><span>Gross Weight</span><strong>{Number(stage.gross_weight).toFixed(3)} MT</strong></div><div><span>Tare Weight</span><strong>Enter below</strong></div><div className="net"><span>Net Weight</span><strong>Calculated on server</strong></div></div><label className="contract-field receiving-weight-field">Tare Weight (MT)<em>*</em><input required name="tareWeight" type="number" min="0.001" step="0.001" placeholder="0.000" /></label><div className="blocked-help">After this step the ticket becomes READY_TO_POST. Final posting is intentionally blocked until Purchase Contract utilization basis and partial-rejection treatment are approved.</div></div>}
-      <div className="contract-actions"><button type="button" className="btn btn-secondary" onClick={() => setStage(null)}>Cancel</button><button className="btn btn-primary">{stage.type === "receive" ? "Save First Weighing & Authorize Entry" : stage.type === "grading" ? "Complete Grading" : "Save Vehicle Exit"}</button></div></form></div>}
-    {selected && <div className="drawer-backdrop" onClick={() => setSelected(null)}><aside className="drawer" onClick={(e) => e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">WEIGHBRIDGE TICKET</div><h2>{selected.ticket_no}</h2></div><button className="icon-button" onClick={() => setSelected(null)}>×</button></div><div className="weight-preview"><div><span>Gross</span><strong>{Number(selected.gross_weight).toFixed(3)} MT</strong></div><div><span>Tare</span><strong>{selected.tare_weight ? Number(selected.tare_weight).toFixed(3) : "—"}</strong></div><div className="net"><span>Net</span><strong>{selected.net_weight ? Number(selected.net_weight).toFixed(3) : "—"}</strong></div></div><div className="traceability-list"><div><span>Vehicle</span><strong>{selected.vehicle_no}</strong></div><div><span>Supplier</span><strong>{selected.supplier}</strong></div><div><span>Driver</span><strong>{selected.driver_name || "—"}</strong></div><div><span>Driver Identity</span><strong>{selected.driver_identity_no ? `${selected.driver_identity_type || "ID"}: ${selected.driver_identity_no}` : "—"}</strong></div><div><span>Gate Access</span><strong>{selected.gate_status === "AUTHORIZED_INSIDE" ? "Authorized inside mill" : selected.gate_status || "Pending"}</strong></div><div><span>Remarks</span><strong>{selected.remarks || "—"}</strong></div><div><span>Attachments</span><strong>{parseAttachments(selected.attachments_json).length ? `${parseAttachments(selected.attachments_json).length} file(s)` : "—"}</strong></div><div><span>Grading</span><strong>{selected.grading_id || "Pending"}</strong></div><div><span>State</span><strong>{statusLabel(selected.state)}</strong></div></div><div className="drawer-grading-summary"><div className="drawer-summary-heading"><strong>FFB Grading</strong><span className={`grading-status ${selected.state === "FIRST_WEIGHT_RECORDED" ? "pending" : "complete"}`}>{selected.state === "FIRST_WEIGHT_RECORDED" ? "Pending" : "Completed"}</span></div><div className="drawer-summary-grid"><div><span>Grading ID</span><strong>{selected.grading_id || "Not created"}</strong></div><div><span>Ripeness</span><strong>{selected.ripeness || "Pending"}</strong></div><div><span>Ramp</span><strong>{selected.ramp || "Pending"}</strong></div><div><span>Grader</span><strong>{selected.grader_name || "Pending"}</strong></div><div><span>Result</span><strong>{selected.grading_result || "Awaiting grading"}</strong></div></div></div><div className="drawer-action-strip"><strong>Ticket Actions</strong>{selected.grading_id && <button className="grading-reference-link drawer-grading-link" onClick={() => onOpenGrading?.(selected.id)}>{selected.grading_id}</button>}<button className="btn btn-primary" disabled={selected.state !== "FIRST_WEIGHT_RECORDED"} onClick={() => { setSelected(null); openStage("grading", selected); }}>Grade FFB</button><button className="btn btn-primary" disabled={selected.state !== "GRADING_COMPLETED"} onClick={() => { setSelected(null); openStage("exit", selected); }}>Record Tare / Vehicle Exit</button></div></aside></div>}
-  </main>;
+  return (
+    <main className="receiving-page ffb-receiving-page">
+      <div className="receiving-breadcrumb">
+        <span>Stock</span>
+        <b>›</b>
+        <strong>FFB Receiving</strong>
+      </div>
+      <div className="receiving-heading">
+        <div>
+          <h1>FFB Receiving</h1>
+          <p>
+            Record inbound Fresh Fruit Bunches using the configured supplier and
+            item masters.
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={openNew}>
+          + New FFB Receive
+        </button>
+      </div>
+      <article className="panel receiving-panel">
+        <div className="receiving-toolbar">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search ticket, vehicle, supplier or item..."
+          />
+          <span>{filtered.length} tickets</span>
+        </div>
+        <div className="table-wrap">
+          <table className="receiving-table">
+            <thead>
+              <tr>
+                <th>Receipt Code</th>
+                <th>Weighbridge Ticket</th>
+                <th>Entry Date / Time</th>
+                <th>Vehicle Plate</th>
+                <th>Driver</th>
+                <th>Supplier</th>
+                <th>Item</th>
+                <th>Gross (MT)</th>
+                <th>Tare (MT)</th>
+                <th>Net (MT)</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row) => (
+                <tr key={row.id} onClick={() => setSelected(row)}>
+                  <td className="receipt-code-cell">
+                    {row.receipt_code || "—"}
+                  </td>
+                  <td className="ticket-cell">{row.ticket_no}</td>
+                  <td>{formatDateTime(row.entry_at)}</td>
+                  <td>{row.vehicle_no}</td>
+                  <td>{row.driver_name || "—"}</td>
+                  <td>{row.supplier}</td>
+                  <td>{row.product_type}</td>
+                  <td>{Number(row.gross_weight).toFixed(3)}</td>
+                  <td>
+                    {row.tare_weight
+                      ? Number(row.tare_weight).toFixed(3)
+                      : "Pending"}
+                  </td>
+                  <td>
+                    {row.net_weight
+                      ? Number(row.net_weight).toFixed(3)
+                      : "Pending"}
+                  </td>
+                  <td>
+                    <span
+                      className={`receipt-state ${(row.state || "").toLowerCase()}`}
+                    >
+                      {statusLabel(row.state, row)}
+                    </span>
+                  </td>
+                  <td>
+                    {row.state === "FIRST_WEIGHT_RECORDED" &&
+                      !gradingComplete(row) && (
+                        <button
+                          className="item-edit"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelected(row);
+                          }}
+                        >
+                          Grade
+                        </button>
+                      )}
+                    {gradingComplete(row) && (
+                      <button
+                        className="item-edit"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelected(row);
+                        }}
+                      >
+                        Second Weighing
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {!filtered.length && (
+                <tr>
+                  <td colSpan="12" className="items-empty">
+                    No FFB receiving tickets found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </article>
+      <FfbReceiptGrid
+        rows={filtered}
+        onSelect={(row) => {
+          setOpenActions(null);
+          setSelected(row);
+        }}
+        onStage={openForm}
+        onViewSlip={setSlip}
+        openActions={openActions}
+        setOpenActions={setOpenActions}
+      />
+      {slip && <ReceiptSlip record={slip} onClose={() => setSlip(null)} />}
+      {stage && (
+        <div className="items-modal-backdrop">
+          <form
+            className="receiving-form"
+            onSubmit={
+              stage.type === "receive"
+                ? submitReceive
+                : stage.type === "grading"
+                  ? submitGrading
+                  : submitExit
+            }
+          >
+            <div className="items-form-heading">
+              <div>
+                <span className="eyebrow">{stage.type === "grading" ? "STOCK / FFB RECEIVING · GRADING" : stage.type === "exit" ? "STOCK / FFB RECEIVING · SECOND WEIGHING" : "STOCK / FFB RECEIVING"}</span>
+                <h2>
+                  {stage.type === "receive"
+                    ? "FFB Receive"
+                    : stage.type === "grading"
+                      ? "FFB Grading Form"
+                      : "Vehicle Exit / Second Weighing"}
+                </h2>
+                <p className={stage.type === "grading" ? "grading-header-secondary" : stage.type === "exit" ? "second-weighing-reference" : undefined}>
+                  {stage.type === "receive"
+                    ? "System date and time are captured when this record is saved."
+                    : stage.type === "grading"
+                      ? `${stage.ticket_no} · ${stage.vehicle_no} · ${stage.supplier}`
+                      : stage.ticket_no}
+                </p>
+                {stage.type === "grading" && <small className="grading-form-reference">Ref: {stage.receipt_code || "—"} · {stage.ticket_no}</small>}
+              </div>
+              {stage.type === "grading" && <span className="grading-form-header-status">First Weighing</span>}
+              {stage.type === "exit" && <span className="second-weighing-header-status">Second Weighing</span>}
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setStage(null)}
+              >
+                ×
+              </button>
+            </div>
+            {error && <div className="form-error">{error}</div>}
+            {stage.type === "receive" ? (
+              <div className="contract-grid two">
+                <label className="contract-field">
+                  Date<em>*</em>
+                  <input name="systemDate" value={formatDate(capturedAt)} readOnly />
+                </label>
+                <label className="contract-field">
+                  Time<em>*</em>
+                  <input name="systemTime" value={formatTime(capturedAt)} readOnly />
+                </label>
+                <label className="contract-field">
+                  Driver Name<em>*</em>
+                  <input
+                    required
+                    value={form.driverName}
+                    onChange={(event) =>
+                      update("driverName", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="contract-field">
+                  Driver ID (License)<small> (Optional)</small>
+                  <input
+                    value={form.driverLicenseNo}
+                    onChange={(event) => {
+                      update("driverLicenseNo", event.target.value);
+                      setLicenseLookup(null);
+                    }}
+                    onBlur={lookupLicense}
+                  />
+                </label>
+                {licenseLookup && (
+                  <div
+                    className={`smart-lookup ${licenseLookup.found ? "found" : "new"}`}
+                  >
+                    <strong>
+                      {licenseLookup.found ? "Driver match" : "License lookup"}
+                    </strong>
+                    <span>{licenseLookup.message}</span>
+                  </div>
+                )}
+                <label className="contract-field">
+                  Lorry Plate No.<em>*</em>
+                  <input
+                    required
+                    value={form.vehicleNo}
+                    onChange={(event) =>
+                      update("vehicleNo", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="contract-field">
+                  Supplier<em>*</em>
+                  <select
+                    required
+                    value={form.supplier}
+                    onChange={(event) => update("supplier", event.target.value)}
+                  >
+                    <option value="">Select supplier...</option>
+                    {suppliers
+                      .filter((supplier) => supplier.status === "Active")
+                      .map((supplier) => (
+                        <option key={supplier.id} value={supplier.name}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="contract-field">
+                  Item<em>*</em>
+                  <select
+                    required
+                    value={form.item}
+                    onChange={(event) => update("item", event.target.value)}
+                  >
+                    <option value="">Select configured item...</option>
+                    {activeItems.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name} ({item.unit})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="contract-field">
+                  Supplier Declared Qty<small> (Optional)</small>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={form.supplierDeclaredQty}
+                    onChange={(event) =>
+                      update("supplierDeclaredQty", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="contract-field receiving-weight-field">
+                  Gross Weight (MT)<em>*</em>
+                  <input
+                    required
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={form.grossWeight}
+                    onChange={(event) =>
+                      update("grossWeight", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="contract-field form-wide-field">
+                  Remarks <small>(Optional)</small>
+                  <textarea
+                    rows="3"
+                    value={form.remarks}
+                    onChange={(event) => update("remarks", event.target.value)}
+                  />
+                </label>
+                <label className="contract-field form-wide-field">
+                  Attachment{" "}
+                  <small>(Optional · multiple image or PDF files)</small>
+                  <input type="file" multiple accept="image/*,.pdf" />
+                </label>
+              </div>
+            ) : stage.type === "grading" ? (
+              <div className="grading-inline-form">
+                <section className="grading-form-overview">
+                  <div className="grading-form-overview-title"><h3>▧ &nbsp;Vehicle &amp; Delivery Details</h3></div>
+                  <div className="grading-form-overview-grid">
+                    <div className="grading-detail-value emphasis"><span>Weighbridge Ticket</span><strong>{stage.ticket_no}</strong></div>
+                    <div className="grading-detail-value"><span>Entry Date &amp; Time</span><strong>{formatDateTime(stage.entry_at)}</strong></div>
+                    <div className="grading-detail-value"><span>Vehicle Plate No. &amp; Driver</span><strong>{stage.vehicle_no || "—"} · {stage.driver_name || "—"}</strong></div>
+                    <div className="grading-detail-value"><span>Supplier</span><strong>{stage.supplier || "—"}</strong></div>
+                  </div>
+                  <div className="grading-form-weight-cards">
+                    <div><span>Gross Weight</span><strong>{Number(stage.gross_weight || 0).toFixed(3)} <small>MT</small></strong></div>
+                    <div><span>Tare Weight</span><strong className="pending">{stage.tare_weight ? `${Number(stage.tare_weight).toFixed(3)} MT` : "Pending"}</strong></div>
+                    <div><span>Net Weight</span><strong className="pending">{stage.net_weight ? `${Number(stage.net_weight).toFixed(3)} MT` : "Pending"}</strong></div>
+                  </div>
+                </section>
+                <div className="grading-parameter-groups">
+                  <section className="grading-parameter-group">
+                    <h4><span className="grading-group-dot received" />FFB Received (%)</h4>
+                    <div className="grading-parameter-cards">
+                      {gradingFields.filter(([key]) => !["unripe", "overripe", "wetWeight"].includes(key)).map(([key, label, required]) => (
+                        <label className="grading-parameter-card" key={key}>
+                          <span>{label}{required && <em>*</em>}</span>
+                          <span className="grading-input-wrap"><input name={key} type="number" min="0" step="0.001" required={required} placeholder="0.000" /><small>%</small></span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                    <section className="grading-parameter-group grading-single-parameter-group">
+                      <h4><span className="grading-group-dot wet" />Wet Weight / Wet Load</h4>
+                      <div className="grading-parameter-cards">
+                        {gradingFields.filter(([key]) => key === "wetWeight").map(([key, label, required]) => (
+                          <label className="grading-parameter-card" key={key}>
+                            <span>{label}{required && <em>*</em>}</span>
+                            <span className="grading-input-wrap"><input name={key} type="number" min="0" step="0.001" required={required} placeholder="0.000" /><small>Value</small></span>
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+                  <section className="grading-parameter-group">
+                    <h4><span className="grading-group-dot returned" />FFB Returned (Bunches)</h4>
+                    <div className="grading-parameter-cards">
+                      {gradingFields.filter(([key]) => ["unripe", "overripe"].includes(key)).map(([key, label, required]) => (
+                        <label className="grading-parameter-card" key={key}>
+                          <span>{label}{required && <em>*</em>}</span>
+                          <span className="grading-input-wrap"><input name={key} type="number" min="0" step="0.001" required={required} placeholder="0.000" /><small>Bunches</small></span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+                <section className="grading-form-notes">
+                  <label>Remarks <small>(Optional)</small><textarea name="gradingRemarks" rows="3" placeholder="Add grading observations or exceptions..." /></label>
+                  <label>Attachment <small>(Optional · multiple image or PDF files)</small><input type="file" multiple accept="image/*,.pdf" /></label>
+                </section>
+              </div>
+            ) : (
+              <div className="vehicle-exit-form">
+                <section className="second-weighing-overview">
+                  <div className="second-weighing-section-title"><h3>Ticket &amp; Logistics Details</h3></div>
+                  <div className="second-weighing-detail-grid">
+                    <div><span>Weighbridge Ticket No.</span><strong className="ticket-ref">{stage.ticket_no}</strong></div>
+                    <div><span>Lorry Plate No.</span><strong className="vehicle-plate-value">{stage.vehicle_no || "—"}</strong></div>
+                    <div className="wide"><span>Supplier / Estate</span><strong>{stage.supplier || "—"}</strong></div>
+                    <div><span>Driver Name</span><strong>{stage.driver_name || "—"}</strong></div>
+                    <div><span>Entry Timestamp</span><strong>{formatDateTime(stage.entry_at)}</strong></div>
+                  </div>
+                </section>
+                <section className="second-weighing-section">
+                  <div className="second-weighing-section-heading"><h3>Weight Overview &amp; Balance</h3><span>Unit: Metric Tonnes (MT)</span></div>
+                  <div className="second-weighing-weight-cards">
+                    <div><span>Gross Weight (MT)</span><strong>{Number(stage.gross_weight || 0).toFixed(3)}</strong><small>Inbound Recorded</small></div>
+                    <div className="tare"><span>Tare Weight (MT)</span><strong>{tarePreview ? Number(tarePreview).toFixed(3) : "Pending"}</strong><small>{tarePreview ? "Captured" : "Awaiting tare weigh"}</small></div>
+                    <div className="net"><span>Net Weight (MT)</span><strong>{tarePreview && Number(tarePreview) > 0 ? (Number(stage.gross_weight || 0) - Number(tarePreview)).toFixed(3) : "Pending"}</strong><small>{tarePreview ? "Auto calculated" : "Awaiting tare weigh"}</small></div>
+                  </div>
+                </section>
+                <section className="second-weighing-entry">
+                  <div className="second-weighing-section-title"><h3>Second Weighing Entry</h3></div>
+                  <label className="contract-field">
+                    Tare Weight (MT)<em>*</em>
+                    <div className="second-weighing-input-wrap"><input required name="tareWeight" type="number" min="0.001" step="0.001" placeholder="0.000" value={tarePreview} onChange={(event) => setTarePreview(event.target.value)} /><span>MT</span></div>
+                  </label>
+                  <p className="second-weighing-help">ⓘ Net weight will automatically calculate upon entering tare weight.</p>
+                  <label className="contract-field">Remarks <small>(Optional)</small><textarea name="exitRemarks" rows="4" maxLength="500" placeholder="Add vehicle exit notes, exceptions or observations..." /></label>
+                  <label className="contract-field">Attachments <small>(Optional · multiple image or PDF files)</small><input type="file" multiple accept="image/*,.pdf" /></label>
+                  <div className="blocked-help">Net Weight = Gross Weight ({Number(stage.gross_weight || 0).toFixed(3)} MT) − Tare Weight. The certified net weight will be locked and printed upon saving.</div>
+                </section>
+              </div>
+            )}
+            <div className="contract-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setStage(null)}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary">
+                {stage.type === "receive"
+                  ? "Save FFB Receive"
+                  : stage.type === "grading"
+                    ? "Complete Grading"
+                    : "Save & Vehicle Exit"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {selected && (
+        <div className="drawer-backdrop" onClick={() => setSelected(null)}>
+          <aside
+            className="drawer receiving-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-head">
+              <div>
+                <div className="eyebrow">STOCK / FFB RECEIVING · DETAILS</div>
+                <h2>{selected.receipt_code || selected.ticket_no}</h2>
+                <p className="drawer-subtitle">
+                  {selected.ticket_no} · {formatDateTime(selected.entry_at)}
+                </p>
+              </div>
+              <button
+                className="icon-button"
+                aria-label="Close ticket details"
+                title="Close"
+                onClick={() => setSelected(null)}
+              >
+                ×
+              </button>
+            </div>
+            <ReceiptDetails
+              record={selected}
+              onClose={() => setSelected(null)}
+              onAction={openForm}
+            />
+          </aside>
+        </div>
+      )}
+    </main>
+  );
 }
