@@ -441,7 +441,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
   const [tarePreview, setTarePreview] = useState("");
   const [error, setError] = useState("");
   const [capturedAt, setCapturedAt] = useState(() => new Date());
-  const [vehicleLookup, setVehicleLookup] = useState(null);
   const activeItems = items.filter((item) => item.status === "Active");
   const filtered = useMemo(
     () =>
@@ -464,7 +463,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
     setError("");
     setForm({ ...emptyReceive });
     setCapturedAt(new Date());
-    setVehicleLookup(null);
     setTarePreview("");
     setStage({ type: "receive" });
   };
@@ -486,40 +484,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
           }),
       ),
     );
-  useEffect(() => {
-    if (stage?.type !== "receive" || form.vehicleNo.trim().length < 3) return;
-    const timer = setTimeout(() => lookupVehicle(), 350);
-    return () => clearTimeout(timer);
-  }, [form.vehicleNo, stage?.type]);
-  const lookupVehicle = async () => {
-    if (!form.vehicleNo.trim()) return;
-    try {
-      const response = await fetch(
-        `/api/vehicle-lookup?registration=${encodeURIComponent(form.vehicleNo.trim())}`,
-      );
-      const payload = await response.json();
-      setVehicleLookup(
-        payload.found
-          ? {
-              found: true,
-              message: `Vehicle found${payload.vehicle.transporter ? ` · ${payload.vehicle.transporter}` : ""}`,
-            }
-          : { found: false, message: "No registered vehicle match found." },
-      );
-      if (payload.found) {
-        const vehicle = payload.vehicle;
-        setForm((current) => ({
-          ...current,
-          vehicleNo: vehicle.registration_no,
-          supplier: vehicle.supplier_name || current.supplier,
-          driverName: vehicle.driver_name || current.driverName,
-          driverLicenseNo: vehicle.driver_license_no || current.driverLicenseNo,
-        }));
-      }
-    } catch {
-      setVehicleLookup(null);
-    }
-  };
   const submitReceive = async (event) => {
     event.preventDefault();
     setError("");
