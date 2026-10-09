@@ -553,6 +553,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
     setCapturedAt(systemCapturedAt);
     const validation = validateFfbReceiveForm(form);
     if (!validation.valid) return setError(validation.message);
+    if (!form.driverLicenseNo.trim()) return setError("Driver ID (License) is required before mill entry can be authorized.");
     const attachments = await readAttachments(
       Array.from(
         event.currentTarget.querySelector('input[type="file"]')?.files || [],
@@ -567,6 +568,8 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
         // in the API contract for production backends that validate it before
         // applying their server-side default.
         vehicleType: form.vehicleType || "FFB Tipper",
+        driverIdentityType: "Driving License",
+        driverIdentityNo: form.driverLicenseNo.trim(),
         capturedAt: systemCapturedAt.toISOString(),
         attachments,
       }),
@@ -816,7 +819,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                   />
                 </label>
                 <label className="contract-field">
-                  Driver ID (License)<small> (Optional)</small>
+                  Driver ID (License)<em>*</em>
                   <input
                     value={form.driverLicenseNo}
                     onChange={(event) => {
