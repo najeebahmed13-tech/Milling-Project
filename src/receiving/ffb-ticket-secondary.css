@@ -1,0 +1,9 @@
+.ffb-ticket-panel {
+  border-color: #dce4ee;
+  background: #f8fafc;
+  color: #52657f;
+}
+
+.ffb-ticket-panel strong {
+  color: #52657f;
+}

@@ -11,6 +11,7 @@ import {
 import "./receiving.css";
 import "./ffb-receive-form-order.css";
 import "./receiving-smart.css";
+import "./ffb-ticket-secondary.css";
 import { validateFfbReceiveForm } from "./receiving.js";
 import { formatDate, formatDateTime, formatTime } from "../shared/formatters.js";
 
