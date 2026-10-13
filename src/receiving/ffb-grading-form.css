@@ -1,0 +1,350 @@
+.grading-drawer form {
+  gap: 18px;
+}
+
+/* Keep the form dense and readable: the drawer is the container, so the
+   overview and parameter groups do not need another full card shell. */
+.grading-drawer {
+  width: min(760px, 100%);
+}
+
+.grading-drawer form > .grading-form-overview,
+.grading-drawer form > .grading-parameters,
+.grading-drawer form > .grading-form-notes {
+  margin: 0;
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--ds-color-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.grading-form-overview-title {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ds-color-border);
+}
+
+.grading-form-overview-title h3,
+.grading-drawer form > .grading-parameters .drawer-section-heading h3 {
+  margin: 0;
+  color: var(--ds-color-text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.grading-form-overview-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 18px;
+  padding: 14px 0;
+}
+
+.grading-form-overview-grid .grading-detail-value span {
+  color: var(--ds-color-text-subtle);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.grading-form-overview-grid .grading-detail-value strong {
+  color: var(--ds-color-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.grading-form-weight-cards {
+  gap: 10px;
+}
+
+.grading-form-weight-cards > div {
+  gap: 6px;
+  padding: 12px;
+  border-color: var(--ds-color-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-color-surface-subtle);
+}
+
+.grading-form-weight-cards > div:last-child {
+  border-color: #f4c9ce;
+  background: var(--ds-color-brand-soft);
+}
+
+.grading-form-weight-cards span {
+  color: var(--ds-color-text-subtle);
+}
+
+.grading-form-weight-cards strong {
+  color: var(--ds-color-text);
+  font-size: 14px;
+}
+
+.grading-form-weight-cards .pending {
+  color: var(--ds-color-warning);
+}
+
+.grading-drawer form > .grading-parameters {
+  border-color: var(--ds-color-border);
+  background: var(--ds-color-surface);
+}
+
+.grading-drawer form > .grading-parameters .drawer-section-heading {
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom-color: var(--ds-color-border);
+}
+
+.grading-drawer form > .grading-parameters .drawer-section-heading h3:after {
+  content: none;
+}
+
+.grading-drawer form > .grading-parameters .drawer-section-heading > span {
+  color: var(--ds-color-text-subtle);
+  font-size: 11px;
+}
+
+.grading-parameter-groups {
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.grading-parameter-group {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.grading-parameter-group h4 {
+  gap: 8px;
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom-color: var(--ds-color-border);
+  color: var(--ds-color-text);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.grading-parameter-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.grading-parameter-card {
+  min-width: 0;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ds-color-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.grading-parameter-card em {
+  color: var(--ds-color-danger);
+}
+
+.grading-input-wrap input {
+  height: 40px;
+  padding: 0 42px 0 11px;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text);
+  font: 500 14px Inter, ui-sans-serif, system-ui, sans-serif;
+  box-shadow: none;
+}
+
+.grading-input-wrap input:hover {
+  border-color: #aeb7c4;
+}
+
+.grading-input-wrap input:focus {
+  outline: 0;
+  border-color: var(--ds-color-brand);
+  box-shadow: var(--ds-focus-ring);
+}
+
+.grading-input-wrap input::placeholder {
+  color: var(--ds-color-text-muted);
+}
+
+.grading-input-wrap small {
+  right: 11px;
+  color: var(--ds-color-text-subtle);
+  font-size: 11px;
+}
+
+.grading-form-notes {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.grading-form-notes > label {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.grading-form-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--ds-color-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.grading-form-field > label,
+.grading-form-field > span {
+  color: var(--ds-color-text);
+  font: inherit;
+}
+
+.grading-form-field > label small,
+.grading-form-field > span small,
+.grading-upload-control > small {
+  color: var(--ds-color-text-subtle);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.grading-form-notes textarea,
+.grading-upload-control input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-color-text);
+  background: var(--ds-color-surface);
+  font: inherit;
+  font-size: 12px;
+}
+
+.grading-form-notes textarea {
+  min-height: 88px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.grading-form-notes textarea:focus,
+.grading-upload-control input[type="file"]:focus {
+  outline: 0;
+  border-color: var(--ds-color-brand);
+  box-shadow: var(--ds-focus-ring);
+}
+
+.grading-upload-control {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  padding: 14px;
+  border: 1px dashed var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-text-subtle);
+}
+
+.grading-upload-control > svg {
+  color: var(--ds-color-brand);
+}
+
+.grading-upload-control input[type="file"] {
+  min-height: 40px;
+  padding: 6px;
+  background: var(--ds-color-surface);
+}
+
+.grading-upload-control input[type="file"]::file-selector-button {
+  min-height: 28px;
+  margin-right: 9px;
+  padding: 0 10px;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-color-text);
+  background: var(--ds-color-surface-subtle);
+  font: inherit;
+  cursor: pointer;
+}
+
+.grading-upload-control > small {
+  grid-column: 2;
+}
+
+.grading-drawer .grading-form-header-status {
+  border-color: #f4d998;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-warning-soft);
+  color: var(--ds-color-warning);
+}
+
+.grading-drawer-actions {
+  margin-top: 0;
+  border-top-color: var(--ds-color-border);
+  box-shadow: 0 -6px 14px rgba(16, 24, 40, 0.06);
+}
+
+@media (max-width: 600px) {
+  .grading-drawer form > .grading-form-overview,
+  .grading-drawer form > .grading-parameters,
+  .grading-drawer form > .grading-form-notes {
+    padding: 0 0 14px;
+  }
+
+  .grading-parameter-group {
+    padding: 0;
+  }
+
+  .grading-parameter-card {
+    padding: 12px;
+  }
+
+  .grading-form-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grading-drawer .grading-form-header-status {
+    padding: 5px 9px;
+  }
+}
+
+@media (max-width: 420px) {
+  .grading-form-overview-grid,
+  .grading-form-weight-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .grading-form-weight-cards > div:last-child {
+    grid-column: auto;
+  }
+
+  .grading-parameter-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grading-single-parameter-group .grading-parameter-card {
+    max-width: none;
+  }
+
+  .grading-form-notes {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The first form row begins immediately after the drawer header. The drawer
+   owns the surface; Vehicle & Delivery Details is a flat section heading. */
+.grading-drawer form > .grading-form-overview {
+  margin-top: 0;
+  padding-top: var(--ds-space-4);
+}
+
+.grading-drawer form > .grading-form-overview .grading-form-overview-title {
+  padding-top: 0;
+  border-bottom: 0;
+}

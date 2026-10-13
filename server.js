@@ -815,7 +815,7 @@ if (!db.prepare("SELECT COUNT(*) count FROM suppliers").get().count) {
       "Sawit Makmur Plantation Koperasi",
       "FFB Supplier (Estate)",
       "External",
-      "Hâji Ahmad Dahlan",
+      "Haji Ahmad Dahlan",
       "+62 812 7788990",
       "ahmad.dahlan@sawitmakmur.co.id",
       "Dumai, Indonesia",
@@ -1416,6 +1416,14 @@ app.post("/api/suppliers", (req, res) => {
 });
 app.post("/api/customers", (req, res) => {
   const body = req.body;
+  const hasDeliveryAddress = (body.addresses || []).some((address) =>
+    address &&
+    (address.type === "Delivery" || address.type === "Shipping") &&
+    address.country &&
+    String(address.line1 || "").trim() &&
+    String(address.state || "").trim() &&
+    String(address.city || "").trim(),
+  );
   if (
     !body.customerCode ||
     !body.legalName ||
@@ -1429,6 +1437,10 @@ app.post("/api/customers", (req, res) => {
         message:
           "Customer code, legal name, origin, business classification and customer group are required.",
       });
+  if (!hasDeliveryAddress)
+    return res.status(400).json({
+      message: "At least one complete Shipping address is required as the customer delivery address.",
+    });
   try {
     const info = db
       .prepare(

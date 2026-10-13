@@ -7,3 +7,11 @@
 .ffb-ticket-panel strong {
   color: #52657f;
 }
+
+.receipt-detail-grid .highlight {
+  color: #52657f;
+}
+
+.receiving-drawer .drawer-head .eyebrow {
+  color: var(--ds-color-text-subtle);
+}

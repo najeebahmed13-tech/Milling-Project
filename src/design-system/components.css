@@ -1,0 +1,104 @@
+.ds-button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-sm);
+  padding: 0 var(--ds-space-4);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--ds-motion-fast), border-color var(--ds-motion-fast), color var(--ds-motion-fast), box-shadow var(--ds-motion-fast);
+}
+.ds-button:disabled { opacity: .55; cursor: not-allowed; }
+.ds-button-primary { color: #fff; background: var(--ds-color-brand); box-shadow: var(--ds-shadow-sm); }
+.ds-button-primary:hover:not(:disabled) { background: var(--ds-color-brand-strong); }
+.ds-button-secondary { color: var(--ds-color-text); background: var(--ds-color-surface); border-color: var(--ds-color-border-strong); }
+.ds-button-secondary:hover:not(:disabled) { background: var(--ds-color-surface-subtle); }
+.ds-button-ghost { color: var(--ds-color-brand); background: transparent; }
+.ds-button-ghost:hover:not(:disabled) { background: var(--ds-color-brand-soft); }
+.ds-button-sm { min-height: 32px; padding-inline: var(--ds-space-3); font-size: 12px; }
+.ds-button-lg { min-height: 46px; padding-inline: var(--ds-space-5); }
+
+.ds-icon-button { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: var(--ds-radius-sm); color: var(--ds-color-text-subtle); background: transparent; cursor: pointer; }
+.ds-icon-button:hover { color: var(--ds-color-brand); background: var(--ds-color-brand-soft); }
+.ds-breadcrumb-separator { flex: 0 0 auto; color: var(--ds-color-text-muted); }
+.ds-drawer-close { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.ds-vehicle-plate { display: inline; max-width: 100%; padding: 0; border: 0; border-radius: 0; color: var(--ds-color-text); background: transparent; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; letter-spacing: .06em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.second-weighing-input-wrap input[aria-invalid="true"] { border-color: var(--ds-color-danger); box-shadow: 0 0 0 3px var(--ds-color-danger-soft); }
+.second-weighing-entry .ds-field-message { display: block; margin-top: 7px; }
+.ds-card { background: var(--ds-color-surface); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-md); box-shadow: var(--ds-shadow-sm); }
+.ds-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--ds-space-6); margin-bottom: var(--ds-space-6); }
+.ds-page-header h1 { margin: 4px 0 5px; color: var(--ds-color-text); font-size: 28px; line-height: 1.15; letter-spacing: -.5px; }
+.ds-page-header p { margin: 0; color: var(--ds-color-text-subtle); font-size: 14px; }
+.ds-page-header-actions { display: flex; align-items: center; gap: var(--ds-space-2); }
+.ds-eyebrow { color: var(--ds-color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: 1.2px; }
+.ds-field { display: flex; flex-direction: column; gap: var(--ds-space-2); min-width: 0; }
+.ds-field-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-2); color: var(--ds-color-text); font-size: 13px; }
+.ds-field-label small { color: var(--ds-color-text-subtle); font-size: 11px; font-weight: 400; }
+.ds-required { color: var(--ds-color-danger); font-weight: 800; }
+.ds-field > input, .ds-field > select, .ds-field > textarea { width: 100%; min-height: 40px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); padding: 9px 12px; color: var(--ds-color-text); background: var(--ds-color-surface); }
+.ds-field > textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+.ds-field > input:hover, .ds-field > select:hover, .ds-field > textarea:hover { border-color: #aeb7c4; }
+.ds-field > input:focus, .ds-field > select:focus, .ds-field > textarea:focus { border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); outline: none; }
+.ds-field-error > input, .ds-field-error > select, .ds-field-error > textarea { border-color: var(--ds-color-danger); }
+.ds-field-message { color: var(--ds-color-danger); font-size: 12px; }
+.ds-status { display: inline-flex; align-items: center; gap: var(--ds-space-2); width: max-content; padding: 4px 9px; border-radius: var(--ds-radius-pill); font-size: 11px; font-weight: 700; }
+.ds-status > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ds-status-neutral { color: var(--ds-color-text-subtle); background: #f1f3f5; }
+.ds-status-success { color: var(--ds-color-success); background: var(--ds-color-success-soft); }
+.ds-status-warning { color: var(--ds-color-warning); background: var(--ds-color-warning-soft); }
+.ds-status-danger { color: var(--ds-color-danger); background: var(--ds-color-danger-soft); }
+.ds-status-info { color: var(--ds-color-info); background: var(--ds-color-info-soft); }
+.ds-alert { border: 1px solid; border-radius: var(--ds-radius-sm); padding: 10px 12px; font-size: 12px; }
+.ds-alert-info { color: #275da9; background: var(--ds-color-info-soft); border-color: #cfe0ff; }
+.ds-alert-error { color: var(--ds-color-danger); background: var(--ds-color-danger-soft); border-color: #ffc8cd; }
+.ds-alert-warning { color: var(--ds-color-warning); background: var(--ds-color-warning-soft); border-color: #f4d998; }
+.ds-empty-state { display: grid; justify-items: center; gap: var(--ds-space-2); padding: var(--ds-space-8) var(--ds-space-5); color: var(--ds-color-text-muted); text-align: center; }
+.ds-empty-state strong { color: var(--ds-color-text); }
+.ds-empty-state p { max-width: 420px; margin: 0; font-size: 13px; line-height: 1.5; }
+@media (max-width: 700px) {
+  .ds-page-header { align-items: flex-start; flex-direction: column; gap: var(--ds-space-4); }
+  .ds-page-header-actions { width: 100%; }
+  .ds-page-header-actions > * { flex: 1; }
+  .ds-page-header h1 { font-size: 24px; }
+}
+
+/* Existing application classes are mapped to the same system so legacy and new
+   screens share one visual language while feature modules are migrated safely. */
+.btn { border-radius: var(--ds-radius-sm); transition: background-color var(--ds-motion-fast), border-color var(--ds-motion-fast), color var(--ds-motion-fast), box-shadow var(--ds-motion-fast); }
+.btn-primary { background: var(--ds-color-brand); }
+.btn-primary:hover:not(:disabled) { background: var(--ds-color-brand-strong); }
+.btn-secondary { border-color: var(--ds-color-border-strong); color: var(--ds-color-text); }
+.panel, .summary-card, .kpi-card { border-color: var(--ds-color-border); border-radius: var(--ds-radius-md); box-shadow: var(--ds-shadow-sm); }
+.drawer { border-left: 1px solid var(--ds-color-border); box-shadow: var(--ds-shadow-md); }
+.drawer input, .drawer select, .drawer textarea { border-radius: var(--ds-radius-sm); border-color: var(--ds-color-border-strong); }
+.drawer input:focus, .drawer select:focus, .drawer textarea:focus { border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); }
+.modal-copy, .muted { color: var(--ds-color-text-subtle); }
+
+/* Users listing and drawer use the same breadcrumb/link and detail hierarchy as
+   the rest of the application. */
+.users-breadcrumb { color: var(--ds-color-text-subtle); }
+.users-breadcrumb-link {
+  border: 0;
+  padding: 0;
+  color: var(--ds-color-text-subtle);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.users-breadcrumb-link:hover { color: var(--ds-color-brand); text-decoration: underline; }
+.users-breadcrumb b { color: var(--ds-color-text-muted); font-weight: 400; }
+.users-breadcrumb strong { color: var(--ds-color-brand); font-weight: 600; }
+.user-name { color: var(--ds-color-info) !important; font-weight: 600; text-decoration: none; }
+.users-table tbody tr:hover .user-name { color: var(--ds-color-brand) !important; text-decoration: underline; }
+.user-status { color: var(--ds-color-success); font-weight: 600; }
+.user-drawer { background: var(--ds-color-surface); border-left-color: var(--ds-color-border); }
+.user-drawer-head { border-bottom-color: var(--ds-color-border); }
+.user-drawer-head h2 { color: var(--ds-color-text); }
+.user-detail-grid { border-bottom-color: var(--ds-color-border); }
+.user-detail-grid span { color: var(--ds-color-text-subtle); }
+.user-detail-grid strong { color: var(--ds-color-text); font-weight: 600; }
+.details-button { color: var(--ds-color-text); border-color: var(--ds-color-border-strong); }

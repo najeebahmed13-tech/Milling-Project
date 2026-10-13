@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import "../masters/masters.css";
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import "./loading-plans.css";
 import "./loading-plan-progress.css";
 import "./loading-plan-operation.css";
 import "./loading-plan-checklists.css";
-import { formatDate } from "../shared/formatters.js";
+import { formatDate, formatVehiclePlate } from "../shared/formatters.js";
+import { ActionMenu, ActivityTimeline, Badge, DrawerCloseButton, ImageCarousel } from "../design-system/index.js";
 
 const KEY = "rockeye.commercial.deliveryRequests";
 const value = (v, fallback = "—") =>
@@ -310,7 +312,8 @@ function OperationForm({ action, plan, close, submit }) {
     e.preventDefault();
     if (action === "assign" && (!data.transporter || !data.vehicle || !data.driver || !data.loadingBay))
       return;
-    if (action === "load" && (Number(data.actualLoadingQuantity) <= 0 || Number(data.actualLoadingQuantity) > Number(plan.remainingQuantity || plan.requestedQuantity || 0)))
+    const plannedQuantity = Number(plan.remainingQuantity ?? plan.requestedQuantity ?? 0);
+    if (action === "load" && (Number(data.actualLoadingQuantity) <= 0 || (plannedQuantity > 0 && Number(data.actualLoadingQuantity) > plannedQuantity)))
       return;
     if (action === "second" && (Number(data.grossWeight) <= 0 || Number(data.tare) <= 0 || Number(data.grossWeight) < Number(data.tare)))
       return;
@@ -360,8 +363,8 @@ function OperationForm({ action, plan, close, submit }) {
     </label>
   );
   return (
-    <div className="loading-plan-form-overlay">
-      <form className="loading-plan-operation-form" onSubmit={save}>
+    <div className={`loading-plan-form-overlay${action === "assign" ? " logistics-assignment-overlay" : ""}`}>
+      <form className={`loading-plan-operation-form${action === "assign" ? " logistics-assignment-drawer" : ""}`} onSubmit={save}>
         <div className="master-form-head">
           <div>
             <span>LOGISTICS / LOADING PLAN</span>
@@ -384,9 +387,9 @@ function OperationForm({ action, plan, close, submit }) {
             </h2>
             <p>{plan.loadingInstructionNo || plan.requestNo}</p>
           </div>
-          <button type="button" onClick={close}>
+          <DrawerCloseButton onClick={close} label="Close logistics assignment" />{/*
             ×
-          </button>
+          */}
         </div>
         {action === "assign" && (
           <div className="loading-plan-assignment-form">
@@ -395,7 +398,6 @@ function OperationForm({ action, plan, close, submit }) {
               <div className="assignment-summary-grid">
                 <div><span>Customer / Consignee</span><strong>{value(plan.customerName)}</strong></div>
                 <div><span>Delivery Destination</span><strong>{value(plan.deliveryLocation || plan.millLocationGate, "Mill Gate")}</strong></div>
-                <div><span>Planned Date</span><strong>{value(plan.plannedLoadingDate || plan.deliveryDate)}</strong></div>
                 <div><span>Delivery Date</span><strong>{value(plan.deliveryDate)}</strong></div>
                 <div className="required-summary"><span>Requested Quantity</span><strong>{value(plan.requestedQuantity)} {value(plan.uom, "MT")}</strong><small>Product: {value(plan.product)}</small></div>
               </div>
@@ -430,7 +432,6 @@ function OperationForm({ action, plan, close, submit }) {
                   <div className="assignment-summary-grid">
                     <div><span>Delivery Request</span><strong>{value(plan.requestNo)}</strong></div>
                     <div><span>Customer</span><strong>{value(plan.customerName)}</strong></div>
-                    <div><span>Planned Loading Date</span><strong>{value(plan.plannedLoadingDate || plan.deliveryDate)}</strong></div>
                     <div><span>Delivery Date</span><strong>{value(plan.deliveryDate)}</strong></div>
                   </div>
                 </div>
@@ -687,8 +688,11 @@ function OperationForm({ action, plan, close, submit }) {
   );
 }
 
-function Drawer({ plan, close, act }) {
+function LoadingPlanDetails({ plan, close, act }) {
   const [form, setForm] = useState(null);
+  const [tab, setTab] = useState("overview");
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [attachmentViewer, setAttachmentViewer] = useState(null);
   const next = !plan.transporter
     ? ["assign", "Assign Logistics"]
     : !plan.vehicleArrivedAt
@@ -717,36 +721,107 @@ function Drawer({ plan, close, act }) {
                         ? ["exit", "Vehicle Exit"]
                         : [null, "Completed"];
   const run = (action, data = {}) => {
+    setActionsOpen(false);
     setForm(null);
     act(action, data, plan);
   };
+  const openForm = (action) => {
+    setActionsOpen(false);
+    setForm(action);
+  };
+  const actionItems = [
+    ...(next[0] === "assign"
+      ? [{ key: "assign", label: next[1], onClick: () => openForm("assign") }]
+      : []),
+    ...(next[0] === "arrival"
+      ? [{ key: "arrival", label: next[1], onClick: () => run("arrival") }]
+      : []),
+    ...(["empty", "pre", "sample", "seal", "post", "second", "load"].includes(next[0])
+      ? [{ key: next[0], label: next[1], onClick: () => openForm(next[0]) }]
+      : []),
+    ...(next[0] === "bay"
+      ? [{ key: "bay", label: next[1], onClick: () => run("bay") }]
+      : []),
+    ...(next[0] === "start"
+      ? [{ key: "start", label: next[1], onClick: () => run("start") }]
+      : []),
+    ...(next[0] === "exit"
+      ? [{ key: "exit", label: next[1], onClick: () => run("exit") }]
+      : []),
+    ...(!plan.vehicleArrivedAt && status(plan) !== "COMPLETED" && status(plan) !== "CANCELLED"
+      ? [{ key: "cancel", label: "Cancel Loading Plan", danger: true, onClick: () => run("cancel") }]
+      : []),
+  ];
+  const activities = (plan.auditEvents?.length ? plan.auditEvents : [
+    { action: "created the loading plan", at: plan.createdAt || plan.created_at, actor: "System" },
+  ]).map((event) => ({
+    date: event.at ? new Date(event.at).toISOString().slice(0, 10) : plan.deliveryDate,
+    time: event.at ? new Date(event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
+    user: event.actor || "System User",
+    role: "Logistics User",
+    action: event.action || "updated the loading plan",
+    detail: `Loading Plan ${plan.loadingInstructionNo || plan.requestNo} was updated through the workflow.`,
+    tone: event.action === "cancel" ? "document" : event.action === "exit" ? "status" : "updated",
+  }));
+  const openAttachment = (files, index) => setAttachmentViewer({ files, index });
   return (
-    <div className="drawer-backdrop" onClick={close}>
-      <aside
-        className="drawer loading-plan-drawer"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="drawer-head">
+    <main className="masters-page loading-plans-page loading-plan-details-page">
+      <div className="sales-contract-breadcrumb loading-plan-breadcrumb">
+        <span>Logistics</span>
+        <b>›</b>
+        <span>Loading Plans</span>
+        <b>›</b>
+        <strong>Details</strong>
+      </div>
+      <div className="sales-contract-details-heading loading-plan-details-heading">
+        <div>
+          <div className="sales-contract-title-line">
+            <h1>{value(plan.loadingInstructionNo, "Loading Plan")}</h1>
+            <span className="customer-status">{status(plan)}</span>
+          </div>
+          <p>
+            {value(plan.requestNo)} · {value(plan.customerName)}
+          </p>
+        </div>
+        <div className="loading-plan-detail-actions">
+          <button className="btn btn-secondary" onClick={close}>Back to Loading Plans</button>
+          {actionItems.length > 0 && (
+            <ActionMenu label="Actions" items={actionItems} open={actionsOpen} onToggle={() => setActionsOpen((open) => !open)} />
+          )}
+        </div>
+      </div>
+      <div className="loading-plan-detail-page-content">
+        {/* Legacy drawer header intentionally removed from the page presentation. */}
+        {false && (
           <div>
-            <div className="eyebrow">LOGISTICS / LOADING PLAN</div>
-            <h2>{value(plan.loadingInstructionNo, "Loading Plan")}</h2>
             <p>
               {value(plan.requestNo)} · {value(plan.customerName)}
             </p>
-          </div>
           <button className="icon-button" onClick={close}>
             ×
           </button>
-        </div>
-        <div className="loading-plan-status">
-          <span className="customer-status">{next[1]}</span>
-          <span>{value(plan.plannedLoadingDate || plan.deliveryDate)}</span>
-        </div>
-        <section className="loading-plan-detail-section">
+          </div>
+        )}
+      <nav className="sales-contract-tabs loading-plan-detail-tabs" aria-label="Loading Plan details">
+        {[
+          ["overview", "Overview"],
+          ["weighment", "Weighment"],
+          ["quality", "Quality"],
+          ["checklists", "Inspection Checklists"],
+          ["dispatch", "Seals & Waybill"],
+          ["activities", "Activities"],
+        ].map(([key, label]) => (
+          <button key={key} className={tab === key ? "selected" : ""} onClick={() => setTab(key)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+        <section hidden={tab !== "overview"} className="loading-plan-detail-section">
           <h3>Loading Instruction</h3>
           <div className="loading-plan-detail-grid">
             <Detail label="Delivery Request" value={plan.requestNo} />
             <Detail label="Customer" value={plan.customerName} />
+            <Detail label="Delivery Date" value={plan.deliveryDate} />
             <Detail label="Product" value={plan.product} />
             <Detail
               label="Quantity"
@@ -767,16 +842,15 @@ function Drawer({ plan, close, act }) {
             <Detail label="Instructions" value={plan.loadingInstructions} />
           </div>
         </section>
-        <section className="loading-plan-detail-section">
+        <section hidden={tab !== "overview"} className="loading-plan-detail-section">
           <h3>Loading Execution</h3>
           <div className="loading-plan-detail-grid">
             <Detail label="Loaded Quantity" value={`${value(plan.loadedQuantity, "0")} ${value(plan.uom, "")}`} />
             <Detail label="Execution Entries" value={plan.loadingExecutions?.length || 0} />
-            <Detail label="Source Quality" value={plan.qualityReleased ? "Released" : "Pending"} />
+            <Detail label="Quality Release Status" value={plan.qualityReleased ? "Released" : "Pending"} />
           </div>
-          {plan.loadingExecutions?.length ? <div className="loading-plan-input-record-list">{plan.loadingExecutions.map((entry) => <div key={entry.id}><span>{entry.id}</span><strong>{entry.quantity} {value(plan.uom, "MT")}</strong><small>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "—"}</small></div>)}</div> : null}
         </section>
-        <section className="loading-plan-detail-section">
+        <section className="loading-plan-detail-section loading-plan-execution-timeline">
           <h3>Execution Record</h3>
           <div className="loading-plan-checklist">
             <State
@@ -828,7 +902,7 @@ function Drawer({ plan, close, act }) {
             />
           </div>
         </section>
-        <section className="loading-plan-detail-section">
+        <section hidden={tab !== "weighment"} className="loading-plan-detail-section">
           <h3>Weighment Details</h3>
           <div className="loading-plan-detail-grid">
             <Detail label="Weighbridge Ticket" value={plan.emptyWeighbridgeTicket || plan.weighbridgeTicket} />
@@ -838,7 +912,7 @@ function Drawer({ plan, close, act }) {
             <Detail label="Second Weighment Remarks" value={plan.secondRemarks} />
           </div>
         </section>
-        <section className="loading-plan-detail-section">
+        <section hidden={tab !== "quality"} className="loading-plan-detail-section">
           <h3>Sample &amp; Quality Inputs</h3>
           <div className="loading-plan-detail-grid">
             <Detail label="Sample Reference" value={plan.sampleReference} />
@@ -850,35 +924,35 @@ function Drawer({ plan, close, act }) {
           </div>
           {plan.qualityAttachments?.length ? <div className="loading-plan-document-list">{plan.qualityAttachments.map((file, index) => <a href={file.data} target="_blank" rel="noreferrer" download={file.name} key={`${file.name}-${index}`}>{file.name}</a>)}</div> : <p className="muted">No quality attachments uploaded.</p>}
         </section>
-        <section className="loading-plan-detail-section">
+        <section hidden={tab !== "weighment"} className="loading-plan-detail-section">
           <h3>Second Weighment Inputs</h3>
           <div className="loading-plan-detail-grid"><Detail label="Gross Weight Entered" value={plan.grossWeight ? `${plan.grossWeight} MT` : "Pending"} /><Detail label="Tare From First Weighment" value={plan.tareWeight ? `${plan.tareWeight} MT` : "Pending"} /><Detail label="Net Weight Calculated" value={plan.netWeight ? `${plan.netWeight} MT` : "Pending"} /><Detail label="Remarks" value={plan.secondRemarks} /></div>
           {plan.secondAttachments?.length ? <div className="loading-plan-document-list">{plan.secondAttachments.map((file, index) => <a href={file.data} target="_blank" rel="noreferrer" download={file.name} key={`${file.name}-${index}`}>{file.name}</a>)}</div> : <p className="muted">No second-weighment attachments uploaded.</p>}
         </section>
-        {plan.secondWeighmentAt && <section className="loading-plan-detail-section waybill-detail-section">
+        {plan.secondWeighmentAt && <section hidden={tab !== "dispatch"} className="loading-plan-detail-section waybill-detail-section">
           <div className="waybill-detail-heading"><div><h3>Waybill</h3><p>Generated from the certified second weighment.</p></div><button className="waybill-download-button" title="Download Waybill PDF" aria-label="Download Waybill PDF" onClick={() => downloadWaybill(plan)}>⇩</button></div>
           <div className="waybill-detail-content"><WaybillQr plan={plan} size={88} /><div><strong>{waybillNumber(plan)}</strong><span>Scan to view the Loading Plan details.</span><button className="btn btn-secondary" onClick={() => downloadWaybill(plan)}>Download Waybill PDF</button></div></div>
         </section>}
-        <section className="loading-plan-detail-section loading-plan-accordion-section">
+        <section hidden={tab !== "checklists"} className="loading-plan-detail-section loading-plan-accordion-section">
           <h3>Inspection Checklists</h3>
           <details className="loading-plan-checklist-accordion" open>
-            <summary><span>Pre-Loading Checklist</span><strong>{plan.preLoadingChecklistAt ? "Completed" : "Pending"}</strong></summary>
+            <summary><span>Pre-Loading Checklist</span><Badge tone={plan.preLoadingChecklistAt ? "success" : "warning"}>{plan.preLoadingChecklistAt ? "Completed" : "Pending"}</Badge></summary>
             <div className="loading-plan-accordion-body">
               <div className="loading-plan-checklist-inputs">{[["Tanker compartment clean", plan.clean],["Tanker compartment dry", plan.dry],["No foreign material/residue", plan.foreignMaterial],["No abnormal odour", plan.odour],["Tanker condition acceptable", plan.bodyCondition],["Outlet valve serviceable", plan.outletClosed]].map(([label, result]) => <div key={label}><span>{label}</span><strong className={result === "yes" ? "check-pass" : result === "no" ? "check-fail" : "check-pending"}>{result ? String(result).toUpperCase() : "NOT RECORDED"}</strong></div>)}</div>
               <div className="loading-plan-detail-grid checklist-remarks-grid"><Detail label="Final Status" value={plan.finalStatus} /><Detail label="Remarks / Corrective Actions" value={plan.preLoadingRemarks} /></div>
-              {Object.entries(plan.preLoadingAttachments || {}).some(([, files]) => files?.length) ? <div className="preloading-detail-evidence">{Object.entries(plan.preLoadingAttachments || {}).map(([checkpoint, files]) => files?.length ? <div className="preloading-detail-evidence-group" key={checkpoint}><strong>{checkpoint}</strong><div className="preloading-detail-evidence-grid">{files.map((file, index) => <a href={file.data} target="_blank" rel="noreferrer" download={file.name} key={`${file.name}-${index}`}><img src={file.data} alt={file.name} /><span>{file.name}</span></a>)}</div></div> : null)}</div> : <p className="muted">No pre-loading images uploaded.</p>}
+              {Object.entries(plan.preLoadingAttachments || {}).some(([, files]) => files?.length) ? <div className="preloading-detail-evidence">{Object.entries(plan.preLoadingAttachments || {}).map(([checkpoint, files]) => files?.length ? <div className="preloading-detail-evidence-group" key={checkpoint}><strong>{checkpoint}</strong><div className="preloading-detail-evidence-grid">{files.map((file, index) => <button type="button" className="preloading-detail-evidence-thumb" key={`${file.name}-${index}`} onClick={() => openAttachment(files, index)}><img src={file.data} alt={file.name} /><span>{file.name}</span></button>)}</div></div> : null)}</div> : <p className="muted">No pre-loading images uploaded.</p>}
             </div>
           </details>
           <details className="loading-plan-checklist-accordion" open>
-            <summary><span>Post-Loading Checklist</span><strong>{plan.postLoadingChecklistAt ? "Completed" : "Pending"}</strong></summary>
+            <summary><span>Post-Loading Checklist</span><Badge tone={plan.postLoadingChecklistAt ? "success" : "warning"}>{plan.postLoadingChecklistAt ? "Completed" : "Pending"}</Badge></summary>
             <div className="loading-plan-accordion-body">
               <div className="loading-plan-checklist-inputs">{[["Outlet valve fully closed", plan.outletClosed],["Manhole / hatch secured", plan.manholeClosed],["Loading hose / coupling disconnected", plan.hoseDisconnected],["No residual product leakage", plan.noLeakage],["No significant vehicle spillage", plan.noSpillage],["Required dispatch sample collected", plan.sampleCollectedCheck],["Quality testing completed", plan.qualityTestingCheck]].map(([label, result]) => <div key={label}><span>{label}</span><strong className={result === "yes" ? "check-pass" : result === "no" ? "check-fail" : "check-pending"}>{result ? String(result).toUpperCase() : "NOT RECORDED"}</strong></div>)}</div>
               <div className="loading-plan-detail-grid checklist-remarks-grid"><Detail label="Final Status" value={plan.postFinalStatus} /><Detail label="Remarks / Corrective Actions" value={plan.postLoadingRemarks} /></div>
-              {Object.entries(plan.postLoadingAttachments || {}).some(([, files]) => files?.length) ? <div className="preloading-detail-evidence">{Object.entries(plan.postLoadingAttachments || {}).map(([checkpoint, files]) => files?.length ? <div className="preloading-detail-evidence-group" key={checkpoint}><strong>{checkpoint}</strong><div className="preloading-detail-evidence-grid">{files.map((file, index) => <a href={file.data} target="_blank" rel="noreferrer" download={file.name} key={`${file.name}-${index}`}><img src={file.data} alt={file.name} /><span>{file.name}</span></a>)}</div></div> : null)}</div> : <p className="muted">No post-loading images uploaded.</p>}
+              {Object.entries(plan.postLoadingAttachments || {}).some(([, files]) => files?.length) ? <div className="preloading-detail-evidence">{Object.entries(plan.postLoadingAttachments || {}).map(([checkpoint, files]) => files?.length ? <div className="preloading-detail-evidence-group" key={checkpoint}><strong>{checkpoint}</strong><div className="preloading-detail-evidence-grid">{files.map((file, index) => <button type="button" className="preloading-detail-evidence-thumb" key={`${file.name}-${index}`} onClick={() => openAttachment(files, index)}><img src={file.data} alt={file.name} /><span>{file.name}</span></button>)}</div></div> : null)}</div> : <p className="muted">No post-loading images uploaded.</p>}
             </div>
           </details>
         </section>
-        <section className="loading-plan-detail-section loading-plan-legacy-checklist">
+        <section hidden={tab !== "checklists"} className="loading-plan-detail-section loading-plan-legacy-checklist">
           <h3>Checklist Inputs</h3>
           <div className="loading-plan-checklist-inputs">
             {[
@@ -904,7 +978,7 @@ function Drawer({ plan, close, act }) {
             <Detail label="Post-Loading Remarks" value={plan.postLoadingRemarks} />
           </div>
         </section>
-        <section className="loading-plan-detail-section">
+        <section hidden={tab !== "dispatch"} className="loading-plan-detail-section">
           <h3>Seal Records</h3>
           {Array.isArray(plan.seals) && plan.seals.length ? (
             <div className="seal-detail-list">
@@ -913,7 +987,7 @@ function Drawer({ plan, close, act }) {
           ) : <p className="muted">No seals recorded.</p>}
           {plan.sealRemarks && <p className="preloading-detail-remarks"><strong>Remarks:</strong> {plan.sealRemarks}</p>}
         </section>
-        <section className="loading-plan-detail-section loading-plan-legacy-evidence">
+        <section hidden={tab !== "checklists"} className="loading-plan-detail-section loading-plan-legacy-evidence">
           <h3>Pre-Loading Evidence</h3>
           {Object.entries(plan.preLoadingAttachments || {}).some(([, files]) => files?.length) ? (
             <div className="preloading-detail-evidence">
@@ -936,7 +1010,7 @@ function Drawer({ plan, close, act }) {
           ) : <p className="muted">No inspection images uploaded.</p>}
           {plan.preLoadingRemarks && <p className="preloading-detail-remarks"><strong>Remarks:</strong> {plan.preLoadingRemarks}</p>}
         </section>
-        <section className="loading-plan-detail-section loading-plan-legacy-evidence">
+        <section hidden={tab !== "checklists"} className="loading-plan-detail-section loading-plan-legacy-evidence">
           <h3>Post-Loading Evidence</h3>
           {Object.entries(plan.postLoadingAttachments || {}).some(([, files]) => files?.length) ? (
             <div className="preloading-detail-evidence">
@@ -951,6 +1025,14 @@ function Drawer({ plan, close, act }) {
             </div>
           ) : <p className="muted">No post-loading images uploaded.</p>}
           {plan.postLoadingRemarks && <p className="preloading-detail-remarks"><strong>Remarks:</strong> {plan.postLoadingRemarks}</p>}
+        </section>
+        <section hidden={tab !== "activities"} className="loading-plan-activities-section">
+          <ActivityTimeline
+            activities={activities}
+            title="Activities"
+            reference={plan.loadingInstructionNo || plan.requestNo}
+            description={`Audit trail for ${plan.loadingInstructionNo || plan.requestNo}`}
+          />
         </section>
         <div className="loading-plan-actions">
           <strong>Next action</strong>
@@ -1010,15 +1092,24 @@ function Drawer({ plan, close, act }) {
             submit={(data) => run(form, data)}
           />
         )}
-      </aside>
-    </div>
+        {attachmentViewer && (
+          <ImageCarousel
+            files={attachmentViewer.files}
+            index={attachmentViewer.index}
+            onClose={() => setAttachmentViewer(null)}
+            onIndexChange={(index) => setAttachmentViewer((current) => ({ ...current, index }))}
+          />
+        )}
+      </div>
+    </main>
   );
 }
 
 export function LoadingPlansPage() {
   const [rows, setRows] = useState(read);
   const [selected, setSelected] = useState(null);
-  const [viewMode, setViewMode] = useState("table");
+  const [viewMode, setViewMode] = useState("grid");
+  const { visibleItems, pagination } = usePaginatedItems(rows);
   useEffect(() => {
     const linkedPlan = new URLSearchParams(window.location.search).get("loadingPlan");
     if (linkedPlan) {
@@ -1157,6 +1248,15 @@ export function LoadingPlansPage() {
     setRows(refreshed);
     setSelected(refreshed.find((item) => item.id === id) || null);
   };
+  if (selected) {
+    return (
+      <LoadingPlanDetails
+        plan={selected}
+        close={() => setSelected(null)}
+        act={(action, data, plan) => act(plan.id, action, data, plan)}
+      />
+    );
+  }
   return (
     <main className="masters-page loading-plans-page">
       <div className="masters-breadcrumb">
@@ -1173,7 +1273,7 @@ export function LoadingPlansPage() {
       <section className="panel masters-panel">
         <div className="masters-toolbar">
           <strong>Loading plan register</strong>
-          <div className="loading-plan-toolbar-actions"><span>{rows.length} records</span><div className="loading-plan-view-toggle" role="group" aria-label="Loading Plan view"><button className={viewMode === "table" ? "active" : ""} onClick={() => setViewMode("table")} aria-label="Table view">☷</button><button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")} aria-label="Grid view">▦</button></div></div>
+          <div className="loading-plan-toolbar-actions"><div className="loading-plan-view-toggle" role="group" aria-label="Loading Plan view"><button className={viewMode === "table" ? "active" : ""} onClick={() => setViewMode("table")} aria-label="Table view">☷</button><button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")} aria-label="Grid view">▦</button></div></div>
         </div>
         {viewMode === "table" ? <div className="table-wrap">
           <table>
@@ -1187,14 +1287,14 @@ export function LoadingPlansPage() {
                 <th>Transporter</th>
                 <th>Vehicle</th>
                 <th>Driver</th>
-                <th>Planned Date</th>
+                <th>Delivery Date</th>
                 <th>Waybill</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {visibleItems.map((row) => (
                 <tr key={row.id} onClick={() => setSelected(row)}>
                   <td className="production-reference">
                     {value(row.loadingInstructionNo)}
@@ -1208,7 +1308,7 @@ export function LoadingPlansPage() {
                   <td>{value(row.transporter)}</td>
                   <td>{value(row.vehicle)}</td>
                   <td>{value(row.driver)}</td>
-                  <td>{value(row.plannedLoadingDate || row.deliveryDate)}</td>
+                  <td>{value(row.deliveryDate)}</td>
                   <td>
                     {row.secondWeighmentAt ? <div className="waybill-list-cell"><WaybillQr plan={row} size={38} /><button className="waybill-list-download" title="Download Waybill PDF" aria-label="Download Waybill PDF" onClick={(event) => { event.stopPropagation(); downloadWaybill(row); }}>⇩</button></div> : <span className="muted">Pending</span>}
                   </td>
@@ -1231,7 +1331,7 @@ export function LoadingPlansPage() {
             </tbody>
           </table>
         </div> : <div className="loading-plan-card-grid">
-          {rows.map((row) => (
+          {visibleItems.map((row) => (
             <article className="loading-plan-card" key={row.id}>
               <div className="loading-plan-card-head"><div><span className="loading-plan-card-code">{value(row.loadingInstructionNo)}</span><small>{value(row.requestNo)}</small></div><span className="customer-status">{status(row)}</span></div>
               <div className="loading-plan-card-rule" />
@@ -1239,7 +1339,7 @@ export function LoadingPlansPage() {
               <div className="loading-plan-card-grid-details">
                 <div><span>Product</span><strong>{value(row.product)}</strong></div>
                 <div><span>Quantity</span><strong>{value(row.requestedQuantity)} {value(row.uom, "")}</strong></div>
-                <div><span>Planned Date</span><strong>{value(row.plannedLoadingDate || row.deliveryDate)}</strong></div>
+                <div><span>Delivery Date</span><strong>{value(row.deliveryDate)}</strong></div>
                 <div><span>Transporter</span><strong>{value(row.transporter)}</strong></div>
                 <div><span>Vehicle</span><strong>{value(row.vehicle)}</strong></div>
                 <div><span>Driver</span><strong>{value(row.driver)}</strong></div>
@@ -1249,14 +1349,8 @@ export function LoadingPlansPage() {
             </article>
           ))}
         </div>}
+        {pagination}
       </section>
-      {selected && (
-        <Drawer
-          plan={selected}
-          close={() => setSelected(null)}
-          act={(action, data, plan) => act(plan.id, action, data, plan)}
-        />
-      )}
     </main>
   );
 }

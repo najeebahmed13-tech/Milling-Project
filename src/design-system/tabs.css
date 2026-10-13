@@ -1,0 +1,10 @@
+/* Shared tab emphasis: active tabs are consistently stronger without becoming
+   visually heavier than page headings or buttons. */
+.customer-tabs button.selected,
+.supplier-detail-tabs button.active,
+.sales-contract-tabs button.selected,
+.storage-tabs button.active,
+.purchase-contract-detail .contract-detail-tabs button.active,
+.tabs .tab.selected {
+  font-weight: 500 !important;
+}

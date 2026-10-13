@@ -31,3 +31,9 @@ The most-specific active configuration wins. The current frontend does not silen
 - Feature configuration cannot bypass authorization or tenant isolation.
 
 No quality threshold, grading limit, tank calibration formula, or mill-capacity formula has been invented.
+
+## Receiving slip template
+
+The FFB receiving certificate uses the centralized `ReceivingSlip` pattern and the versioned default definition in `src/receiving/receiving-slip-template.js`. The definition supports section visibility/order, field visibility/order/labels, header and certification text, formatting, and print settings.
+
+The current frontend uses the versioned default definition. A production API must provide the active tenant/company/mill-scoped template to the renderer and persist template versions without mutating historical receiving transactions. Administrator editing, effective dating, audit events, and historical template retrieval remain backend configuration work until the document-template API is available.

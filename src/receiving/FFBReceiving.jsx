@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ChevronDown,
   ClipboardCheck,
   Eye,
   Printer,
@@ -13,7 +12,16 @@ import "./ffb-receive-form-order.css";
 import "./receiving-smart.css";
 import "./ffb-ticket-secondary.css";
 import { validateFfbReceiveForm } from "./receiving.js";
-import { formatDate, formatDateTime, formatTime } from "../shared/formatters.js";
+import { EMPTY_VALUE, formatDate, formatDateTime, formatTime } from "../shared/formatters.js";
+import { FfbGradingFormContent, FfbGradingFormDrawer, parameterFields as gradingFields } from "./FfbGradingFormContent.jsx";
+import { SecondWeighingFormDrawer } from "./SecondWeighingFormDrawer.jsx";
+import { BreadcrumbSeparator, DrawerCloseButton, VehiclePlateDisplay } from "../design-system/components.jsx";
+import AttachmentList from "../shared/AttachmentList.jsx";
+import { receiptCode } from "../shared/receiptCode.js";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
+import { StatusBadge, badgeToneForStatus } from "../design-system/badges.jsx";
+import { ActionMenu } from "../design-system/index.js";
+import { ReceivingSlip } from "./ReceivingSlip.jsx";
 
 const emptyReceive = {
   vehicleNo: "",
@@ -26,37 +34,13 @@ const emptyReceive = {
   weightUom: "MT",
   remarks: "",
 };
-const gradingFields = [
-  ["unripe", "Unripe", false],
-  ["overripe", "Overripe", false],
-  ["ripe", "Ripe", true],
-  ["underRipe", "Under-ripe", false],
-  ["rotten", "Rotten", false],
-  ["emptyBunch", "Empty Bunch", false],
-  ["dirtyContaminated", "Dirty / Contaminated", false],
-  ["old", "Old", false],
-  ["dura", "Dura", false],
-  ["longStalk", "Long Stalk", false],
-  ["wetWeight", "Wet Weight / Wet Load", false],
-];
+
 const parseFiles = (value) => {
   try {
     return JSON.parse(value || "[]");
   } catch {
     return [];
   }
-};
-// Older API deployments may not return receipt_code yet. Keep the receipt
-// reference visible from the immutable receipt id while the API catches up.
-const receiptCode = (record) => {
-  if (record?.receipt_code) return record.receipt_code;
-  const ticketDate = String(record?.ticket_no || "").match(/^WB-(\d{8})-/)?.[1];
-  const fallbackDate = String(record?.entry_at || record?.created_at || "")
-    .slice(0, 10)
-    .replaceAll("-", "");
-  return record?.id && (ticketDate || fallbackDate)
-    ? `RC-${ticketDate || fallbackDate}-${String(record.id).padStart(6, "0")}`
-    : "—";
 };
 const gradingComplete = (row) => {
   if (row?.state === "GRADING_COMPLETED") return true;
@@ -92,38 +76,27 @@ function ReceiptDetails({ record, onClose, onAction }) {
   return (
     <div className="receipt-detail-view">
       <section className="receipt-detail-section">
-        <div className="receipt-detail-heading">
-          <div>
-            <h3>Receipt summary</h3>
-            <p>Inbound FFB weighbridge ticket details.</p>
-          </div>
-          <span
-            className={`receipt-state ${(record.state || "").toLowerCase()}`}
-          >
-            {statusLabel(record.state, record)}
-          </span>
-        </div>
         <div className="receipt-detail-grid">
           <div>
             <span>Weighbridge ticket</span>
             <strong className="highlight">{record.ticket_no}</strong>
           </div>
           <div>
-            <span>Entry date / time</span>
+            <span>Entry Date &amp; Time</span>
             <strong>{formatDateTime(record.entry_at)}</strong>
           </div>
           <div>
             <span>Item</span>
-            <strong>{record.product_type || "—"}</strong>
+            <strong>{record.product_type || EMPTY_VALUE}</strong>
           </div>
           <div>
             <span>Supplier</span>
-            <strong>{record.supplier || "—"}</strong>
+            <strong>{record.supplier || EMPTY_VALUE}</strong>
           </div>
         </div>
       </section>
       <section className="receipt-detail-section">
-        <div className="receipt-detail-heading compact"><h3>Weight Overview &amp; Balance</h3><span>Unit: Metric Tonnes (MT)</span></div>
+        <div className="receipt-detail-heading compact"><h3>Weight Overview</h3></div>
         <div className="weight-preview drawer-weights">
           <div>
             <span>Gross weight</span>
@@ -153,22 +126,22 @@ function ReceiptDetails({ record, onClose, onAction }) {
         )}
       </section>
       <section className="receipt-detail-section">
-        <h3>Vehicle and supplier details</h3>
+        <h3>Vehicle Details</h3>
         <div className="receipt-detail-grid">
           <div>
-            <span>Vehicle Plate</span>
-            <strong>{record.vehicle_no || "—"}</strong>
+            <span>Vehicle Plate No.</span>
+            <VehiclePlateDisplay value={record.vehicle_no} fallback={EMPTY_VALUE} />
           </div>
           <div>
             <span>Driver name</span>
-            <strong>{record.driver_name || "—"}</strong>
+            <strong>{record.driver_name || EMPTY_VALUE}</strong>
           </div>
           <div>
             <span>Declared quantity</span>
             <strong>
               {record.supplier_declared_qty
                 ? `${Number(record.supplier_declared_qty).toFixed(3)} MT`
-                : "—"}
+                : EMPTY_VALUE}
             </strong>
           </div>
         </div>
@@ -181,35 +154,7 @@ function ReceiptDetails({ record, onClose, onAction }) {
             {record.exit_remarks || record.remarks || "No remarks recorded"}
           </strong>
         </div>
-        {attachments.length ? (
-          <div className="attachment-preview-list">
-            {attachments.map((file, index) => (
-              <article
-                className="attachment-preview-card"
-                key={`${file.name}-${index}`}
-              >
-                {file.type?.startsWith("image/") ? (
-                  <img src={file.data} alt={file.name} />
-                ) : (
-                  <iframe src={file.data} title={file.name} />
-                )}
-                <div className="attachment-preview-meta">
-                  <strong title={file.name}>{file.name}</strong>
-                  <a
-                    href={file.data}
-                    download={file.name}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open / download
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="attachment-empty">No exit files attached.</div>
-        )}
+        <AttachmentList files={attachments} />
       </section>
       <div className="drawer-action-strip receiving-drawer-actions">
         <strong>Next action</strong>
@@ -235,41 +180,6 @@ function ReceiptDetails({ record, onClose, onAction }) {
           Second Weighing
         </button>
       </div>
-    </div>
-  );
-}
-
-function ReceiptSlip({ record, onClose }) {
-  const weightRow = (label, timestamp, value) => (
-    <div className="receipt-slip-weight-row">
-      <strong>{label}</strong>
-      <span>{timestamp ? formatDateTime(timestamp) : "Pending"}</span>
-      <span>Mill Weighbridge</span>
-      <b>{value ? `${Number(value).toFixed(3)} MT` : "Pending"}</b>
-    </div>
-  );
-  return (
-    <div className="receipt-slip-backdrop" onClick={onClose}>
-      <section className="receipt-slip" onClick={(event) => event.stopPropagation()}>
-        <div className="receipt-slip-toolbar">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
-          <button type="button" className="btn btn-primary" onClick={() => window.print()}><Printer size={15} /> Print Slip</button>
-        </div>
-        <div className="receipt-slip-paper">
-          <header className="receipt-slip-header">
-            <strong>ROCKEYE MILLING OPERATIONS</strong>
-            <span>Inbound Processing Division · Weighbridge Station</span>
-            <em>OFFICIALLY VERIFIED</em>
-          </header>
-          <h2>INBOUND WEIGHT CERTIFICATE / TICKET</h2>
-          <div className="receipt-slip-identification"><div><span>Ticket Identification:</span><b>{record.ticket_no || "—"}</b></div><div><span>Official Receipt Ref:</span><b>{receiptCode(record)}</b></div></div>
-          <div className="receipt-slip-details"><div><span>Supplier:</span><b>{record.supplier || "—"}</b></div><div><span>Vehicle Plate:</span><b className="plate">{record.vehicle_no || "—"}</b></div><div><span>Driver Name:</span><b>{record.driver_name || "—"}</b></div><div><span>Commodity / Item:</span><b>{record.product_type || "—"}</b></div></div>
-          <h3>Weight Measurement Breakdown</h3>
-          <div className="receipt-slip-weight-table"><div className="receipt-slip-weight-head"><span>Description</span><span>Timestamp</span><span>Station Scale</span><span>Reading (MT)</span></div>{weightRow("Gross Weight (First Weighing)", record.entry_at, record.gross_weight)}{weightRow("Tare Weight (Second Weighing)", record.exit_at, record.tare_weight)}</div>
-          <div className="receipt-slip-net"><span>Net Certified Weight:</span><b>{record.net_weight ? `${Number(record.net_weight).toFixed(3)} MT` : "Pending second weighing"}</b></div>
-          <footer>Generated from the ROCKEYE FFB Receiving transaction record.</footer>
-        </div>
-      </section>
     </div>
   );
 }
@@ -304,11 +214,7 @@ function FfbReceiptGrid({
                 {receiptCode(row)}
               </button>
             </div>
-            <span
-              className={`receipt-state ${(row.state || "").toLowerCase()}`}
-            >
-              {statusLabel(row.state, row)}
-            </span>
+            <StatusBadge tone={badgeToneForStatus(statusLabel(row.state, row))}>{statusLabel(row.state, row)}</StatusBadge>
           </div>
           <div className="ffb-ticket-panel">
             <div>
@@ -320,21 +226,21 @@ function FfbReceiptGrid({
           <div className="ffb-card-summary">
             <div>
               <span>Supplier</span>
-              <strong>{row.supplier || "—"}</strong>
+              <strong>{row.supplier || EMPTY_VALUE}</strong>
             </div>
             <div>
               <span>Item</span>
-              <strong>{row.product_type || "—"}</strong>
+              <strong>{row.product_type || EMPTY_VALUE}</strong>
             </div>
           </div>
           <div className="ffb-vehicle-strip">
             <div>
-              <span>Vehicle Plate</span>
-              <strong>{row.vehicle_no || "—"}</strong>
+              <span>Vehicle Plate No.</span>
+              <VehiclePlateDisplay value={row.vehicle_no} fallback={EMPTY_VALUE} />
             </div>
             <div>
               <span>Driver</span>
-              <strong>{row.driver_name || "—"}</strong>
+              <strong>{row.driver_name || EMPTY_VALUE}</strong>
             </div>
           </div>
           <div className="ffb-card-divider" />
@@ -362,7 +268,7 @@ function FfbReceiptGrid({
             </div>
           </div>
           <div className="ffb-card-footer">
-            <span>◷ {formatDateTime(row.entry_at)}</span>
+            <span>· {formatDateTime(row.entry_at)}</span>
             <button
               type="button"
               className="ffb-view-slip"
@@ -373,70 +279,17 @@ function FfbReceiptGrid({
             >
               <Printer size={15} /> View Slip
             </button>
-            <div className="ffb-actions-menu">
-              <button
-                type="button"
-                className="ffb-actions-trigger"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setOpenActions(openActions === row.id ? null : row.id);
-                }}
-              >
-                Actions <ChevronDown size={15} />
-              </button>
-              {openActions === row.id && (
-                <div
-                  className="ffb-actions-dropdown"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenActions(null);
-                      onSelect(row);
-                    }}
-                  >
-                    <Eye size={15} /> View details
-                  </button>
-                  {statusLabel(row.state, row) !== "Completed" && (
-                    <>
-                      {row.state === "FIRST_WEIGHT_RECORDED" &&
-                        !gradingComplete(row) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenActions(null);
-                              onStage("grading", row);
-                            }}
-                          >
-                            <ClipboardCheck size={15} /> Grading
-                          </button>
-                        )}
-                      <button
-                        type="button"
-                        disabled={!gradingComplete(row)}
-                        onClick={() => {
-                          if (!gradingComplete(row)) return;
-                          setOpenActions(null);
-                          onStage("exit", row);
-                        }}
-                      >
-                        <Scale size={15} /> Second weighing
-                      </button>
-                      {row.state === "FIRST_WEIGHT_RECORDED" &&
-                        !gradingComplete(row) && (
-                          <button
-                            type="button"
-                            onClick={() => setOpenActions(null)}
-                          >
-                            <X size={15} /> Cancel
-                          </button>
-                        )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            <ActionMenu
+              className="ffb-actions-menu"
+              open={openActions === row.id}
+              onToggle={() => setOpenActions(openActions === row.id ? null : row.id)}
+              items={[
+                { key: "view", label: "View details", icon: <Eye size={15} aria-hidden="true" />, onClick: () => { setOpenActions(null); onSelect(row); } },
+                ...(row.state === "FIRST_WEIGHT_RECORDED" && !gradingComplete(row) ? [{ key: "grading", label: "Grading", icon: <ClipboardCheck size={15} aria-hidden="true" />, onClick: () => { setOpenActions(null); onStage("grading", row); } }] : []),
+                ...(statusLabel(row.state, row) !== "Completed" ? [{ key: "second-weighing", label: "Second weighing", icon: <Scale size={15} aria-hidden="true" />, disabled: !gradingComplete(row), onClick: () => { if (!gradingComplete(row)) return; setOpenActions(null); onStage("exit", row); } }] : []),
+                ...(row.state === "FIRST_WEIGHT_RECORDED" && !gradingComplete(row) ? [{ key: "cancel", label: "Cancel", icon: <X size={15} aria-hidden="true" />, danger: true, onClick: () => setOpenActions(null) }] : []),
+              ]}
+            />
           </div>
         </article>
       ))}
@@ -464,6 +317,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
       ),
     [rows, search],
   );
+  const { visibleItems, pagination } = usePaginatedItems(filtered, search);
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
   const openForm = (type, row) => {
@@ -587,6 +441,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
     <main className="receiving-page ffb-receiving-page">
       <div className="receiving-breadcrumb">
         <span>Stock</span>
+        <BreadcrumbSeparator />
         <b>›</b>
         <strong>FFB Receiving</strong>
       </div>
@@ -609,7 +464,6 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search ticket, vehicle, supplier or item..."
           />
-          <span>{filtered.length} tickets</span>
         </div>
         <div className="table-wrap">
           <table className="receiving-table">
@@ -618,7 +472,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                 <th>Receipt Code</th>
                 <th>Weighbridge Ticket</th>
                 <th>Entry Date / Time</th>
-                <th>Vehicle Plate</th>
+                <th>Vehicle Plate No.</th>
                 <th>Driver</th>
                 <th>Supplier</th>
                 <th>Item</th>
@@ -630,15 +484,15 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
+              {visibleItems.map((row) => (
                 <tr key={row.id} onClick={() => setSelected(row)}>
                   <td className="receipt-code-cell">
                     {receiptCode(row)}
                   </td>
                   <td className="ticket-cell">{row.ticket_no}</td>
                   <td>{formatDateTime(row.entry_at)}</td>
-                  <td>{row.vehicle_no}</td>
-                  <td>{row.driver_name || "—"}</td>
+                  <td><VehiclePlateDisplay value={row.vehicle_no} fallback={EMPTY_VALUE} /></td>
+                  <td>{row.driver_name || EMPTY_VALUE}</td>
                   <td>{row.supplier}</td>
                   <td>{row.product_type}</td>
                   <td>{Number(row.gross_weight).toFixed(3)}</td>
@@ -653,11 +507,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                       : "Pending"}
                   </td>
                   <td>
-                    <span
-                      className={`receipt-state ${(row.state || "").toLowerCase()}`}
-                    >
-                      {statusLabel(row.state, row)}
-                    </span>
+                    <StatusBadge tone={badgeToneForStatus(statusLabel(row.state, row))}>{statusLabel(row.state, row)}</StatusBadge>
                   </td>
                   <td>
                     {row.state === "FIRST_WEIGHT_RECORDED" &&
@@ -677,7 +527,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                         className="item-edit"
                         onClick={(event) => {
                           event.stopPropagation();
-                          setSelected(row);
+                          openForm("exit", row);
                         }}
                       >
                         Second Weighing
@@ -698,7 +548,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
         </div>
       </article>
       <FfbReceiptGrid
-        rows={filtered}
+        rows={visibleItems}
         onSelect={(row) => {
           setOpenActions(null);
           setSelected(row);
@@ -708,11 +558,35 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
         openActions={openActions}
         setOpenActions={setOpenActions}
       />
-      {slip && <ReceiptSlip record={slip} onClose={() => setSlip(null)} />}
-      {stage && (
-        <div className="items-modal-backdrop">
+      {pagination}
+      {slip && <ReceivingSlip record={slip} statusLabel={statusLabel} onClose={() => setSlip(null)} />}
+      {stage?.type === "grading" && (
+        <FfbGradingFormDrawer
+          record={stage}
+          error={error}
+          onClose={() => setStage(null)}
+          onSubmit={submitGrading}
+        />
+      )}
+      {stage?.type === "exit" && (
+        <SecondWeighingFormDrawer
+          record={stage}
+          error={error}
+          onClose={() => setStage(null)}
+          onSubmit={submitExit}
+        />
+      )}
+      {stage?.type === "receive" && (
+        <div
+          className="ffb-receive-drawer-backdrop"
+          onClick={() => setStage(null)}
+        >
           <form
-            className="receiving-form"
+            className="receiving-form ffb-receive-drawer"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ffb-receive-drawer-title"
             onSubmit={
               stage.type === "receive"
                 ? submitReceive
@@ -724,31 +598,20 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
             <div className="items-form-heading">
               <div>
                 <span className="eyebrow">{stage.type === "grading" ? "STOCK / FFB RECEIVING · GRADING" : stage.type === "exit" ? "STOCK / FFB RECEIVING · SECOND WEIGHING" : "STOCK / FFB RECEIVING"}</span>
-                <h2>
+                <h2 id={stage.type === "receive" ? "ffb-receive-drawer-title" : undefined}>
                   {stage.type === "receive"
                     ? "FFB Receive"
                     : stage.type === "grading"
                       ? "FFB Grading Form"
                       : "Vehicle Exit / Second Weighing"}
                 </h2>
-                <p className={stage.type === "grading" ? "grading-header-secondary" : stage.type === "exit" ? "second-weighing-reference" : undefined}>
-                  {stage.type === "receive"
-                    ? "System date and time are captured when this record is saved."
-                    : stage.type === "grading"
-                      ? `${stage.ticket_no} · ${stage.vehicle_no} · ${stage.supplier}`
-                      : stage.ticket_no}
-                </p>
-                {stage.type === "grading" && <small className="grading-form-reference">Ref: {receiptCode(stage)} · {stage.ticket_no}</small>}
+                {stage.type === "receive" && (
+                  <p>System date and time are captured when this record is saved.</p>
+                )}
               </div>
-              {stage.type === "grading" && <span className="grading-form-header-status">First Weighing</span>}
+              {stage.type === "grading" && <StatusBadge tone="warning">First Weighing</StatusBadge>}
               {stage.type === "exit" && <span className="second-weighing-header-status">Second Weighing</span>}
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setStage(null)}
-              >
-                ×
-              </button>
+              <DrawerCloseButton onClick={() => setStage(null)} label="Close weighing form" />
             </div>
             {error && <div className="form-error">{error}</div>}
             {stage.type === "receive" ? (
@@ -781,7 +644,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                   />
                 </label>
                 <label className="contract-field">
-                  Lorry Plate No.<em>*</em>
+                  Vehicle Plate No.<em>*</em>
                   <input
                     required
                     value={form.vehicleNo}
@@ -862,75 +725,21 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                 </label>
               </div>
             ) : stage.type === "grading" ? (
-              <div className="grading-inline-form">
-                <section className="grading-form-overview">
-                  <div className="grading-form-overview-title"><h3>▧ &nbsp;Vehicle &amp; Delivery Details</h3></div>
-                  <div className="grading-form-overview-grid">
-                    <div className="grading-detail-value emphasis"><span>Weighbridge Ticket</span><strong>{stage.ticket_no}</strong></div>
-                    <div className="grading-detail-value"><span>Entry Date &amp; Time</span><strong>{formatDateTime(stage.entry_at)}</strong></div>
-                    <div className="grading-detail-value"><span>Vehicle Plate No. &amp; Driver</span><strong>{stage.vehicle_no || "—"} · {stage.driver_name || "—"}</strong></div>
-                    <div className="grading-detail-value"><span>Supplier</span><strong>{stage.supplier || "—"}</strong></div>
-                  </div>
-                  <div className="grading-form-weight-cards">
-                    <div><span>Gross Weight</span><strong>{Number(stage.gross_weight || 0).toFixed(3)} <small>MT</small></strong></div>
-                    <div><span>Tare Weight</span><strong className="pending">{stage.tare_weight ? `${Number(stage.tare_weight).toFixed(3)} MT` : "Pending"}</strong></div>
-                    <div><span>Net Weight</span><strong className="pending">{stage.net_weight ? `${Number(stage.net_weight).toFixed(3)} MT` : "Pending"}</strong></div>
-                  </div>
-                </section>
-                <div className="grading-parameter-groups">
-                  <section className="grading-parameter-group">
-                    <h4><span className="grading-group-dot received" />FFB Received (%)</h4>
-                    <div className="grading-parameter-cards">
-                      {gradingFields.filter(([key]) => !["unripe", "overripe", "wetWeight"].includes(key)).map(([key, label, required]) => (
-                        <label className="grading-parameter-card" key={key}>
-                          <span>{label}{required && <em>*</em>}</span>
-                          <span className="grading-input-wrap"><input name={key} type="number" min="0" step="0.001" required={required} placeholder="0.000" /><small>%</small></span>
-                        </label>
-                      ))}
-                    </div>
-                  </section>
-                    <section className="grading-parameter-group grading-single-parameter-group">
-                      <h4><span className="grading-group-dot wet" />Wet Weight / Wet Load</h4>
-                      <div className="grading-parameter-cards">
-                        {gradingFields.filter(([key]) => key === "wetWeight").map(([key, label, required]) => (
-                          <label className="grading-parameter-card" key={key}>
-                            <span>{label}{required && <em>*</em>}</span>
-                            <span className="grading-input-wrap"><input name={key} type="number" min="0" step="0.001" required={required} placeholder="0.000" /><small>Value</small></span>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
-                  <section className="grading-parameter-group">
-                    <h4><span className="grading-group-dot returned" />FFB Returned (Bunches)</h4>
-                    <div className="grading-parameter-cards">
-                      {gradingFields.filter(([key]) => ["unripe", "overripe"].includes(key)).map(([key, label, required]) => (
-                        <label className="grading-parameter-card" key={key}>
-                          <span>{label}{required && <em>*</em>}</span>
-                          <span className="grading-input-wrap"><input name={key} type="number" min="0" step="0.001" required={required} placeholder="0.000" /><small>Bunches</small></span>
-                        </label>
-                      ))}
-                    </div>
-                  </section>
-                </div>
-                <section className="grading-form-notes">
-                  <label>Remarks <small>(Optional)</small><textarea name="gradingRemarks" rows="3" placeholder="Add grading observations or exceptions..." /></label>
-                  <label>Attachment <small>(Optional · multiple image or PDF files)</small><input type="file" multiple accept="image/*,.pdf" /></label>
-                </section>
-              </div>
+              <FfbGradingFormContent record={stage} showActions={false} submitLabel="Complete Grading" />
             ) : (
               <div className="vehicle-exit-form">
                 <section className="second-weighing-overview">
                   <div className="second-weighing-section-title"><h3>Ticket &amp; Logistics Details</h3></div>
                   <div className="second-weighing-detail-grid">
                     <div><span>Weighbridge Ticket No.</span><strong className="ticket-ref">{stage.ticket_no}</strong></div>
-                    <div><span>Lorry Plate No.</span><strong className="vehicle-plate-value">{stage.vehicle_no || "—"}</strong></div>
-                    <div className="wide"><span>Supplier / Estate</span><strong>{stage.supplier || "—"}</strong></div>
-                    <div><span>Driver Name</span><strong>{stage.driver_name || "—"}</strong></div>
+                    <div><span>Vehicle Plate No.</span><VehiclePlateDisplay value={stage.vehicle_no} fallback={EMPTY_VALUE} /></div>
+                    <div className="wide"><span>Supplier / Estate</span><strong>{stage.supplier || EMPTY_VALUE}</strong></div>
+                    <div><span>Driver Name</span><strong>{stage.driver_name || EMPTY_VALUE}</strong></div>
                     <div><span>Entry Timestamp</span><strong>{formatDateTime(stage.entry_at)}</strong></div>
                   </div>
                 </section>
                 <section className="second-weighing-section">
-                  <div className="second-weighing-section-heading"><h3>Weight Overview &amp; Balance</h3><span>Unit: Metric Tonnes (MT)</span></div>
+                  <div className="second-weighing-section-heading"><h3>Weight Overview</h3></div>
                   <div className="second-weighing-weight-cards">
                     <div><span>Gross Weight (MT)</span><strong>{Number(stage.gross_weight || 0).toFixed(3)}</strong><small>Inbound Recorded</small></div>
                     <div className="tare"><span>Tare Weight (MT)</span><strong>{tarePreview ? Number(tarePreview).toFixed(3) : "Pending"}</strong><small>{tarePreview ? "Captured" : "Awaiting tare weigh"}</small></div>
@@ -946,7 +755,7 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
                   <p className="second-weighing-help">ⓘ Net weight will automatically calculate upon entering tare weight.</p>
                   <label className="contract-field">Remarks <small>(Optional)</small><textarea name="exitRemarks" rows="4" maxLength="500" placeholder="Add vehicle exit notes, exceptions or observations..." /></label>
                   <label className="contract-field">Attachments <small>(Optional · multiple image or PDF files)</small><input type="file" multiple accept="image/*,.pdf" /></label>
-                  <div className="blocked-help">Net Weight = Gross Weight ({Number(stage.gross_weight || 0).toFixed(3)} MT) − Tare Weight. The certified net weight will be locked and printed upon saving.</div>
+                  <div className="blocked-help">Net Weight = Gross Weight ({Number(stage.gross_weight || 0).toFixed(3)} MT) → Tare Weight. The certified net weight will be locked and printed upon saving.</div>
                 </section>
               </div>
             )}
@@ -978,19 +787,12 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
             <div className="drawer-head">
               <div>
                 <div className="eyebrow">STOCK / FFB RECEIVING · DETAILS</div>
-                <h2>{receiptCode(selected) || selected.ticket_no}</h2>
-                <p className="drawer-subtitle">
-                  {selected.ticket_no} · {formatDateTime(selected.entry_at)}
-                </p>
+                <div className="receipt-drawer-title">
+                  <h2>{receiptCode(selected) || selected.ticket_no}</h2>
+                  <StatusBadge tone={badgeToneForStatus(statusLabel(selected.state, selected))}>{statusLabel(selected.state, selected)}</StatusBadge>
+                </div>
               </div>
-              <button
-                className="icon-button"
-                aria-label="Close ticket details"
-                title="Close"
-                onClick={() => setSelected(null)}
-              >
-                ×
-              </button>
+              <DrawerCloseButton onClick={() => setSelected(null)} label="Close receiving details" />
             </div>
             <ReceiptDetails
               record={selected}

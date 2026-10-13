@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import "./dispatch.css";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
+import { VehiclePlateDisplay } from "../design-system/components.jsx";
 
 const stages = ["ORDERED", "EMPTY_WEIGHED", "BAY_ASSIGNED", "LOADING", "QUALITY_PENDING", "QUALITY_RELEASED", "LOADED_WEIGHED", "COMPLETED"];
 const label = (value) => String(value || "").replaceAll("_", " ");
@@ -12,6 +14,7 @@ export function DispatchPage({ rows = [], items = [], onSaved }) {
   const products = items.filter((item) => item.status === "Active" && ["CPO", "Palm Kernel", "EFB"].some((name) => item.name.includes(name))).map((item) => item.item_type === "PK" ? "Palm Kernel" : item.item_type || item.name.includes("Palm Kernel") ? "Palm Kernel" : item.name.includes("EFB") ? "EFB" : "CPO");
   const materials = [...new Set(["CPO", "Palm Kernel", "EFB", ...products])];
   const filtered = useMemo(() => rows.filter((row) => `${row.order_no} ${row.material} ${row.customer} ${row.vehicle_no} ${row.status}`.toLowerCase().includes(search.toLowerCase())), [rows, search]);
+  const { visibleItems, pagination } = usePaginatedItems(filtered, search);
   const refresh = async () => { await onSaved?.(); };
   const openAction = (type, order) => { setError(""); setModal({ type, order }); };
   const submit = async (event) => {
@@ -31,7 +34,7 @@ export function DispatchPage({ rows = [], items = [], onSaved }) {
     <div className="customer-breadcrumb"><span>Stock</span><b>›</b><strong>Dispatch</strong></div>
     <div className="customer-list-heading"><div><div className="eyebrow">STOCK / OUTBOUND LOGISTICS</div><h1>Dispatch</h1><p>Control the connected outbound flow from dispatch order to vehicle exit.</p></div><button className="btn btn-primary" onClick={() => { setError(""); setModal({ type: "new" }); }}>＋ New Dispatch Order</button></div>
     <div className="dispatch-flow"><span>Dispatch Order</span><b>→</b><span>Empty Weighing</span><b>→</b><span>Loading Bay</span><b>→</b><span>Loading</span><b>→</b><span>Quality Receipt</span><b>→</b><span>Loaded Weighing</span><b>→</b><span>Vehicle Exit</span></div>
-    <section className="panel dispatch-panel"><div className="items-toolbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, material, customer or vehicle..." /><span>{filtered.length} dispatch orders</span></div><div className="table-wrap"><table><thead><tr><th>Order</th><th>Material</th><th>Customer</th><th>Vehicle</th><th>Quantity</th><th>Status</th><th>Next action</th></tr></thead><tbody>{filtered.map((row) => { const next = action(row); return <tr key={row.id} onClick={() => setSelected(row)} className="clickable-table-row"><td><button className="table-link" onClick={(event) => { event.stopPropagation(); setSelected(row); }}>{row.order_no}</button></td><td>{row.material}</td><td>{row.customer}</td><td>{row.vehicle_no}</td><td>{Number(row.quantity).toFixed(3)} MT</td><td><span className={`dispatch-status ${String(row.status).toLowerCase()}`}>{label(row.status)}</span></td><td><button className="item-edit" disabled={!next[0]} onClick={(event) => { event.stopPropagation(); openAction(next[0], row); }}>{next[1]}</button></td></tr>; })}{!filtered.length && <tr><td colSpan="7" className="items-empty">No dispatch orders found.</td></tr>}</tbody></table></div></section>
+    <section className="panel dispatch-panel"><div className="items-toolbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, material, customer or vehicle..." /></div><div className="table-wrap"><table><thead><tr><th>Order</th><th>Material</th><th>Customer</th><th>Vehicle</th><th>Quantity</th><th>Status</th><th>Next action</th></tr></thead><tbody>{visibleItems.map((row) => { const next = action(row); return <tr key={row.id} onClick={() => setSelected(row)} className="clickable-table-row"><td><button className="table-link" onClick={(event) => { event.stopPropagation(); setSelected(row); }}>{row.order_no}</button></td><td>{row.material}</td><td>{row.customer}</td><td><VehiclePlateDisplay value={row.vehicle_no} /></td><td>{Number(row.quantity).toFixed(3)} MT</td><td><span className={`dispatch-status ${String(row.status).toLowerCase()}`}>{label(row.status)}</span></td><td><button className="item-edit" disabled={!next[0]} onClick={(event) => { event.stopPropagation(); openAction(next[0], row); }}>{next[1]}</button></td></tr>; })}{!filtered.length && <tr><td colSpan="7" className="items-empty">No dispatch orders found.</td></tr>}</tbody></table></div>{pagination}</section>
     {selected && <DispatchDetails order={selected} onClose={() => setSelected(null)} onAction={openAction} action={action} />}
     {modal && <DispatchModal modal={modal} materials={materials} error={error} onClose={() => setModal(null)} onSubmit={submit} />}
   </main>;

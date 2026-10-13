@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./sales-contract-details.css";
 import "./delivery-request-details.css";
 import { formatDate } from "../shared/formatters.js";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
+import { Alert, Button, FormField, IconButton } from "../design-system/index.js";
+import { TextInput } from "../design-system/form-fields.jsx";
 
 const STORAGE_KEY = "rockeye.commercial.deliveryRequests";
-const money = (value) =>
-  Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const makeNumber = (prefix) =>
   prefix +
   "-" +
@@ -71,7 +70,7 @@ const lifecycleStatus = (request) => {
   if (request.status === "CANCELLED" || request.status === "COMPLETED" || request.status === "FULFILLED")
     return request.status;
   if (request.loadingFulfilled && request.vehicleExitAt) return "FULFILLED";
-  const planned = parseDate(request.plannedLoadingDate || request.deliveryDate);
+  const planned = parseDate(request.deliveryDate);
   if (
     ["SUBMITTED", "PLANNED", "PENDING_LOGISTICS_ASSIGNMENT", "ASSIGNED", "LOADING_IN_PROGRESS"].includes(request.status) &&
     planned &&
@@ -81,16 +80,17 @@ const lifecycleStatus = (request) => {
   return request.status || "DRAFT";
 };
 const Field = ({ label, children, wide = false, readOnly = false, required = false }) => (
-  <label
+  <FormField
+    label={label}
+    required={required}
     className={
       "master-field" +
       (wide ? " master-field-wide" : "") +
       (readOnly ? " readonly-field" : "")
     }
   >
-    <span>{label}{required && <em aria-hidden="true">*</em>}</span>
     {children}
-  </label>
+  </FormField>
 );
 function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
   const [tab, setTab] = useState("Summary");
@@ -100,8 +100,17 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
       <strong>{value || "—"}</strong>
     </div>
   );
+  const removedFormFields = new Set([
+    "Requested Quantity",
+    "Quantity",
+    "Tax",
+    "Final Amount",
+    "Remaining Quantity",
+    "Planned Loading Date",
+    "Loading Instructions",
+  ]);
   const group = (items) =>
-    items.map(([label, value]) => (
+    items.filter(([label]) => !removedFormFields.has(label)).map(([label, value]) => (
       <React.Fragment key={label}>{detail(label, value)}</React.Fragment>
     ));
   const events = [
@@ -114,7 +123,7 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
     ],
     [
       "Loading plan assigned",
-      request.plannedLoadingDate || request.requestDate,
+      request.deliveryDate || request.requestDate,
       request.transporter
         ? "Transporter, vehicle and driver were assigned for logistics execution."
         : "Loading plan is pending transporter assignment.",
@@ -229,7 +238,6 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
                   ["Driver", request.driver],
                   ["Loading Bay", request.loadingBay],
                   ["Loading Line", request.loadingLine],
-                  ["Planned Loading Date", request.plannedLoadingDate],
                   ["Loading Instructions", request.loadingInstructions],
                   ["Attachment", request.attachmentName],
                   ["Remarks", request.remarks],
@@ -249,7 +257,7 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
                     " " +
                     (request.uom || ""),
                 ],
-                ["Planned Date", request.deliveryDate],
+                 ["Delivery Date", request.deliveryDate],
                 ["Status", request.status],
               ].map(([label, value]) => (
                 <div className="sales-contract-snapshot" key={label}>
@@ -286,24 +294,22 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
   );
 }
 
-export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
+export function DeliveryRequestsPage({ customers = [], contracts = [], items = [] }) {
   const [rows, setRows] = useState(readRequests);
+  const { visibleItems, pagination } = usePaginatedItems(rows);
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [step, setStep] = useState(1);
   const [draft, setDraft] = useState({});
   const [error, setError] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [contractId, setContractId] = useState("");
   const [product, setProduct] = useState("");
-  const [requestedQuantity, setRequestedQuantity] = useState("");
   const [loadingBay, setLoadingBay] = useState("");
-  const [taxRate, setTaxRate] = useState("0");
-  const [unitPriceValue, setUnitPriceValue] = useState("");
   const [transporterId, setTransporterId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [driverId, setDriverId] = useState("");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [transporters] = useState(() => {
@@ -371,22 +377,10 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
   const contract = contractRows.find(
     (item) => String(item.id) === String(contractId),
   );
-  const products =
-    Array.isArray(contract?.products) && contract.products.length
-      ? contract.products.filter((item) => item && typeof item === "object")
-      : Array.isArray(customer?.products)
-        ? customer.products.filter((item) => item && typeof item === "object")
-        : [];
-  const productLine =
-    products.find((item) => (item.product || item.name) === product) || {};
-  const unitPrice = Number(
-    unitPriceValue || productLine.unitPrice || productLine.price || 0,
-  );
-  const finalAmount =
-    Number(requestedQuantity || 0) *
-    unitPrice *
-    (1 + Number(taxRate || 0) / 100);
-  const remainingQuantity = Number(requestedQuantity || 0);
+  const activeItems = Array.isArray(items)
+    ? items.filter((item) => item && item.status === "Active")
+    : [];
+  const selectedItem = activeItems.find((item) => String(item.id) === String(product));
   const selectedTransporter = transporters.find(
     (item) => item && String(item.id) === String(transporterId),
   );
@@ -404,9 +398,13 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
   const transporterDrivers = driverRows.filter(
     (item) => item.status === "ACTIVE" && item.transporter === transporterName,
   );
+  const isDeliveryAddress = (item) =>
+    item?.type === "Delivery" || item?.type === "Shipping";
   const locations = Array.isArray(customer?.addresses)
-    ? customer.addresses.filter((item) => item && typeof item === "object")
+    ? customer.addresses.filter((item) => item && typeof item === "object" && isDeliveryAddress(item))
     : [];
+  const locationLabel = (item) =>
+    [item?.type, item?.line1, item?.city, item?.country].filter(Boolean).join(" · ");
   const loadingLines =
     loadingBay === "Loading Bay 01"
       ? ["Loading Line A", "Loading Line B"]
@@ -423,19 +421,16 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
   const resetForm = () => {
     setEditing(null);
     setShowForm(false);
-    setStep(1);
     setDraft({});
     setError("");
     setCustomerId("");
     setContractId("");
     setProduct("");
-    setRequestedQuantity("");
     setLoadingBay("");
     setTransporterId("");
     setVehicleId("");
     setDriverId("");
-    setTaxRate("0");
-    setUnitPriceValue("");
+    setDeliveryLocation("");
   };
   const notifyTransporter = async (request) => {
     const selectedVehicle = vehicleRows.find(
@@ -454,11 +449,11 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
         recipient,
         deliveryReference: request.requestNo,
         loadingInstructionNo: request.loadingInstructionNo,
-        reportingDateTime: `${request.plannedLoadingDate || request.deliveryDate} 08:00`,
+        reportingDateTime: `${request.deliveryDate} 08:00`,
         millLocationGate: request.loadingBay || "Mill Gate",
         product: request.product,
         vehicleType: selectedVehicle?.vehicle_type || "Configured vehicle",
-        quantity: `${request.requestedQuantity || ""} ${request.uom || "MT"}`,
+        quantity: null,
       }),
     });
   };
@@ -466,21 +461,24 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
     event.preventDefault();
     const action = event.nativeEvent.submitter?.value || "submit";
     const form = event.currentTarget;
-    const data = {
+    const rawData = {
       ...draft,
       ...Object.fromEntries(new FormData(form).entries()),
     };
-    const quantity = Number(data.requestedQuantity);
-    const contractedQuantity = Number(productLine.quantity || 0);
+    const {
+      requestedQuantity: _requestedQuantity,
+      plannedLoadingDate: _plannedLoadingDate,
+      loadingInstructions: _loadingInstructions,
+      remainingQuantity: _remainingQuantity,
+      unitPrice: _unitPrice,
+      taxRate: _taxRate,
+      finalAmount: _finalAmount,
+      ...data
+    } = rawData;
     if (!customer) return setError("Select an active customer.");
     if (!contract)
       return setError("Select a contract for the selected customer.");
-    if (!quantity || quantity <= 0)
-      return setError("Requested quantity must be greater than zero.");
-    if (contractedQuantity && quantity > contractedQuantity)
-      return setError(
-        "Requested quantity cannot exceed the contracted quantity.",
-      );
+    if (!selectedItem) return setError("Select an active item.");
     const request = {
       id: Date.now(),
       requestNo: makeNumber("DR"),
@@ -488,19 +486,18 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
       loadingInstructionNo: makeNumber("LI"),
       customerName: customer?.display_name || customer?.legal_name || "",
       contractNumber: contract?.contract_number || "",
-      product: data.product,
       transporter: transporterName,
       vehicle: data.vehicleId,
       driver: data.driverId,
-      unitPrice,
-      taxRate,
-      finalAmount,
       createdBy: "Sean Shapiro",
       status: action === "draft" ? "DRAFT" : "PLANNED",
       loadingPlanStatus:
         action === "draft" ? "DRAFT" : "PENDING_LOGISTICS_ASSIGNMENT",
-      attachmentName: form.elements.attachment.files[0]?.name || "",
+      attachmentName: form.elements.attachment?.files[0]?.name || "",
       ...data,
+      itemId: selectedItem.id,
+      product: selectedItem.name,
+      uom: selectedItem.unit || "",
     };
     const next = editing
       ? rows.map((item) =>
@@ -545,16 +542,13 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
           setSelected(null);
           setCustomerId(customerMatch?.id || "");
           setContractId(contractMatch?.id || "");
-          setProduct(selected.product || "");
-          setRequestedQuantity(selected.requestedQuantity || "");
-          setTaxRate(selected.taxRate || "0");
-          setUnitPriceValue(String(selected.unitPrice || ""));
+          setProduct(String(selected.itemId || activeItems.find((item) => item.name === selected.product)?.id || ""));
           setTransporterId(transporterMatch?.id || "");
           setVehicleId(selected.vehicle || "");
           setDriverId(selected.driver || "");
           setLoadingBay(selected.loadingBay || "");
+          setDeliveryLocation(selected.deliveryLocation || "");
           setDraft(selected);
-          setStep(1);
           setShowForm(true);
         }}
         onCancel={() => {
@@ -589,7 +583,6 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
           className="btn btn-primary"
           onClick={() => {
             setError("");
-            setStep(1);
             setShowForm(true);
           }}
         >
@@ -600,7 +593,6 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
         <div className="sales-contract-activity-toolbar">
           <div>
             <h2>Delivery request register</h2>
-            <p>{rows.length} requests recorded</p>
           </div>
         </div>
         <div className="table-wrap">
@@ -612,13 +604,12 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                 <th>Customer</th>
                 <th>Contract</th>
                 <th>Product</th>
-                <th>Requested Qty</th>
                 <th>Delivery Date</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((request) => (
+              {visibleItems.map((request) => (
                 <tr
                   key={request.id}
                   onClick={() =>
@@ -635,9 +626,6 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                   <td>{request.customerName}</td>
                   <td>{request.contractNumber}</td>
                   <td>{request.product}</td>
-                  <td>
-                    {request.requestedQuantity} {request.uom}
-                  </td>
                   <td>{request.deliveryDate}</td>
                   <td>
                     <span className="customer-status">
@@ -648,7 +636,7 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
               ))}
               {!rows.length && (
                 <tr>
-                  <td colSpan="8" className="master-empty">
+                  <td colSpan="7" className="master-empty">
                     No delivery requests found.
                   </td>
                 </tr>
@@ -656,6 +644,7 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
             </tbody>
           </table>
         </div>
+        {pagination}
       </section>
       {showForm && (
         <div className="master-modal-backdrop">
@@ -664,21 +653,20 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
               <div>
                 <span>CUSTOMERS / DELIVERY REQUESTS</span>
                 <h2>New Delivery Request</h2>
-                <p>
+                {/* Legacy step summary intentionally hidden: this is now a single-step form. */}
+                {/* <p>
                   Step {step} of 2 ·{" "}
-                  {step === 1 ? "Delivery Request" : "Loading Plan"}
-                </p>
+                  Complete delivery request and loading plan in one step.
+                </p> */}
+                <p>Complete the delivery request and loading plan in one step.</p>
               </div>
-              <button type="button" onClick={resetForm}>
+              <IconButton type="button" label="Close new delivery request" onClick={resetForm}>
                 ×
-              </button>
+              </IconButton>
             </div>
-            {error && <div className="master-error">{error}</div>}
-            {step === 1 && (
-              <>
-                <section className="transporter-form-section">
-                  <h3>1. Delivery Request</h3>
-                  <div className="master-form-grid">
+            {error && <Alert tone="error" className="master-error">{error}</Alert>}
+            <>
+                <div className="master-form-grid delivery-request-fields">
                     <Field label="Customer" required>
                       <select
                         name="customerId"
@@ -687,7 +675,9 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                           setCustomerId(event.target.value);
                           setContractId("");
                           setProduct("");
-                          setUnitPriceValue("");
+                          const selectedCustomer = customerRows.find((item) => String(item.id) === String(event.target.value));
+                           const selectedLocation = selectedCustomer?.addresses?.find(isDeliveryAddress);
+                          setDeliveryLocation(locationLabel(selectedLocation));
                         }}
                         required
                       >
@@ -706,7 +696,6 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                         onChange={(event) => {
                           setContractId(event.target.value);
                           setProduct("");
-                          setUnitPriceValue("");
                         }}
                         required
                         disabled={!customerId}
@@ -720,24 +709,27 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                       </select>
                     </Field>
                     <Field label="Customer PO No. Reference">
-                      <input
+                      <TextInput
                         name="customerPo"
                         defaultValue={editing?.customerPo || ""}
                       />
                     </Field>
                     <Field label="Delivery Location" required>
                       <select
+                        key={customerId}
                         name="deliveryLocation"
-                        defaultValue={editing?.deliveryLocation || ""}
+                        value={deliveryLocation}
+                        onChange={(event) => setDeliveryLocation(event.target.value)}
                         required
                         disabled={!customerId}
                       >
-                        <option value="">Select customer location...</option>
-                        {locations.map((item, index) => (
-                          <option key={index}>
-                            {[item.type, item.line1, item.city, item.country]
+                        <option value="">Select customer delivery address...</option>
+                        {locations.slice(0, 1).map((item, index) => (
+                          <option key={index} value={locationLabel(item)}>
+                            {/* [item.type, item.line1, item.city, item.country]
                               .filter(Boolean)
                               .join(" · ")}
+                            */}{locationLabel(item)}
                           </option>
                         ))}
                       </select>
@@ -765,198 +757,13 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                         <option>Company Delivery</option>
                       </select>
                     </Field>
-                    <div className="delivery-product-lines master-field-wide">
-                      <span className="delivery-product-lines-label">
-                        Product line<em>*</em>
-                      </span>
-                      <div className="delivery-line-table-wrap">
-                        <table className="delivery-line-table">
-                          <thead>
-                            <tr>
-                              <th>Item Name</th>
-                              <th>Unit</th>
-                              <th>Qty</th>
-                              <th>Unit Price</th>
-                              <th>Amount</th>
-                              <th>TAX</th>
-                              <th>Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>
-                                <select
-                                  name="product"
-                                  value={product}
-                                  onChange={(event) => {
-                                    const selected = products.find(
-                                      (item) =>
-                                        (item.product || item.name) ===
-                                        event.target.value,
-                                    );
-                                    setProduct(event.target.value);
-                                    setUnitPriceValue(
-                                      String(
-                                        selected?.unitPrice ??
-                                          selected?.price ??
-                                          "",
-                                      ),
-                                    );
-                                  }}
-                                  required
-                                  disabled={!contractId}
-                                >
-                                  <option value="">Select product...</option>
-                                  {products.map((item) => (
-                                    <option
-                                      key={item.product || item.name}
-                                      value={item.product || item.name}
-                                    >
-                                      {item.product || item.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
-                                <input
-                                  className="readonly-control"
-                                  value={productLine.uom || "MT"}
-                                  readOnly
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  name="requestedQuantity"
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={requestedQuantity}
-                                  onChange={(event) =>
-                                    setRequestedQuantity(event.target.value)
-                                  }
-                                  min="0.001"
-                                  step="0.001"
-                                  required
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  name="unitPrice"
-                                  type="number"
-                                  value={
-                                    unitPriceValue ||
-                                    (productLine.unitPrice ??
-                                      productLine.price ??
-                                      "")
-                                  }
-                                  onChange={(event) =>
-                                    setUnitPriceValue(event.target.value)
-                                  }
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  className="readonly-control"
-                                  value={
-                                    requestedQuantity
-                                      ? money(
-                                          Number(requestedQuantity) * unitPrice,
-                                        )
-                                      : "0.00"
-                                  }
-                                  readOnly
-                                />
-                              </td>
-                              <td>
-                                <select
-                                  name="taxRate"
-                                  value={taxRate}
-                                  onChange={(event) =>
-                                    setTaxRate(event.target.value)
-                                  }
-                                >
-                                  <option value="0">N/A</option>
-                                  <option value="5">5%</option>
-                                  <option value="6">6%</option>
-                                  <option value="10">10%</option>
-                                </select>
-                              </td>
-                              <td>
-                                <input
-                                  className="readonly-control"
-                                  value={
-                                    finalAmount ? money(finalAmount) : "0.00"
-                                  }
-                                  readOnly
-                                />
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-                <div className="master-form-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={resetForm}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={(event) => {
-                      setDraft(
-                        Object.fromEntries(
-                          new FormData(event.currentTarget.form).entries(),
-                        ),
-                      );
-                      setStep(2);
-                    }}
-                  >
-                    Next: Loading Plan
-                  </button>
-                </div>
-              </>
-            )}
-            {step === 2 && (
-              <>
-                <section className="transporter-form-section">
-                  <h3>2. Sales Loading Plan</h3>
-                  <div className="master-form-grid">
-                    <Field label="Requested Quantity" readOnly>
-                      <input
-                        className="readonly-control"
-                        value={
-                          requestedQuantity + " " + (productLine.uom || "MT")
-                        }
-                        readOnly
-                      />
-                    </Field>
-                    <Field label="Planned Loading Date" required>
-                      <input
-                        name="plannedLoadingDate"
-                        type="date"
-                        defaultValue={
-                          editing?.plannedLoadingDate
-                            ?.split("-")
-                            .reverse()
-                            .join("-") || ""
-                        }
-                        required
-                      />
-                    </Field>
-                    <Field label="Loading Instructions" wide>
-                      <textarea
-                        name="loadingInstructions"
-                        defaultValue={editing?.loadingInstructions || ""}
-                        rows="3"
-                      />
+                    <Field label="Product" required wide>
+                      <select name="product" value={product} onChange={(event) => setProduct(event.target.value)} required>
+                        <option value="">Select item from Item Master...</option>
+                        {activeItems.map((item) => (
+                          <option key={item.id} value={item.id}>{item.item_code} · {item.name} ({item.unit})</option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Attachment" wide>
                       <input
@@ -972,33 +779,29 @@ export function DeliveryRequestsPage({ customers = [], contracts = [] }) {
                         rows="3"
                       />
                     </Field>
-                  </div>
-                </section>
+                </div>
                 <div className="master-form-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setStep(1)}
-                  >
-                    Back
-                  </button>
-                  <button
-                    className="btn btn-secondary"
+                  <Button type="button" variant="secondary" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="secondary"
                     name="action"
                     value="draft"
                   >
                     Save Draft
-                  </button>
-                  <button
-                    className="btn btn-primary"
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
                     name="action"
                     value="submit"
                   >
                     Submit Request
-                  </button>
+                  </Button>
                 </div>
-              </>
-            )}
+            </>
           </form>
         </div>
       )}

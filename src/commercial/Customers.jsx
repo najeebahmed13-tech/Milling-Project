@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ListingActions } from "../components/ListingActions.jsx";
 import "./customer-details-overrides.css";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 
 const Section = ({ title, action, children }) => (
   <section className="contract-section">
@@ -177,6 +178,17 @@ export function CustomerForm({ onClose, onSaved }) {
     }));
   const submit = async (e) => {
     e.preventDefault();
+    const hasDeliveryAddress = form.addresses.some((address) =>
+      (address.type === "Delivery" || address.type === "Shipping") &&
+      address.country &&
+      address.line1?.trim() &&
+      address.state?.trim() &&
+      address.city?.trim(),
+    );
+    if (!hasDeliveryAddress) {
+      setError("At least one complete Shipping address is required as the customer delivery address.");
+      return;
+    }
     const response = await fetch("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -670,6 +682,7 @@ export function CustomerForm({ onClose, onSaved }) {
 export function CustomersPage({ rows, onNew, onSelect }) {
   const [search, setSearch] = useState("");
   const filteredRows = rows.filter((row) => `${row.legal_name} ${row.display_name} ${row.customer_code} ${row.customer_group} ${row.email}`.toLowerCase().includes(search.toLowerCase()));
+  const { visibleItems, pagination } = usePaginatedItems(filteredRows, search);
   return (
     <main className="customer-list-page">
       <div className="customer-breadcrumb">
@@ -717,7 +730,7 @@ export function CustomersPage({ rows, onNew, onSelect }) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => {
+              {visibleItems.map((row) => {
                 const contact = row.contacts?.[0] || {};
                 const address = row.addresses?.[0] || {};
                 const addressText =
@@ -764,20 +777,7 @@ export function CustomersPage({ rows, onNew, onSelect }) {
             </tbody>
           </table>
         </div>
-        <div className="customer-pagination">
-          <span>
-            View 1 – {rows.length} of {rows.length}
-          </span>
-          <div>
-            <button disabled>‹</button>
-            <button className="current">1</button>
-            <button disabled>›</button>
-          </div>
-          <select defaultValue="50">
-            <option>50</option>
-            <option>100</option>
-          </select>
-        </div>
+        {pagination}
       </article>
     </main>
   );

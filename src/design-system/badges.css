@@ -1,0 +1,23 @@
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-height: 26px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-sm);
+  box-shadow: var(--ds-shadow-sm);
+  font-family: inherit;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.ds-badge-neutral { color: var(--ds-color-text-subtle); background: var(--ds-color-surface-subtle); border-color: var(--ds-color-border); }
+.ds-badge-warning { color: var(--ds-color-warning); background: var(--ds-color-warning-soft); border-color: #f0d99c; }
+.ds-badge-info { color: var(--ds-color-info); background: var(--ds-color-info-soft); border-color: #bfd4f5; }
+.ds-badge-success { color: var(--ds-color-success); background: var(--ds-color-success-soft); border-color: #a6e6ce; }
+.ds-badge-danger { color: var(--ds-color-danger); background: var(--ds-color-danger-soft); border-color: #ffc8cd; }

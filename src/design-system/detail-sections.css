@@ -1,0 +1,25 @@
+.ds-detail-section { color: var(--ds-color-text); }
+.ds-detail-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-3); margin-bottom: var(--ds-space-4); }
+.ds-detail-section-heading h3 { margin: 0; color: var(--ds-color-text); font-size: 13px; font-weight: 700; line-height: 1.35; }
+.ds-detail-section-heading p { margin: var(--ds-space-1) 0 0; color: var(--ds-color-text-subtle); font-size: 11px; line-height: 1.4; }
+.ds-detail-section .grading-detail-value span { color: var(--ds-color-text-subtle); }
+.ds-detail-section .grading-detail-value strong { color: var(--ds-color-text); }
+.ds-detail-section .grading-detail-value.emphasis strong { color: var(--ds-color-brand); }
+.grading-summary-section .ds-detail-section-heading h3 { color: var(--ds-color-brand); }
+.grading-summary-section .ds-detail-section-heading p { color: var(--ds-color-text-subtle); }
+
+/* Detail drawer text hierarchy: primary values, secondary descriptions, and muted labels. */
+.ds-detail-section.grading-detail-section { color: var(--ds-color-text); }
+.ds-detail-section.grading-detail-section h3 { color: var(--ds-color-text); }
+.ds-detail-section.grading-detail-section .ds-detail-section-heading p,
+.ds-detail-section.grading-detail-section .grading-detail-remarks { color: var(--ds-color-text-subtle); }
+.ds-detail-section.grading-detail-section .grading-detail-value span,
+.ds-detail-section.grading-detail-section .grading-detail-weight-cards span { color: var(--ds-color-text-muted); }
+.ds-detail-section.grading-detail-section .grading-detail-value strong,
+.ds-detail-section.grading-detail-section .grading-detail-weight-cards strong { color: var(--ds-color-text); }
+.ds-detail-section.grading-detail-section .grading-detail-value.emphasis strong { color: var(--ds-color-brand); }
+.ds-detail-section.grading-detail-section .grading-detail-weight-cards small { color: var(--ds-color-success); }
+.ds-detail-section.grading-detail-section .grading-detail-weight-cards strong.pending,
+.ds-detail-section.grading-detail-section .grading-detail-weight-cards > div.pending-card strong,
+.ds-detail-section.grading-detail-section .grading-detail-weight-cards > div.pending-card small { color: var(--ds-color-warning); }
+.ds-detail-section.grading-detail-section .grading-detail-parameter-group h4 { color: var(--ds-color-text-subtle); }

@@ -1,0 +1,40 @@
+/* Application-wide breadcrumb pattern, benchmarked against Supplier Listing. */
+.breadcrumb,
+.users-breadcrumb,
+.items-breadcrumb,
+.customer-breadcrumb,
+.receiving-breadcrumb,
+.supplier-breadcrumb,
+.supplier-detail-breadcrumb,
+.sales-contract-breadcrumb,
+.masters-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  color: var(--ds-color-text-subtle);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.breadcrumb > span, .users-breadcrumb > span, .users-breadcrumb > button,
+.items-breadcrumb > span, .items-breadcrumb > button, .customer-breadcrumb > span,
+.customer-breadcrumb > button, .receiving-breadcrumb > span, .supplier-breadcrumb > span,
+.supplier-detail-breadcrumb > span, .sales-contract-breadcrumb > span,
+.masters-breadcrumb > span, .masters-breadcrumb > button { color: var(--ds-color-info); font-weight: 400; }
+.breadcrumb > strong, .users-breadcrumb > strong, .items-breadcrumb > strong,
+.customer-breadcrumb > strong, .receiving-breadcrumb > strong, .supplier-breadcrumb .current,
+.supplier-detail-breadcrumb > strong, .sales-contract-breadcrumb > strong,
+.masters-breadcrumb > strong { color: var(--ds-color-brand); font-weight: 600; }
+.breadcrumb > b, .users-breadcrumb > b, .items-breadcrumb > b, .customer-breadcrumb > b,
+.receiving-breadcrumb > b, .supplier-breadcrumb-separator, .supplier-detail-breadcrumb > b,
+.sales-contract-breadcrumb > b, .masters-breadcrumb > b { color: var(--ds-color-text-muted); font-size: 20px; font-weight: 400; line-height: 1; }
+.users-breadcrumb-link, .customer-breadcrumb button, .items-breadcrumb button,
+.masters-breadcrumb button, .supplier-breadcrumb button { font: inherit; text-decoration: none; }
+.users-breadcrumb-link:hover, .customer-breadcrumb button:hover, .items-breadcrumb button:hover,
+.masters-breadcrumb button:hover, .supplier-breadcrumb button:hover { color: var(--ds-color-brand); text-decoration: underline; }
+@media (max-width: 850px) {
+  .breadcrumb, .users-breadcrumb, .items-breadcrumb, .customer-breadcrumb,
+  .receiving-breadcrumb, .supplier-breadcrumb, .supplier-detail-breadcrumb,
+  .sales-contract-breadcrumb, .masters-breadcrumb { margin-bottom: 16px; font-size: 13px; }
+}

@@ -1,22 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatQuantity, formatPercentage, statusTone } from '../src/shared/formatters.js';
+import { formatQuantity, formatPercentage, formatVehiclePlate, statusTone } from '../src/shared/formatters.js';
 import { ApplicationError, normalizeError } from '../src/shared/errors.js';
 import { getVisibleNavigation } from '../src/app/navigation.js';
 import { can } from '../src/security/permissions.js';
 import { masterDefinitions, getMasterDefinition } from '../src/config/masterData.js';
 import { transitionContract, validateContractDraft, quantitySummary, isContractEligible } from '../src/commercial/contracts.js';
 import { calculateNetWeight, validateDisposition, transitionReceipt, traceabilityChain, validateFfbReceiveForm } from '../src/receiving/receiving.js';
+import { DEFAULT_RECEIVING_SLIP_TEMPLATE, resolveReceivingSlipTemplate } from '../src/receiving/receiving-slip-template.js';
 
 test('quantity and percentage formatters produce readable values', () => {
   assert.equal(formatQuantity(24.35, 't'), '24.35 t');
   assert.equal(formatPercentage(82.44), '82.4%');
+  assert.equal(formatVehiclePlate('abc123'), 'ABC 123');
+  assert.equal(formatVehiclePlate('AB 123'), 'AB 123');
 });
 
 test('status tone maps semantic states without relying on CSS', () => {
   assert.equal(statusTone('Partial reject'), 'danger');
   assert.equal(statusTone('Awaiting approval'), 'warning');
   assert.equal(statusTone('Completed'), 'success');
+});
+
+test('receiving slip template resolves configurable order, labels and visibility', () => {
+  const template = resolveReceivingSlipTemplate({
+    sections: [
+      { key: 'weight', order: 0.5, fields: [{ key: 'netWeight', order: 1, label: 'Certified Net', visible: false }] },
+    ],
+  });
+  assert.equal(template.sections[0].key, 'weight');
+  assert.equal(template.sections[0].fields.find((field) => field.key === 'netWeight').label, 'Certified Net');
+  assert.equal(template.sections[0].fields.find((field) => field.key === 'netWeight').visible, false);
+  assert.equal(DEFAULT_RECEIVING_SLIP_TEMPLATE.version, 1);
 });
 
 test('navigation and permission helpers are deny-by-default', () => {

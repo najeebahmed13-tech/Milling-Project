@@ -1,0 +1,13 @@
+.ds-date-range-filter {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid var(--ds-color-border-strong, #cfd6df);
+  border-radius: var(--ds-radius-sm, 5px);
+  padding: 9px 12px;
+  color: var(--ds-color-text, #475467);
+  background: var(--ds-color-surface, #fff);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}

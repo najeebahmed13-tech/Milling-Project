@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { RichTextEditor } from "../components/RichTextEditor.jsx";
 import "./sales-contract-details.css";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 
 const emptyLine = {
   product: "Crude Palm Oil (CPO - FFA < 4.5%)",
@@ -56,6 +57,7 @@ function Field({
 }
 
 export function SalesContractsPage({ rows, onNew, onSelect }) {
+  const { visibleItems, pagination } = usePaginatedItems(rows);
   return (
     <main className="page contracts-page">
       <div className="page-heading">
@@ -90,7 +92,7 @@ export function SalesContractsPage({ rows, onNew, onSelect }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((contract) => (
+              {visibleItems.map((contract) => (
                 <tr key={contract.id} onClick={() => onSelect(contract)}>
                   <td>
                     <strong>{contract.contract_number}</strong>
@@ -126,6 +128,7 @@ export function SalesContractsPage({ rows, onNew, onSelect }) {
             </div>
           )}
         </div>
+        {pagination}
       </article>
     </main>
   );

@@ -111,7 +111,7 @@ export function createFfbReceiptHandler(db) {
   return (req, res) => {
     const body = req.body; const gross = Number(body.grossWeight); const registration = normalizeRegistration(body.vehicleNo);
     const declaredQty = body.supplierDeclaredQty === '' || body.supplierDeclaredQty == null ? null : Number(body.supplierDeclaredQty);
-    if (!registration || !body.driverName || !body.supplier || !body.item || !Number.isFinite(gross) || gross <= 0) return res.status(400).json({ code: 'INVALID_RECEIVING', message: 'Driver name, lorry plate number, supplier, item and a positive gross weight are required.' });
+    if (!registration || !body.driverName || !body.supplier || !body.item || !Number.isFinite(gross) || gross <= 0) return res.status(400).json({ code: 'INVALID_RECEIVING', message: 'Driver name, vehicle plate number, supplier, item and a positive gross weight are required.' });
     if (declaredQty !== null && (!Number.isFinite(declaredQty) || declaredQty < 0)) return res.status(400).json({ code: 'INVALID_DECLARED_QTY', message: 'Supplier declared quantity must be zero or greater.' });
     const vehicleType = body.vehicleType || 'FFB Tipper';
     const stamp = now(); const ticket = `WB-${stamp.slice(0,10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`; const receiptCode = `RC-${stamp.slice(0,10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;

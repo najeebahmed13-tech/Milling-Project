@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./masters.css";
 import "../commercial/customer-details-overrides.css";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 
 const STORAGE_KEY = "rockeye.master.transporters";
 const countries = {
@@ -76,6 +77,7 @@ export function TransporterMaster() {
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const states = useMemo(() => countries[country] || [], [country]);
+  const { visibleItems, pagination } = usePaginatedItems(rows);
 
   useEffect(() => setRows(readRows()), []);
   useEffect(() => {
@@ -118,7 +120,7 @@ export function TransporterMaster() {
   return <main className="masters-page transporter-master-page">
     <div className="masters-breadcrumb"><span>Logistics</span><b>›</b><strong>Transporters</strong></div>
     <div className="masters-heading"><div><h1>Transporters</h1><p>Manage transport service providers, ownership, insurance and billing information.</p></div><button className="btn btn-primary" onClick={() => { setError(""); setShowForm(true); }}>＋ Add Transporter</button></div>
-    <section className="panel masters-panel"><div className="masters-toolbar"><strong>Transporter register</strong><span>{rows.length} records</span></div><div className="table-wrap"><table><thead><tr><th>Transporter Name</th><th>Code</th><th>Company Name</th><th>Trading Name</th><th>Primary Email</th><th>Country</th><th>Insurance Expiry</th><th>Status</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className="table-link" onClick={() => setSelected(row)}>{row.companyName || row.tradingName}</button></td><td>{row.customerCode || row.id}</td><td>{row.companyName}</td><td>{row.tradingName}</td><td>{row.primaryEmail}</td><td>{row.country}</td><td>{row.insuranceExpiryDate}</td><td><span className="customer-status">{row.status}</span></td></tr>)}{!rows.length && <tr><td colSpan="8" className="master-empty">No transporters registered.</td></tr>}</tbody></table></div></section>
+    <section className="panel masters-panel"><div className="masters-toolbar"><strong>Transporter register</strong></div><div className="table-wrap"><table><thead><tr><th>Transporter Name</th><th>Code</th><th>Company Name</th><th>Trading Name</th><th>Primary Email</th><th>Country</th><th>Insurance Expiry</th><th>Status</th></tr></thead><tbody>{visibleItems.map((row) => <tr key={row.id}><td><button className="table-link" onClick={() => setSelected(row)}>{row.companyName || row.tradingName}</button></td><td>{row.customerCode || row.id}</td><td>{row.companyName}</td><td>{row.tradingName}</td><td>{row.primaryEmail}</td><td>{row.country}</td><td>{row.insuranceExpiryDate}</td><td><span className="customer-status">{row.status}</span></td></tr>)}{!rows.length && <tr><td colSpan="8" className="master-empty">No transporters registered.</td></tr>}</tbody></table></div>{pagination}</section>
     {showForm && <div className="master-modal-backdrop"><form className="master-form transporter-form" onSubmit={submit}>
       <div className="master-form-head"><div><span>LOGISTICS / TRANSPORTERS</span><h2>Add Transporter</h2><p>Register a transport service provider and maintain compliance details.</p></div><button type="button" onClick={close}>×</button></div>
       {error && <div className="master-error">{error}</div>}

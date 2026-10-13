@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import "./commercial.css";
 import "./supplier-details-overrides.css";
 import { ListingActions } from "../components/ListingActions.jsx";
-import { formatDate } from "../shared/formatters.js";
+import { formatDate, formatVehiclePlate } from "../shared/formatters.js";
+import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 
 const Building2 = ({ className = "w-4 h-4 mr-2" }) => (
   <svg
@@ -66,25 +67,11 @@ const Trash2 = ({ className = "w-3.5 h-3.5" }) => (
 );
 
 const Breadcrumb = ({ items = [] }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "6px",
-      fontSize: "11.5px",
-      color: "#6B7280",
-      marginBottom: "14px",
-    }}
-  >
+  <div className="supplier-breadcrumb">
     {items.map((item, idx) => (
       <React.Fragment key={idx}>
         {idx > 0 && <span style={{ color: "#9CA3AF" }}>›</span>}
-        <span
-          style={{
-            fontWeight: idx === items.length - 1 ? 600 : 400,
-            color: idx === items.length - 1 ? "#111827" : "#6B7280",
-          }}
-        >
+        <span className={idx === items.length - 1 ? "current" : ""}>
           {item.label}
         </span>
       </React.Fragment>
@@ -1944,7 +1931,7 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
                   {(details.vehicles || []).length ? (
                     details.vehicles.map((vehicle, index) => (
                       <tr key={`${vehicle.plateNo || "vehicle"}-${index}`}>
-                        <td>{vehicle.plateNo || "—"}</td>
+                        <td>{formatVehiclePlate(vehicle.plateNo)}</td>
                         <td>{vehicle.vehicleType || "—"}</td>
                         <td>
                           {vehicle.lastSeenAt
@@ -2027,7 +2014,7 @@ export function SupplierDetails({ supplier, onBack, onEdit }) {
                         <td>
                           {formatDate(delivery.entry_at)}
                         </td>
-                        <td>{delivery.vehicle_no}</td>
+                        <td>{formatVehiclePlate(delivery.vehicle_no)}</td>
                         <td>{delivery.product_type}</td>
                         <td>{Number(delivery.gross_weight).toFixed(3)} MT</td>
                         <td>
@@ -2137,6 +2124,7 @@ export function SuppliersPage({ rows, onNew, onSelect }) {
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
+  const { visibleItems, pagination } = usePaginatedItems(filteredRows, search);
   return (
     <main className="customer-list-page supplier-list-page">
       <div className="customer-breadcrumb">
@@ -2192,7 +2180,7 @@ export function SuppliersPage({ rows, onNew, onSelect }) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
+              {visibleItems.map((row) => (
                 <tr key={row.id} onClick={() => onSelect(row)}>
                   <td className="customer-name-cell">▥ {row.name}</td>
                   <td>{row.supplier_code}</td>
@@ -2215,20 +2203,7 @@ export function SuppliersPage({ rows, onNew, onSelect }) {
             </tbody>
           </table>
         </div>
-        <div className="customer-pagination">
-          <span>
-            View 1 – {rows.length} of {rows.length}
-          </span>
-          <div>
-            <button disabled>‹</button>
-            <button className="current">1</button>
-            <button disabled>›</button>
-          </div>
-          <select defaultValue="50">
-            <option>50</option>
-            <option>100</option>
-          </select>
-        </div>
+        {pagination}
       </article>
     </main>
   );

@@ -3,6 +3,15 @@ import { createRoot } from "react-dom/client";
 import { Boxes, Building2, CircleDollarSign, ClipboardCheck, Factory, House, LayoutGrid, Settings, Truck, Users, Warehouse } from "lucide-react";
 import "./styles.css";
 import "./react-app.css";
+import "./design-system/tokens.css";
+import "./design-system/components.css";
+import "./design-system/badges.css";
+import "./design-system/action-menu.css";
+import "./design-system/form-fields.css";
+import "./design-system/detail-sections.css";
+import "./design-system/date-range-filter.css";
+import "./design-system/image-carousel.css";
+import { usePaginatedItems } from "./shared/PaginatedList.jsx";
 import {
   SalesContractsPage,
   SalesContractForm,
@@ -34,6 +43,10 @@ import { SalesInvoicesPage } from "./finance/SalesInvoices.jsx";
 import { DeliveryRequestsPage } from "./commercial/DeliveryRequests.jsx";
 import { LoadingPlansPage } from "./logistics/LoadingPlans.jsx";
 import { QCRequestsPage } from "./quality/QCRequests.jsx";
+import { StatusBadge } from "./design-system/index.js";
+import "./design-system/tabs.css";
+import "./design-system/breadcrumbs.css";
+import "./design-system/detail-pages.css";
 
 class DeliveryRequestBoundary extends React.Component {
   state = { error: null };
@@ -71,12 +84,7 @@ const displayUom = (unit = "t") => /^(t|mt)$/i.test(String(unit).trim()) ? "MT" 
 const qty = (value, unit = "t") =>
   `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${displayUom(unit)}`;
 function Badge({ children }) {
-  return (
-    <span className={`badge ${tone(children)}`}>
-      <span className="badge-dot" />
-      {children}
-    </span>
-  );
+  return <StatusBadge tone={tone(children)}>{children}</StatusBadge>;
 }
 function Header({ active, setActive, search, setSearch }) {
   return (
@@ -549,6 +557,7 @@ function Listing({ type, rows, search, setSearch, onNew }) {
       String(value).toLowerCase().includes(search.toLowerCase()),
     ),
   );
+  const { visibleItems, pagination } = usePaginatedItems(filtered, search);
   return (
     <main className="page">
       <Heading
@@ -574,22 +583,24 @@ function Listing({ type, rows, search, setSearch, onNew }) {
         </div>
       </div>
       <article className="panel full-table">
-        <Table rows={filtered} type={tableType} />
+        <Table rows={visibleItems} type={tableType} />
+        {pagination}
       </article>
     </main>
   );
 }
-function UsersPage({ rows, search, setSearch, onSelect }) {
+function UsersPage({ rows, search, setSearch, onSelect, onNavigate }) {
   const filtered = rows.filter((row) =>
     Object.values(row).some((value) =>
       String(value).toLowerCase().includes(search.toLowerCase()),
     ),
   );
+  const { visibleItems, pagination } = usePaginatedItems(filtered, search);
   const activeCount = rows.filter((row) => row.status === "Active").length;
   return (
     <main className="users-page">
       <div className="users-breadcrumb">
-        <span>User</span>
+        <button type="button" className="users-breadcrumb-link" onClick={() => onNavigate?.("users")}>Users</button>
         <b>›</b>
         <strong>Admin</strong>
       </div>
@@ -640,7 +651,7 @@ function UsersPage({ rows, search, setSearch, onSelect }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((user, index) => (
+              {visibleItems.map((user, index) => (
                 <tr key={user.id} onClick={() => onSelect(user)}>
                   <td>
                     <input
@@ -666,6 +677,7 @@ function UsersPage({ rows, search, setSearch, onSelect }) {
             </tbody>
           </table>
         </div>
+        {pagination}
       </article>
     </main>
   );
@@ -877,6 +889,7 @@ function App() {
           search={search}
           setSearch={setSearch}
           onSelect={setSelectedUser}
+          onNavigate={setActive}
         />
       ) : active === "salesContracts" ? (
         selectedContract ? (
@@ -892,7 +905,7 @@ function App() {
           />
         )
       ) : active === "deliveryRequests" ? (
-        <DeliveryRequestBoundary><DeliveryRequestsPage customers={data.customers} contracts={data.salesContracts} /></DeliveryRequestBoundary>
+        <DeliveryRequestBoundary><DeliveryRequestsPage customers={data.customers} contracts={data.salesContracts} items={data.items} /></DeliveryRequestBoundary>
       ) : active === "customers" ? (
         selectedCustomer ? (
           <CustomerDetailsReference
