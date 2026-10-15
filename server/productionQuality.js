@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { validateCheckpoint, validateObservation, evaluateQualityValue, isCheckpointEffective } from "../packages/quality/productionQualityDomain.js";
+import { stationQualityCheckpointSeeds } from "../packages/quality/stationQualityStandards.js";
 
 const now = () => new Date().toISOString();
 const reference = (prefix) => `${prefix}-${now().slice(0, 10).replaceAll("-", "")}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
@@ -59,6 +60,14 @@ export function registerProductionQualityModule(app, db) {
     ];
     seeded.forEach(([code, name, process, stage, frequency, sequence, parameter, dataType, uom, target, min, max, warningMin, warningMax]) => insert.run(code, name, process, stage, frequency, sequence, parameter, dataType, uom, target, min, max, warningMin, warningMax, 1, "", 1, "NONE", "IN_RANGE", 1, 0, "2026-01-01", "ACTIVE", "System", now()));
   }
+
+  const standardCheckpointInsert = db.prepare(`INSERT INTO production_quality_checkpoints (code,name,process,operation_stage,frequency,sequence,parameter,data_type,uom,target_value,min_limit,max_limit,warning_min,warning_max,mandatory,sampling_frequency,sample_count,aggregation_method,pass_fail_rule,remarks_required_on_failure,corrective_action_required,effective_from,status,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  db.transaction(() => {
+    stationQualityCheckpointSeeds().forEach((checkpoint) => {
+      if (db.prepare("SELECT 1 FROM production_quality_checkpoints WHERE code=? AND version=1").get(checkpoint.code)) return;
+      standardCheckpointInsert.run(checkpoint.code, checkpoint.name, checkpoint.process, checkpoint.operationStage, checkpoint.frequency, checkpoint.sequence, checkpoint.parameter, checkpoint.dataType, checkpoint.uom, checkpoint.targetValue, checkpoint.minLimit, checkpoint.maxLimit, checkpoint.warningMin, checkpoint.warningMax, checkpoint.mandatory ? 1 : 0, checkpoint.samplingFrequency, checkpoint.sampleCount, checkpoint.aggregationMethod, checkpoint.passFailRule, checkpoint.remarksRequiredOnFailure ? 1 : 0, checkpoint.correctiveActionRequired ? 1 : 0, checkpoint.effectiveFrom, checkpoint.status, "System", now());
+    });
+  })();
 
   const audit = (entityType, entityId, action, actor, details) => db.prepare("INSERT INTO production_quality_audit_events (entity_type,entity_id,action,actor,details_json,created_at) VALUES (?,?,?,?,?,?)").run(entityType, entityId, action, actor, JSON.stringify(details || {}), now());
   const listCheckpoints = (query = {}) => {

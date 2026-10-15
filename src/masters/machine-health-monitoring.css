@@ -1,0 +1,50 @@
+.machine-health-master-page { min-height: calc(100vh - 90px); padding: 28px 5% 104px; background: var(--ds-color-page, #f6f7f9); color: var(--ds-color-text); }
+.machine-health-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ds-color-text-subtle); font-size: 13px; }
+.machine-health-breadcrumb button { border: 0; padding: 0; color: var(--ds-color-text-subtle); background: transparent; cursor: pointer; font: inherit; }
+.machine-health-breadcrumb strong { color: var(--ds-color-brand); }
+.machine-health-master-page > .ds-page-header, .machine-health-summary-grid, .machine-health-list-card { max-width: 1320px; margin-inline: auto; }
+.machine-health-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+.machine-health-summary-grid > .ds-card { display: flex; flex-direction: column; gap: 5px; padding: 17px 18px; }
+.machine-health-summary-grid span, .machine-health-summary-grid small { color: var(--ds-color-text-subtle); font-size: 12px; }
+.machine-health-summary-grid strong { font-size: 25px; font-variant-numeric: tabular-nums; }
+.machine-health-list-card { overflow: hidden; }
+.machine-health-list-heading { display: flex; justify-content: space-between; gap: 16px; padding: 19px 20px 15px; border-bottom: 1px solid var(--ds-color-border); }
+.machine-health-list-heading h2 { margin: 0 0 4px; font-size: 16px; }
+.machine-health-list-heading p { margin: 0; color: var(--ds-color-text-subtle); font-size: 12px; }
+.machine-health-list-heading > span { color: var(--ds-color-text-muted); font-size: 12px; white-space: nowrap; }
+.machine-health-toolbar { display: flex; gap: 10px; padding: 14px 20px; background: var(--ds-color-surface-subtle); border-bottom: 1px solid var(--ds-color-border); }
+.machine-health-search { flex: 1 1 320px; }
+.machine-health-toolbar input, .machine-health-toolbar select { width: 100%; min-height: 39px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); color: var(--ds-color-text); padding: 0 11px; font: inherit; }
+.machine-health-toolbar label:not(.machine-health-search) { width: 170px; }
+.machine-health-table-wrap { overflow-x: auto; }
+.machine-health-table { width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 13px; }
+.machine-health-table th { padding: 12px 14px; color: var(--ds-color-text-muted); background: var(--ds-color-surface-subtle); border-bottom: 1px solid var(--ds-color-border); text-align: left; font-size: 11px; text-transform: uppercase; }
+.machine-health-table td { padding: 14px; border-bottom: 1px solid var(--ds-color-border); color: var(--ds-color-text-subtle); vertical-align: middle; }
+.machine-health-table tbody tr:hover { background: var(--ds-color-brand-soft); }
+.machine-health-table td strong { color: var(--ds-color-text); }
+.machine-health-code { border: 0; padding: 0; color: var(--ds-color-info); background: transparent; cursor: pointer; font: inherit; font-weight: 700; }
+.machine-health-code:hover { color: var(--ds-color-brand); text-decoration: underline; }
+.machine-health-row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.machine-health-row-actions .ds-button { min-height: 31px; padding-inline: 9px; font-size: 12px; }
+.machine-health-drawer-backdrop { z-index: 1000; display: flex; justify-content: flex-end; }
+.machine-health-drawer { width: min(570px, 100%); height: 100dvh; max-height: 100dvh; overflow-y: auto; padding: 24px; }
+.machine-health-drawer-head { padding-bottom: 16px; border-bottom: 1px solid var(--ds-color-border); }
+.machine-health-drawer-head h2 { margin: 5px 0 4px; color: var(--ds-color-text); font-size: 21px; }
+.machine-health-drawer-head p { margin: 0; color: var(--ds-color-text-subtle); font-size: 12px; }
+.machine-health-form { display: flex; flex-direction: column; gap: 16px; padding-top: 18px; }
+.machine-health-form-grid, .machine-health-range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.machine-health-range { padding: 14px; border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface-subtle); }
+.machine-health-range > strong { display: block; margin-bottom: 12px; font-size: 13px; }
+.machine-health-form-error { color: var(--ds-color-danger); background: var(--ds-color-danger-soft); border: 1px solid #ffc8cd; border-radius: var(--ds-radius-sm); padding: 10px 12px; font-size: 12px; }
+.machine-health-checks { display: flex; flex-direction: column; gap: 10px; padding-top: 2px; }
+.machine-health-check { display: flex !important; flex-direction: row !important; align-items: center; justify-content: flex-start; gap: 9px; width: 100%; color: var(--ds-color-text); font-size: 13px; cursor: pointer; }
+.machine-health-check input { width: 17px !important; min-width: 17px; height: 17px; margin: 0; accent-color: var(--ds-color-brand); }
+.machine-health-check span { display: inline-block; }
+.machine-health-detail-status { margin: 18px 0 8px; }
+.machine-health-detail-list { padding: 4px 0; }
+.machine-health-detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--ds-color-border); font-size: 13px; }
+.machine-health-detail-row span { color: var(--ds-color-text-subtle); }
+.machine-health-detail-row strong { max-width: 64%; color: var(--ds-color-text); text-align: right; overflow-wrap: anywhere; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 900px) { .machine-health-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .machine-health-toolbar { flex-wrap: wrap; } .machine-health-toolbar label { flex: 1 1 200px; width: auto !important; } }
+@media (max-width: 600px) { .machine-health-master-page { padding-inline: 16px; } .machine-health-summary-grid { grid-template-columns: 1fr; } .machine-health-form-grid, .machine-health-range-grid { grid-template-columns: 1fr; } }

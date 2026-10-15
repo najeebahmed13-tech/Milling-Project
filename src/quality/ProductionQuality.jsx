@@ -5,6 +5,7 @@ import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import { getMasterDefinition } from "../config/masterData.js";
 import { activeStationOptions } from "../../packages/quality/productionQualityDomain.js";
 import { QualityCheckpointForm } from "./QualityCheckpointForm.jsx";
+import { StationQualityObservationDrawer as ObservationDrawer } from "./StationQualityObservationDrawer.jsx";
 import "./production-quality.css";
 
 const frequencyLabels = { CYCLE: "Cycle Wise", DAY: "Day Wise", SHIFT: "Shift Wise", BATCH: "Batch Wise", HOURLY: "Hourly", EVENT: "Event Based" };
@@ -56,7 +57,7 @@ function LegacyCheckpointForm({ checkpoint, stations, parameters, onBack, onSave
   </main>;
 }
 
-function ObservationDrawer({ checkpoints, onClose, onSaved }) {
+function LegacyObservationDrawer({ checkpoints, onClose, onSaved }) {
   const [form, setForm] = useState({ checkpointId: checkpoints[0]?.id || "", productionDate: new Date().toISOString().slice(0, 10), cycleNumber: "", observedValue: "", remarks: "", correctiveAction: "" });
   const [error, setError] = useState("");
   const selected = checkpoints.find((item) => Number(item.id) === Number(form.checkpointId));

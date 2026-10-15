@@ -4,6 +4,7 @@ import "./masters.css";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import { UnitsOfMeasureMaster } from "./UnitsOfMeasureMaster.jsx";
 import { QualityParameterMaster } from "./QualityParameterMaster.jsx";
+import { MachineHealthMonitoringMaster } from "./MachineHealthMonitoringMaster.jsx";
 
 const excludedKeys = new Set(["customers", "suppliers", "materials", "productionLines", "vehicleTypes", "vehicles"]);
 const masterKeys = masterDefinitions.filter((definition) => !excludedKeys.has(definition.key));
@@ -27,6 +28,7 @@ function loadRecords(definition) {
 export function MasterDataCenter({ masterKey, onNavigate }) {
   if (masterKey === "uoms") return <UnitsOfMeasureMaster onNavigate={onNavigate} />;
   if (masterKey === "qualityParameters") return <QualityParameterMaster onNavigate={onNavigate} />;
+  if (masterKey === "machineHealthParameters") return <MachineHealthMonitoringMaster onNavigate={onNavigate} />;
   return <GenericMasterDataCenter masterKey={masterKey} onNavigate={onNavigate} />;
 }
 

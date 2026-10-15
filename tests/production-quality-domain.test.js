@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { activeStationOptions, evaluateQualityValue, isCheckpointEffective, validateCheckpoint, validateObservation } from "../packages/quality/productionQualityDomain.js";
+import { STATION_QUALITY_PARAMETER_SEEDS, STATION_QUALITY_STANDARDS, stationQualityCheckpointSeeds } from "../packages/quality/stationQualityStandards.js";
+
+test("station quality standards cover the laboratory template with unique reusable definitions", () => {
+  assert.equal(STATION_QUALITY_STANDARDS.length, 8);
+  assert.equal(STATION_QUALITY_PARAMETER_SEEDS.length > 30, true);
+  assert.equal(new Set(STATION_QUALITY_PARAMETER_SEEDS.map((item) => item.code)).size, STATION_QUALITY_PARAMETER_SEEDS.length);
+  assert.equal(new Set(stationQualityCheckpointSeeds().map((item) => item.code)).size, stationQualityCheckpointSeeds().length);
+  assert.equal(stationQualityCheckpointSeeds().every((item) => item.minLimit === null && item.maxLimit === null), true);
+});
 
 test("quality checkpoint station options come from active station masters", () => {
   assert.deepEqual(activeStationOptions([{ id: 1, code: "ST-STER", name: "Sterilization", status: "ACTIVE" }, { id: 2, code: "ST-OLD", name: "Old Station", status: "INACTIVE" }, { id: 3, name: "Digester" }]), [

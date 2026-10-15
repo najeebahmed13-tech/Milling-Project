@@ -126,6 +126,8 @@ test('master definitions have explicit keys, fields and scoped lifecycle control
   assert.equal(masterDefinitions.every((definition) => definition.key && definition.title && definition.fields.length > 0), true);
   assert.equal(getMasterDefinition('materials').fields.some((field) => field.key === 'baseUom'), true);
   assert.equal(getMasterDefinition('qualityParameters').fields.some((field) => field.key === 'dataType'), true);
+  assert.equal(getMasterDefinition('machineHealthParameters').fields.some((field) => field.key === 'stationCode'), true);
+  assert.equal(getMasterDefinition('machineHealthParameters').fields.some((field) => field.key === 'criticalMax'), true);
   assert.equal(getMasterDefinition('gradingParameters'), undefined);
   assert.equal(getMasterDefinition('gradingRules'), undefined);
 });
