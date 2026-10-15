@@ -23,13 +23,17 @@ export function registerProductionModule(app, db) {
     CREATE TABLE IF NOT EXISTS production_machines (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
       station TEXT NOT NULL, line_id INTEGER, rated_capacity REAL, capacity_uom TEXT NOT NULL DEFAULT 'MT/HOUR',
+      installation_date TEXT, vendor TEXT, model_no TEXT, oem_serial_no TEXT,
+      service_type TEXT, last_service_date TEXT, service_threshold TEXT, description TEXT,
+      machine_image TEXT NOT NULL DEFAULT '', attachments_json TEXT NOT NULL DEFAULT '[]',
       status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL,
       FOREIGN KEY (line_id) REFERENCES production_lines(id)
     );
     CREATE TABLE IF NOT EXISTS production_stations (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
       mill TEXT NOT NULL DEFAULT 'Main Mill', section_type TEXT NOT NULL, description TEXT,
-      sequence INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL
+      sequence INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'ACTIVE',
+      station_image TEXT NOT NULL DEFAULT '', attachment TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS production_routings (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
@@ -78,6 +82,15 @@ export function registerProductionModule(app, db) {
   `);
   try { db.exec('ALTER TABLE production_runs ADD COLUMN shift_id INTEGER REFERENCES production_shifts(id)'); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
   try { db.exec("ALTER TABLE production_quality_results ADD COLUMN checkpoint_timing TEXT NOT NULL DEFAULT 'AFTER_PROCESS'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_stations ADD COLUMN station_image TEXT NOT NULL DEFAULT ''"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_stations ADD COLUMN attachment TEXT NOT NULL DEFAULT ''"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  for (const column of [
+    "installation_date TEXT", "vendor TEXT", "model_no TEXT", "oem_serial_no TEXT",
+    "service_type TEXT", "last_service_date TEXT", "service_threshold TEXT", "description TEXT",
+    "machine_image TEXT NOT NULL DEFAULT ''", "attachments_json TEXT NOT NULL DEFAULT '[]'",
+  ]) {
+    try { db.exec(`ALTER TABLE production_machines ADD COLUMN ${column}`); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  }
 
   const created = now();
   if (!db.prepare('SELECT COUNT(*) count FROM production_lines').get().count) {
@@ -100,15 +113,44 @@ export function registerProductionModule(app, db) {
   if (!db.prepare('SELECT COUNT(*) count FROM production_stations').get().count) {
     const insertStation = db.prepare('INSERT INTO production_stations (code,name,mill,section_type,description,sequence,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
     [
-      ['ST-FFB-RAMP','FFB Ramp','Receiving','Inbound FFB unloading and ramp feed',1],
-      ['ST-STER','Sterilizing','Processing','Sterilizer and condensate handling section',2],
-      ['ST-THRESH','Threshing','Processing','Fruitlet and empty bunch separation section',3],
+      ['ST-STER','Sterilization','Processing','Sterilization and condensate handling section',1],
+      ['ST-THRESH','Threshing','Processing','Fruitlet and empty bunch separation section',2],
+      ['ST-DIGEST','Digester','Processing','Fruit digestion before pressing',3],
       ['ST-PRESS','Pressing','Processing','Digesting and screw pressing section',4],
       ['ST-CLAR','Clarification','Oil Recovery','Crude oil screening and clarification section',5],
-      ['ST-PURE','Purification','Oil Recovery','Pure oil tank and vacuum drying section',6],
-      ['ST-KERNEL','Kernel Recovery','Kernel Plant','Nut, shell and kernel recovery section',7],
-      ['ST-UTIL','Boiler & Utilities','Utilities','Fuel, steam, power and utility section',8]
+      ['ST-PURE','Purification','Oil Recovery','Oil purification section',6],
+      ['ST-VAC-DRY','Vaccum Dryer','Oil Recovery','Vacuum drying section',7],
+      ['ST-CPO-TANK','CPO Tank','Storage','Crude palm oil storage tank',8]
     ].forEach(([code,name,sectionType,description,sequence]) => insertStation.run(code,name,'Main Mill',sectionType,description,sequence,'ACTIVE',created));
+  }
+  const stationMasterNames = ['Sterilization', 'Threshing', 'Digester', 'Pressing', 'Clarification', 'Purification', 'Vaccum Dryer', 'CPO Tank'];
+  const seededStationCodes = ['ST-FFB-RAMP', 'ST-STER', 'ST-THRESH', 'ST-PRESS', 'ST-CLAR', 'ST-PURE', 'ST-KERNEL', 'ST-UTIL'];
+  const currentStations = db.prepare('SELECT id,code,name,sequence FROM production_stations ORDER BY sequence,id').all();
+  if (currentStations.length === stationMasterNames.length && currentStations.every((station) => seededStationCodes.includes(station.code))) {
+    db.transaction(() => {
+      const temporary = db.prepare("UPDATE production_stations SET code=? WHERE id=?");
+      currentStations.forEach((station) => temporary.run(`MIGRATING-${station.id}`, station.id));
+      const update = db.prepare('UPDATE production_stations SET code=?,name=?,section_type=?,description=?,sequence=? WHERE id=?');
+      const updates = [
+        ['ST-STER', 'Sterilization', 'Processing', 'Sterilization and condensate handling section'],
+        ['ST-THRESH', 'Threshing', 'Processing', 'Fruitlet and empty bunch separation section'],
+        ['ST-DIGEST', 'Digester', 'Processing', 'Fruit digestion before pressing'],
+        ['ST-PRESS', 'Pressing', 'Processing', 'Digesting and screw pressing section'],
+        ['ST-CLAR', 'Clarification', 'Oil Recovery', 'Crude oil screening and clarification section'],
+        ['ST-PURE', 'Purification', 'Oil Recovery', 'Oil purification section'],
+        ['ST-VAC-DRY', 'Vaccum Dryer', 'Oil Recovery', 'Vacuum drying section'],
+        ['ST-CPO-TANK', 'CPO Tank', 'Storage', 'Crude palm oil storage tank'],
+      ];
+      updates.forEach(([code, name, sectionType, description], index) => update.run(code, name, sectionType, description, index + 1, currentStations[index].id));
+      const stationReferences = new Map([
+        ['FFB Ramp', 'Sterilization'], ['Sterilizing', 'Threshing'], ['Threshing', 'Digester'],
+        ['Pressing', 'Pressing'], ['Clarification', 'Clarification'], ['Purification', 'Purification'],
+        ['Kernel Recovery', 'Vaccum Dryer'], ['Boiler & Utilities', 'CPO Tank'],
+      ]);
+      const updateMachine = db.prepare('UPDATE production_machines SET station=? WHERE station=?');
+      const updateStep = db.prepare('UPDATE production_route_steps SET station=? WHERE station=?');
+      stationReferences.forEach((next, previous) => { updateMachine.run(next, previous); updateStep.run(next, previous); });
+    })();
   }
   if (!db.prepare('SELECT COUNT(*) count FROM production_routings').get().count) {
     const routingInfo = db.prepare('INSERT INTO production_routings (code,name,version,input_material,outputs_json,status,created_at) VALUES (?,?,?,?,?,?,?)')
@@ -184,16 +226,52 @@ export function registerProductionModule(app, db) {
 
   app.post('/api/production/machines', (req, res) => {
     const body = req.body;
-    if (!body.code || !body.name || !body.station) return res.status(400).json({ message: 'Machine code, name and station are required.' });
-    try { const info = db.prepare('INSERT INTO production_machines (code,name,station,line_id,rated_capacity,capacity_uom,status,created_at) VALUES (?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), body.station.trim(), body.lineId || null, body.ratedCapacity ? Number(body.ratedCapacity) : null, body.capacityUom || 'MT/HOUR', 'ACTIVE', now()); res.status(201).json(db.prepare('SELECT * FROM production_machines WHERE id=?').get(info.lastInsertRowid)); }
+    if (!body.code || !body.name || !body.station || !body.serviceType || !body.lastServiceDate || !body.serviceThreshold || !body.status) return res.status(400).json({ message: 'Machine code, name, station, service type, last service date, service threshold and status are required.' });
+    const status = String(body.status).trim().toUpperCase();
+    if (!["ACTIVE", "INACTIVE"].includes(status)) return res.status(400).json({ message: 'Machine status must be Active or Inactive.' });
+    const capacity = body.ratedCapacity === '' || body.ratedCapacity === undefined ? null : Number(body.ratedCapacity);
+    if (capacity !== null && (!Number.isFinite(capacity) || capacity < 0)) return res.status(400).json({ message: 'Capacity must be zero or greater when supplied.' });
+    try { const info = db.prepare('INSERT INTO production_machines (code,name,station,line_id,rated_capacity,capacity_uom,installation_date,vendor,model_no,oem_serial_no,service_type,last_service_date,service_threshold,description,machine_image,attachments_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), body.station.trim(), body.lineId || null, capacity, body.capacityUom || 'Mt/hr', body.installationDate || null, body.vendor || '', body.modelNo || '', body.oemSerialNo || '', body.serviceType, body.lastServiceDate, body.serviceThreshold.trim(), body.description || '', body.machineImage || '', JSON.stringify(Array.isArray(body.attachments) ? body.attachments : []), status, now()); res.status(201).json(db.prepare('SELECT * FROM production_machines WHERE id=?').get(info.lastInsertRowid)); }
     catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Machine code must be unique.' : 'Unable to save machine.' }); }
+  });
+
+  app.patch('/api/production/machines/:id', (req, res) => {
+    const body = req.body;
+    const existing = db.prepare('SELECT * FROM production_machines WHERE id=?').get(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Machine not found.' });
+    if (!body.code || !body.name || !body.station || !body.serviceType || !body.lastServiceDate || !body.serviceThreshold || !body.status) return res.status(400).json({ message: 'Machine code, name, station, service type, last service date, service threshold and status are required.' });
+    const status = String(body.status).trim().toUpperCase();
+    if (!["ACTIVE", "INACTIVE"].includes(status)) return res.status(400).json({ message: 'Machine status must be Active or Inactive.' });
+    const capacity = body.ratedCapacity === '' || body.ratedCapacity === undefined ? null : Number(body.ratedCapacity);
+    if (capacity !== null && (!Number.isFinite(capacity) || capacity < 0)) return res.status(400).json({ message: 'Capacity must be zero or greater when supplied.' });
+    try {
+      db.prepare('UPDATE production_machines SET code=?,name=?,station=?,line_id=?,rated_capacity=?,capacity_uom=?,installation_date=?,vendor=?,model_no=?,oem_serial_no=?,service_type=?,last_service_date=?,service_threshold=?,description=?,machine_image=?,attachments_json=?,status=? WHERE id=?')
+        .run(body.code.trim().toUpperCase(), body.name.trim(), body.station.trim(), body.lineId || null, capacity, body.capacityUom || 'Mt/hr', body.installationDate || null, body.vendor || '', body.modelNo || '', body.oemSerialNo || '', body.serviceType, body.lastServiceDate, body.serviceThreshold.trim(), body.description || '', body.machineImage || existing.machine_image || '', JSON.stringify(Array.isArray(body.attachments) ? body.attachments : JSON.parse(existing.attachments_json || '[]')), status, req.params.id);
+      res.json(db.prepare('SELECT * FROM production_machines WHERE id=?').get(req.params.id));
+    } catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Machine code must be unique.' : 'Unable to update machine.' }); }
   });
 
   app.post('/api/production/stations', (req, res) => {
     const body = req.body;
-    if (!body.code || !body.name || !body.sectionType) return res.status(400).json({ message: 'Station code, name and section type are required.' });
-    try { const info = db.prepare('INSERT INTO production_stations (code,name,mill,section_type,description,sequence,status,created_at) VALUES (?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), body.mill || 'Main Mill', body.sectionType, body.description || '', Number(body.sequence || 1), 'ACTIVE', now()); res.status(201).json(db.prepare('SELECT * FROM production_stations WHERE id=?').get(info.lastInsertRowid)); }
+    if (!body.code || !body.name || !body.status) return res.status(400).json({ message: 'Station code, name and status are required.' });
+    const status = String(body.status).trim().toUpperCase();
+    if (!["ACTIVE", "INACTIVE"].includes(status)) return res.status(400).json({ message: 'Station status must be Active or Inactive.' });
+    try { const info = db.prepare('INSERT INTO production_stations (code,name,mill,section_type,description,sequence,status,station_image,attachment,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), 'Main Mill', 'GENERAL', body.description || '', 1, status, body.stationImage || '', '', now()); res.status(201).json(db.prepare('SELECT * FROM production_stations WHERE id=?').get(info.lastInsertRowid)); }
     catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Station code must be unique.' : 'Unable to save station.' }); }
+  });
+
+  app.patch('/api/production/stations/:id', (req, res) => {
+    const body = req.body;
+    const existing = db.prepare('SELECT * FROM production_stations WHERE id=?').get(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Station not found.' });
+    if (!body.code || !body.name || !body.status) return res.status(400).json({ message: 'Station code, name and status are required.' });
+    const status = String(body.status).trim().toUpperCase();
+    if (!["ACTIVE", "INACTIVE"].includes(status)) return res.status(400).json({ message: 'Station status must be Active or Inactive.' });
+    try {
+      db.prepare('UPDATE production_stations SET code=?,name=?,description=?,status=?,station_image=? WHERE id=?')
+        .run(body.code.trim().toUpperCase(), body.name.trim(), body.description || '', status, body.stationImage || existing.station_image || '', req.params.id);
+      res.json(db.prepare('SELECT * FROM production_stations WHERE id=?').get(req.params.id));
+    } catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Station code must be unique.' : 'Unable to update station.' }); }
   });
 
   app.post('/api/production/routings', (req, res) => {

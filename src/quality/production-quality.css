@@ -1,0 +1,33 @@
+.production-quality-page { min-width: 0; padding: var(--ds-space-6) var(--ds-space-7) calc(var(--ds-space-8) + 84px); }
+.production-quality-breadcrumb { display: flex; align-items: center; gap: var(--ds-space-2); margin-bottom: var(--ds-space-5); color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-md); }
+.production-quality-breadcrumb button { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--ds-color-info); cursor: pointer; }
+.quality-tabs { display: flex; gap: 22px; margin-bottom: var(--ds-space-4); border-bottom: 1px solid var(--ds-color-border); }
+.quality-tabs button { padding: 10px 2px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ds-color-text-subtle); cursor: pointer; font-weight: 600; }
+.quality-tabs button.active { border-bottom-color: var(--ds-color-brand); color: var(--ds-color-brand); }
+.quality-list-card { overflow: hidden; }
+.quality-list-toolbar { display: flex; padding: var(--ds-space-4); border-bottom: 1px solid var(--ds-color-border); }
+.quality-list-toolbar input { width: min(420px, 100%); min-height: 40px; padding: 9px 12px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); }
+.quality-list-card table { min-width: 980px; }
+.quality-row-actions { display: inline-flex; gap: 5px; }
+.quality-row-actions button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); color: var(--ds-color-text-subtle); cursor: pointer; }
+.quality-row-actions button:hover { color: var(--ds-color-brand); border-color: var(--ds-color-brand); }
+.quality-checkpoint-form { display: grid; gap: var(--ds-space-4); max-width: 1180px; }
+.quality-checkpoint-form .ds-card { padding: var(--ds-space-6); }
+.quality-checkpoint-form h2 { margin: 0 0 var(--ds-space-4); font-size: var(--ds-font-size-xl); }
+.quality-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.quality-form-grid label, .quality-observation-drawer label { display: flex; flex-direction: column; gap: 6px; color: var(--ds-color-text); font-size: var(--ds-font-size-body); font-weight: 600; }
+.quality-form-grid input, .quality-form-grid select, .quality-observation-drawer input, .quality-observation-drawer select, .quality-observation-drawer textarea { min-height: 40px; padding: 9px 12px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); }
+.quality-form-grid input:focus, .quality-form-grid select:focus, .quality-observation-drawer input:focus, .quality-observation-drawer select:focus, .quality-observation-drawer textarea:focus { outline: 0; border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); }
+.quality-checkbox-row { display: flex; flex-wrap: wrap; gap: var(--ds-space-5); margin-top: var(--ds-space-5); }
+.quality-checkbox-row label { display: inline-flex; align-items: center; gap: 8px; color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-body); }
+.quality-checkbox-row input { accent-color: var(--ds-color-brand); }
+.quality-form-actions { display: flex; justify-content: flex-end; gap: var(--ds-space-3); }
+.quality-detail-card { padding: var(--ds-space-6); max-width: 980px; }
+.quality-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-5); }
+.quality-detail-grid div { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.quality-detail-grid span { color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-md); }
+.quality-detail-grid strong { color: var(--ds-color-text); font-size: var(--ds-font-size-body); }
+.quality-observation-drawer { width: min(500px, 100%); overflow-y: auto; }
+.quality-observation-drawer form { display: flex; flex-direction: column; gap: var(--ds-space-4); height: 100%; }
+@media (max-width: 900px) { .production-quality-page { padding-inline: var(--ds-space-4); } .quality-form-grid, .quality-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .quality-form-grid, .quality-detail-grid { grid-template-columns: 1fr; } .quality-checkpoint-form .ds-card { padding: var(--ds-space-4); } }

@@ -6,3 +6,8 @@ export * from "./detail-sections.jsx";
 export * from "./activity-timeline.jsx";
 export * from "./date-range-filter.jsx";
 export * from "./image-carousel.jsx";
+export * from "./image-thumbnail.jsx";
+export * from "./detail-values.jsx";
+export * from "./readonly-summary.jsx";
+export * from "./status-registry.js";
+export * from "./Pagination.jsx";

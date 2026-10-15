@@ -1,5 +1,5 @@
 .ds-button {
-  min-height: 40px;
+  min-height: var(--ds-button-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -7,22 +7,23 @@
   border: 1px solid transparent;
   border-radius: var(--ds-radius-sm);
   padding: 0 var(--ds-space-4);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-bold);
   cursor: pointer;
+  touch-action: manipulation;
   transition: background-color var(--ds-motion-fast), border-color var(--ds-motion-fast), color var(--ds-motion-fast), box-shadow var(--ds-motion-fast);
 }
 .ds-button:disabled { opacity: .55; cursor: not-allowed; }
-.ds-button-primary { color: #fff; background: var(--ds-color-brand); box-shadow: var(--ds-shadow-sm); }
+.ds-button-primary { color: var(--ds-color-on-brand); background: var(--ds-color-brand); box-shadow: var(--ds-shadow-sm); }
 .ds-button-primary:hover:not(:disabled) { background: var(--ds-color-brand-strong); }
 .ds-button-secondary { color: var(--ds-color-text); background: var(--ds-color-surface); border-color: var(--ds-color-border-strong); }
 .ds-button-secondary:hover:not(:disabled) { background: var(--ds-color-surface-subtle); }
 .ds-button-ghost { color: var(--ds-color-brand); background: transparent; }
 .ds-button-ghost:hover:not(:disabled) { background: var(--ds-color-brand-soft); }
-.ds-button-sm { min-height: 32px; padding-inline: var(--ds-space-3); font-size: 12px; }
+.ds-button-sm { min-height: 32px; padding-inline: var(--ds-space-3); font-size: var(--ds-font-size-md); }
 .ds-button-lg { min-height: 46px; padding-inline: var(--ds-space-5); }
 
-.ds-icon-button { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: var(--ds-radius-sm); color: var(--ds-color-text-subtle); background: transparent; cursor: pointer; }
+.ds-icon-button { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: var(--ds-radius-sm); color: var(--ds-color-text-subtle); background: transparent; cursor: pointer; touch-action: manipulation; }
 .ds-icon-button:hover { color: var(--ds-color-brand); background: var(--ds-color-brand-soft); }
 .ds-breadcrumb-separator { flex: 0 0 auto; color: var(--ds-color-text-muted); }
 .ds-drawer-close { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
@@ -31,20 +32,20 @@
 .second-weighing-entry .ds-field-message { display: block; margin-top: 7px; }
 .ds-card { background: var(--ds-color-surface); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-md); box-shadow: var(--ds-shadow-sm); }
 .ds-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--ds-space-6); margin-bottom: var(--ds-space-6); }
-.ds-page-header h1 { margin: 4px 0 5px; color: var(--ds-color-text); font-size: 28px; line-height: 1.15; letter-spacing: -.5px; }
-.ds-page-header p { margin: 0; color: var(--ds-color-text-subtle); font-size: 14px; }
+.ds-page-header h1 { margin: 4px 0 5px; color: var(--ds-color-text); font-size: var(--ds-font-size-3xl); line-height: 1.15; letter-spacing: -.5px; }
+.ds-page-header p { margin: 0; color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-lg); }
 .ds-page-header-actions { display: flex; align-items: center; gap: var(--ds-space-2); }
-.ds-eyebrow { color: var(--ds-color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: 1.2px; }
+.ds-eyebrow { color: var(--ds-color-text-muted); font-size: var(--ds-font-size-sm); font-weight: var(--ds-font-weight-bold); letter-spacing: 1.2px; }
 .ds-field { display: flex; flex-direction: column; gap: var(--ds-space-2); min-width: 0; }
-.ds-field-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-2); color: var(--ds-color-text); font-size: 13px; }
-.ds-field-label small { color: var(--ds-color-text-subtle); font-size: 11px; font-weight: 400; }
-.ds-required { color: var(--ds-color-danger); font-weight: 800; }
+.ds-field-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-2); color: var(--ds-color-text); font-size: var(--ds-font-size-body); font-weight: var(--ds-font-weight-medium); }
+.ds-field-label small { color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-sm); font-weight: var(--ds-font-weight-regular); }
+.ds-required { color: var(--ds-color-danger); font-weight: var(--ds-font-weight-bold); }
 .ds-field > input, .ds-field > select, .ds-field > textarea { width: 100%; min-height: 40px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); padding: 9px 12px; color: var(--ds-color-text); background: var(--ds-color-surface); }
 .ds-field > textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
-.ds-field > input:hover, .ds-field > select:hover, .ds-field > textarea:hover { border-color: #aeb7c4; }
+.ds-field > input:hover, .ds-field > select:hover, .ds-field > textarea:hover { border-color: var(--ds-color-border-hover); }
 .ds-field > input:focus, .ds-field > select:focus, .ds-field > textarea:focus { border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); outline: none; }
 .ds-field-error > input, .ds-field-error > select, .ds-field-error > textarea { border-color: var(--ds-color-danger); }
-.ds-field-message { color: var(--ds-color-danger); font-size: 12px; }
+.ds-field-message { color: var(--ds-color-danger); font-size: var(--ds-font-size-md); }
 .ds-status { display: inline-flex; align-items: center; gap: var(--ds-space-2); width: max-content; padding: 4px 9px; border-radius: var(--ds-radius-pill); font-size: 11px; font-weight: 700; }
 .ds-status > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .ds-status-neutral { color: var(--ds-color-text-subtle); background: #f1f3f5; }

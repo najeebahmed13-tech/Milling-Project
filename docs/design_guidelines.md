@@ -333,7 +333,40 @@ Use spacing tokens for:
 - button spacing
 - modal spacing
 - drawer spacing
+
+---
+
+# 7.1 Read-only Information Summaries
+
+Forms that combine contextual record information with editable inputs must use the
+registered `ReadOnlySummary` and `ReadOnlyField` components from the design system.
+
+Secondary business references such as delivery request numbers, loading plan
+numbers, tickets, and document references must use the registered `ReferenceCode`
+presentation. They are secondary information: use the text-secondary color and
+compact monospace typography without a badge background or status treatment.
+
+- Use a two-column summary grid on desktop and one column on narrow screens.
+- Use `text-secondary` for field labels and `text-primary` for field values.
+- Use the registered emphasis treatment only for required or operationally important
+  values.
+- Keep the read-only summary immediately before the related input section.
+- Do not recreate summary cards or field label/value styling inside feature modules.
 - grid gaps
+
+---
+
+# 7.2 Status Registry and Badges
+
+All statuses must be registered in `docs/status_registry.md` and
+`src/design-system/status-registry.js` before use. Each entry must define the
+canonical status code, display label, meaning, module usage, semantic color, and
+HEX code. Use the registered `StatusBadge` component for status presentation.
+
+Status codes drive workflow logic; display labels and colors are presentation
+concerns. Do not introduce undocumented statuses, local status-to-color rules, or
+hardcoded badge colors. If a status meaning is ambiguous, document the ambiguity
+and resolve it before assigning a new semantic color.
 
 Avoid random custom spacing.
 
@@ -891,6 +924,7 @@ PasswordInput
 SearchInput
 NumberInput
 CurrencyInput
+QuantityInput (configurable UOM and decimal scale; use for operational quantities)
 DatePicker
 TimePicker
 Select
@@ -904,6 +938,13 @@ FileUpload
 ```
 
 Do not build these repeatedly inside features.
+
+For quantity entry, use the shared `QuantityInput` registry component. Pass the
+business unit through `uom` and the permitted precision through `decimals`.
+The component constrains typed fractional digits, shows the UOM suffix, and
+must be validated again when the form is submitted. Delivery quantities use
+`uom="MT"` and `decimals={2}` unless a versioned master-data rule specifies
+another precision.
 
 ---
 

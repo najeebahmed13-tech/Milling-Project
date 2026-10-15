@@ -23,7 +23,8 @@ export function registerProductionModule(app, db) {
     CREATE TABLE IF NOT EXISTS production_stations (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
       mill TEXT NOT NULL DEFAULT 'Main Mill', section_type TEXT NOT NULL, description TEXT,
-      sequence INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL
+      sequence INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'ACTIVE',
+      station_image TEXT NOT NULL DEFAULT '', attachment TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS production_routings (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
@@ -63,6 +64,10 @@ export function registerProductionModule(app, db) {
     );
   `);
 
+  const stationColumns = db.prepare("PRAGMA table_info(production_stations)").all().map((column) => column.name);
+  if (!stationColumns.includes('station_image')) db.exec("ALTER TABLE production_stations ADD COLUMN station_image TEXT NOT NULL DEFAULT ''");
+  if (!stationColumns.includes('attachment')) db.exec("ALTER TABLE production_stations ADD COLUMN attachment TEXT NOT NULL DEFAULT ''");
+
   const created = now();
   if (!db.prepare('SELECT COUNT(*) count FROM production_lines').get().count) {
     db.prepare('INSERT INTO production_lines (code,name,capacity_per_shift,capacity_uom,shift_hours,status,created_at) VALUES (?,?,?,?,?,?,?)')
@@ -80,14 +85,14 @@ export function registerProductionModule(app, db) {
   if (!db.prepare('SELECT COUNT(*) count FROM production_stations').get().count) {
     const insertStation = db.prepare('INSERT INTO production_stations (code,name,mill,section_type,description,sequence,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
     [
-      ['ST-FFB-RAMP','FFB Ramp','Receiving','Inbound FFB unloading and ramp feed',1],
-      ['ST-STER','Sterilizing','Processing','Sterilizer and condensate handling section',2],
-      ['ST-THRESH','Threshing','Processing','Fruitlet and empty bunch separation section',3],
+      ['ST-STER','Sterilization','Processing','Sterilization and condensate handling section',1],
+      ['ST-THRESH','Threshing','Processing','Fruitlet and empty bunch separation section',2],
+      ['ST-DIGEST','Digester','Processing','Fruit digestion before pressing',3],
       ['ST-PRESS','Pressing','Processing','Digesting and screw pressing section',4],
       ['ST-CLAR','Clarification','Oil Recovery','Crude oil screening and clarification section',5],
-      ['ST-PURE','Purification','Oil Recovery','Pure oil tank and vacuum drying section',6],
-      ['ST-KERNEL','Kernel Recovery','Kernel Plant','Nut, shell and kernel recovery section',7],
-      ['ST-UTIL','Boiler & Utilities','Utilities','Fuel, steam, power and utility section',8]
+      ['ST-PURE','Purification','Oil Recovery','Oil purification section',6],
+      ['ST-VAC-DRY','Vaccum Dryer','Oil Recovery','Vacuum drying section',7],
+      ['ST-CPO-TANK','CPO Tank','Storage','Crude palm oil storage tank',8]
     ].forEach(([code,name,sectionType,description,sequence]) => insertStation.run(code,name,'Main Mill',sectionType,description,sequence,'ACTIVE',created));
   }
   if (!db.prepare('SELECT COUNT(*) count FROM production_routings').get().count) {
@@ -153,9 +158,25 @@ export function registerProductionModule(app, db) {
 
   app.post('/api/production/stations', (req, res) => {
     const body = req.body;
-    if (!body.code || !body.name || !body.sectionType) return res.status(400).json({ message: 'Station code, name and section type are required.' });
-    try { const info = db.prepare('INSERT INTO production_stations (code,name,mill,section_type,description,sequence,status,created_at) VALUES (?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), body.mill || 'Main Mill', body.sectionType, body.description || '', Number(body.sequence || 1), 'ACTIVE', now()); res.status(201).json(db.prepare('SELECT * FROM production_stations WHERE id=?').get(info.lastInsertRowid)); }
+    if (!body.code || !body.name || !body.status) return res.status(400).json({ message: 'Station code, name and status are required.' });
+    const status = String(body.status).trim().toUpperCase();
+    if (!["ACTIVE", "INACTIVE"].includes(status)) return res.status(400).json({ message: 'Station status must be Active or Inactive.' });
+    try { const info = db.prepare('INSERT INTO production_stations (code,name,mill,section_type,description,sequence,status,station_image,attachment,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), 'Main Mill', 'GENERAL', body.description || '', 1, status, body.stationImage || '', body.attachment || '', now()); res.status(201).json(db.prepare('SELECT * FROM production_stations WHERE id=?').get(info.lastInsertRowid)); }
     catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Station code must be unique.' : 'Unable to save station.' }); }
+  });
+
+  app.patch('/api/production/stations/:id', (req, res) => {
+    const body = req.body;
+    const existing = db.prepare('SELECT * FROM production_stations WHERE id=?').get(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Station not found.' });
+    if (!body.code || !body.name || !body.status) return res.status(400).json({ message: 'Station code, name and status are required.' });
+    const status = String(body.status).trim().toUpperCase();
+    if (!["ACTIVE", "INACTIVE"].includes(status)) return res.status(400).json({ message: 'Station status must be Active or Inactive.' });
+    try {
+      db.prepare('UPDATE production_stations SET code=?,name=?,description=?,status=?,station_image=? WHERE id=?')
+        .run(body.code.trim().toUpperCase(), body.name.trim(), body.description || '', status, body.stationImage || existing.station_image || '', req.params.id);
+      res.json(db.prepare('SELECT * FROM production_stations WHERE id=?').get(req.params.id));
+    } catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Station code must be unique.' : 'Unable to update station.' }); }
   });
 
   app.post('/api/production/routings', (req, res) => {

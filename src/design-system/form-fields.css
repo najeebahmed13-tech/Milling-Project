@@ -1,5 +1,6 @@
 .ds-input { width: 100%; min-height: 40px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); padding: 9px 12px; color: var(--ds-color-text); background: var(--ds-color-surface); font-family: inherit; }
-.ds-input:hover { border-color: #aeb7c4; }
+.ds-file-input { min-height: 40px; padding: 7px 10px; }
+.ds-input:hover { border-color: var(--ds-color-border-hover); }
 .ds-input:focus { border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); outline: none; }
 .ds-input:disabled { color: var(--ds-color-text-muted); background: var(--ds-color-surface-subtle); cursor: not-allowed; }
 .ds-input[readonly] { background: var(--ds-color-surface-subtle); }

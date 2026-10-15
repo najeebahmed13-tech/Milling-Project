@@ -18,88 +18,61 @@ CUSTOMER / SALES DELIVERY REQUIREMENT
             │
             ▼
 
-[02] Map Transporter (email notification to Transporter) (conditional)
+[02] Map Transporter (email notification to Transporter) (conditional) 
             │
             ▼
-[03] Vehicle Arrives at Mill Gate show qr in email then vehicle & driver registration & direction as per loading instructions
+[03] Vehicle Arrives and FIRST WEIGHMENT — EMPTY VEHICLE (Tare Weight Captured)
+(Mill Gate show qr in email then vehicle & driver registration & direction as per loading instructions)
             │
             ▼
-[04] FIRST WEIGHMENT — EMPTY VEHICLE
-     Tare Weight Captured
-            │
-            ▼
-[05] Pre-Loading Checklist & Inspection
+[04] Pre-Loading Checklist & Inspection
             │
             ▼
 
-[06] Vehicle Moves to Loading Bay
+[05]  Loading Starts
             │
             ▼
-[07] Loading Starts
-            │
-            ▼
-[08] Loading Completes
+[06] Loading Completes
             │
             ├──────────────┐
             ▼              ▼
-[09] Sample Collection   Loading Record
+[07] Sample Collection   Loading Record
             │
             ▼
-[10] Laboratory Testing
+[08] Laboratory Testing
      CPO: FFA / M&I / DOBI etc.
      PK: configurable PK specification
             │
             ▼
-[11] Quality Result Data Entry & upload 
+[09] Quality Result Data Entry & upload 
 			│            
             ▼
-[12] Seal Vehicle / Record Seal Numbers 
+[10] Seal Vehicle / Record Seal Numbers 
             │
             ▼
-[13] Outbound Dispatch Checklist
+[11] Outbound Dispatch Checklist
             │
             ▼
-[14] SECOND WEIGHMENT — LOADED
+[12] SECOND WEIGHMENT — LOADED
      Gross Weight Captured
             │
             ▼
      Net = Gross - Tare (weighbrigde ticket update)
             │
             ▼
-[15] Planned vs Actual Validation
-            │
-       Variance Calculation in % & MT
-			
-            │
-            ▼
-[16] Generate Dispatch Documents
+[13] Generate Dispatch Documents
      ├── Delivery Note & Quality Certificate / Receipt (email and print) configurable
      ├── Waybill
      ├── 
      └── 
             │
             ▼
-[17] Vehicle Leaves Mill
+[14]    DISPATCHED
             │
             ▼
-[18]    DISPATCHED
-            │
-            ▼
-[19]  Optional downstream:
+[15]  Optional downstream:
      Customer Receipt / POD
 	 
-			│
-            ▼
-[20] Entry of outbound fall into the Customer Details page >> 
-     
-
-			│
-            ▼
-[21]  Auto Sales Invoice Draft created
-     
-			│
-            ▼
-[22]  Entry in the AR report under Finance created once sales invoice status changaes to submitted
 ```
 
 ## Benchmark controls

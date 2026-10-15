@@ -1,4 +1,4 @@
-export const EMPTY_VALUE = "\u2014";
+export const EMPTY_VALUE = "-";
 export const TEXT_SEPARATOR = "\u00B7";
 
 // Preserve compatibility with legacy records that contain known UTF-8 decoding artifacts.
@@ -70,7 +70,14 @@ export function formatTime(value, timeZone) {
 
 export function formatDate(value) {
   if (!value) return EMPTY_VALUE;
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  const text = String(value).trim();
+  const date = value instanceof Date
+    ? new Date(value.getTime())
+    : /^\d{2}-\d{2}-\d{4}$/.test(text)
+      ? new Date(`${text.slice(6, 10)}-${text.slice(3, 5)}-${text.slice(0, 2)}T00:00:00`)
+      : /^\d{4}-\d{2}-\d{2}/.test(text)
+        ? new Date(`${text.slice(0, 10)}T00:00:00`)
+        : new Date(text);
   if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date).replaceAll("/", "-");
 }

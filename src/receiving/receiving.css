@@ -146,6 +146,7 @@
 /* Flat second-weighing drawer: reuse the grading form's compact hierarchy without nested cards. */
 .second-weighing-drawer { width: min(560px, 100%); padding: 22px 24px 18px; }
 .second-weighing-drawer .drawer-head { padding-bottom: 16px; border-bottom: 1px solid var(--ds-color-border); }
+.second-weighing-drawer.drawer-form-surface > .drawer-head { margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px; }
 .second-weighing-drawer .vehicle-exit-form { gap: 0; }
 .second-weighing-drawer .second-weighing-overview,
 .second-weighing-drawer .second-weighing-section,
@@ -165,7 +166,7 @@
 .second-weighing-drawer .second-weighing-entry .second-weighing-section-title { padding-left: 0; border-left: 0; }
 .second-weighing-drawer .second-weighing-entry .contract-field { margin-top: 16px; }
 .second-weighing-drawer .contract-actions { position: sticky; bottom: -18px; z-index: 2; margin: 0 -24px -18px; padding: 14px 24px 18px; background: var(--ds-color-surface); border-top: 1px solid var(--ds-color-border); box-shadow: 0 -8px 18px rgba(16,24,40,.08); }
-@media(max-width:600px){.second-weighing-drawer{padding:18px 16px 14px}.second-weighing-drawer .second-weighing-weight-cards>div{padding-inline:8px}.second-weighing-drawer .second-weighing-weight-cards>div:first-child{padding-left:0}.second-weighing-drawer .second-weighing-weight-cards>div:last-child{padding-right:0}.second-weighing-drawer .contract-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+@media(max-width:600px){.second-weighing-drawer{padding:18px 16px 14px}.second-weighing-drawer.drawer-form-surface > .drawer-head{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.second-weighing-drawer .second-weighing-weight-cards>div{padding-inline:8px}.second-weighing-drawer .second-weighing-weight-cards>div:first-child{padding-left:0}.second-weighing-drawer .second-weighing-weight-cards>div:last-child{padding-right:0}.second-weighing-drawer .contract-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
 
 /* Canonical form-drawer chrome: only the body scrolls; header content never passes behind it. */
 .drawer-form-surface { overflow: hidden; display: flex; flex-direction: column; overscroll-behavior: contain; }

@@ -4,3 +4,177 @@
 .loading-plan-operational-summary{display:flex;flex-direction:column;gap:16px;margin-top:14px}.loading-plan-summary-group{padding-top:14px;border-top:1px solid #edf1f5}.loading-plan-summary-group:first-child{padding-top:0;border-top:0}.loading-plan-summary-group h4{margin:0 0 9px;color:#52657f;font-size:10px;letter-spacing:.06em;text-transform:uppercase}.loading-plan-summary-group .assignment-summary-grid{margin-top:0}.loading-plan-summary-group .assignment-summary-grid>div{padding:9px 10px}.loading-plan-summary-group .assignment-summary-grid strong{font-size:11px}
 .loading-plan-weighment-form .loading-plan-assignment-summary{background:#fbfcfd;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px}.loading-plan-weighment-form .assignment-summary-heading{padding-bottom:13px}.loading-plan-weighment-form .loading-plan-summary-group h4{font-size:11px;color:#344054}.loading-plan-weighment-form .loading-plan-summary-group .assignment-summary-grid>div{background:#fff;border-radius:9px}.loading-plan-weighment-entry{box-shadow:0 1px 2px rgba(16,24,40,.04)}.loading-plan-weighment-entry .loading-plan-assignment-heading h3{font-size:13px}.loading-plan-weighment-entry .readonly-operation-field{font-size:11px}.loading-plan-weighment-entry .loading-plan-operation-fields label{color:#344054}.loading-plan-weighment-entry .loading-plan-operation-fields label::after{content:"Enter the empty vehicle reading captured at the weighbridge";display:block;order:3;margin-top:6px;color:#8798ad;font-size:10px;font-weight:400}
 .logistics-assignment-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:rgba(16,24,40,.28);overflow:hidden}.logistics-assignment-drawer{width:min(680px,100%);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;border-radius:0;padding:22px 24px 18px;box-shadow:-12px 0 32px rgba(16,24,40,.18);animation:logistics-assignment-drawer-in .2s ease-out}.logistics-assignment-drawer .master-form-head{position:sticky;top:-22px;z-index:3;margin:0 -24px 20px;padding:22px 24px 16px;background:#fff;border-bottom:1px solid #e1e5ea}.logistics-assignment-drawer .master-form-head h2{color:#101828;font-size:21px}.logistics-assignment-drawer .master-form-head p{color:#667085;font-size:12px}.logistics-assignment-drawer .loading-plan-assignment-form{gap:16px}.logistics-assignment-drawer .loading-plan-assignment-summary,.logistics-assignment-drawer .loading-plan-assignment-section{border-color:#dfe5ec;border-radius:10px;padding:14px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.03)}.logistics-assignment-drawer .loading-plan-assignment-heading h3{color:#344054;font-size:12px}.logistics-assignment-drawer .loading-plan-operation-fields select{min-height:40px;border:1px solid #cfd5dc;border-radius:6px;padding:9px 10px;background:#fff;color:#344054;font:inherit}.logistics-assignment-drawer .master-form-actions{position:sticky;bottom:-18px;z-index:3;margin:20px -24px -18px;padding:14px 24px 18px;background:#fff;border-top:1px solid #e1e5ea;box-shadow:0 -8px 18px rgba(16,24,40,.08)}@keyframes logistics-assignment-drawer-in{from{transform:translateX(24px);opacity:.8}to{transform:translateX(0);opacity:1}}@media(max-width:520px){.logistics-assignment-drawer{padding:18px 16px 14px}.logistics-assignment-drawer .master-form-head{top:-18px;margin-left:-16px;margin-right:-16px;padding:18px 16px 14px}.logistics-assignment-drawer .master-form-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+.logistics-assignment-drawer .logistics-assignment-form{gap:0}
+.logistics-assignment-drawer .master-form-head{margin-bottom:0}
+.logistics-assignment-drawer .master-form-head .ds-reference-code{display:block;margin-top:6px}
+.logistics-assignment-drawer .logistics-assignment-summary,
+.logistics-assignment-drawer .logistics-assignment-entry{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.logistics-assignment-drawer .ds-readonly-summary-heading{padding-bottom:10px;color:var(--ds-color-text-subtle)}
+.logistics-assignment-drawer .ds-readonly-summary-grid{gap:14px 24px;margin-top:14px}
+.logistics-assignment-drawer .ds-readonly-field{padding:0;border:0;border-radius:0;background:transparent}
+.logistics-assignment-drawer .ds-readonly-field.emphasis{padding:0;border:0;background:transparent}
+.logistics-assignment-drawer .ds-readonly-field.emphasis>strong{color:var(--ds-color-text)}
+.logistics-assignment-drawer .loading-plan-assignment-heading{padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid var(--ds-color-border)}
+.logistics-assignment-drawer .loading-plan-assignment-heading h3{color:var(--ds-color-text);font-size:13px;letter-spacing:0;text-transform:none}
+.logistics-assignment-drawer .loading-plan-operation-fields{gap:16px 24px}
+.logistics-assignment-drawer .loading-plan-operation-fields label{color:var(--ds-color-text);font-size:12px;font-weight:600}
+.logistics-assignment-drawer .loading-plan-operation-fields select{min-height:44px;border-color:#cbd8e8;border-radius:8px;padding:10px 12px;background:#fff;color:var(--ds-color-text)}
+.logistics-assignment-drawer .assignment-instructions{margin-top:16px;padding:0;border:0;border-radius:0;background:transparent;color:var(--ds-color-text-subtle)}
+.logistics-assignment-drawer .assignment-instructions p{color:var(--ds-color-text-subtle)}
+.vehicle-arrival-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:rgba(16,24,40,.28);overflow:hidden}
+.vehicle-arrival-drawer{width:min(700px,100%);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;border-radius:0;padding:22px 24px 18px;box-shadow:-12px 0 32px rgba(16,24,40,.18);animation:logistics-assignment-drawer-in .2s ease-out}
+.vehicle-arrival-drawer .vehicle-arrival-header{position:sticky;top:-22px;z-index:3;margin:0 -24px 0;padding:22px 24px 16px;background:var(--ds-color-surface);border-bottom:1px solid var(--ds-color-border)}
+.vehicle-arrival-drawer .vehicle-arrival-header h2{color:var(--ds-color-text);font-size:21px}
+.vehicle-arrival-drawer .vehicle-arrival-header .ds-reference-code{display:block;margin-top:6px}
+.vehicle-arrival-drawer .loading-plan-weighment-form{gap:0}
+.vehicle-arrival-drawer .loading-plan-assignment-summary,
+.vehicle-arrival-drawer .loading-plan-weighment-entry{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.vehicle-arrival-drawer .assignment-summary-heading{padding-bottom:10px;color:var(--ds-color-text-subtle);border-bottom-color:var(--ds-color-border)}
+.vehicle-arrival-drawer .assignment-summary-heading strong{padding:0;border:0;background:transparent;color:var(--ds-color-text-subtle);font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace}
+.vehicle-arrival-drawer .loading-plan-operational-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 24px;margin-top:14px}
+.vehicle-arrival-drawer .loading-plan-summary-group{padding-top:14px;border-top-color:var(--ds-color-border)}
+.vehicle-arrival-drawer .loading-plan-summary-group:first-child{grid-column:1/-1;padding-top:0;border-top:0}
+.vehicle-arrival-drawer .loading-plan-summary-group h4{margin-bottom:10px;color:var(--ds-color-text);font-size:11px;letter-spacing:0;text-transform:none}
+.vehicle-arrival-drawer .assignment-summary-grid{gap:14px 24px;margin-top:0}
+.vehicle-arrival-drawer .assignment-summary-grid>div{padding:0;border:0;background:transparent}
+.vehicle-arrival-drawer .assignment-summary-grid>div.emphasis>strong{color:var(--ds-color-danger)}
+.vehicle-arrival-drawer .assignment-summary-grid span{color:var(--ds-color-text-subtle);font-size:10px}
+.vehicle-arrival-drawer .assignment-summary-grid strong{color:var(--ds-color-text);font-size:12px}
+.vehicle-arrival-drawer .loading-plan-weighment-entry{padding-top:18px}
+.vehicle-arrival-drawer .loading-plan-assignment-heading{padding-bottom:10px;margin-bottom:14px;border-bottom-color:var(--ds-color-border)}
+.vehicle-arrival-drawer .loading-plan-assignment-heading h3{color:var(--ds-color-text);font-size:13px;letter-spacing:0;text-transform:none}
+.vehicle-arrival-drawer .readonly-operation-field{margin:0 0 14px;color:var(--ds-color-text-subtle);font-size:12px}
+.vehicle-arrival-drawer .loading-plan-operation-fields{grid-template-columns:1fr}
+.vehicle-arrival-drawer .loading-plan-operation-fields label{color:var(--ds-color-text);font-size:12px;font-weight:600}
+.vehicle-arrival-drawer .loading-plan-operation-fields input{min-height:44px;border:1px solid #cbd8e8;border-radius:8px;background:#fff;color:var(--ds-color-text);font:600 16px ui-monospace,SFMono-Regular,Menlo,monospace}
+.vehicle-arrival-drawer .master-form-actions{position:sticky;bottom:-18px;z-index:3;margin:20px -24px -18px;padding:14px 24px 18px;background:var(--ds-color-surface);border-top:1px solid var(--ds-color-border);box-shadow:0 -8px 18px rgba(16,24,40,.08)}
+@media(max-width:520px){.vehicle-arrival-drawer{padding:18px 16px 14px}.vehicle-arrival-drawer .vehicle-arrival-header{top:-18px;margin-left:-16px;margin-right:-16px;padding:18px 16px 14px}.vehicle-arrival-drawer .loading-plan-operational-summary{grid-template-columns:1fr}.vehicle-arrival-drawer .loading-plan-summary-group:first-child{grid-column:auto}.vehicle-arrival-drawer .master-form-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+.loading-execution-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:rgba(16,24,40,.28);overflow:hidden}
+.loading-execution-drawer{width:min(700px,100%);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;border-radius:0;padding:22px 24px 18px;box-shadow:-12px 0 32px rgba(16,24,40,.18);animation:logistics-assignment-drawer-in .2s ease-out}
+.loading-execution-drawer .loading-execution-header{position:sticky;top:-22px;z-index:3;margin:0 -24px 0;padding:22px 24px 16px;background:var(--ds-color-surface);border-bottom:1px solid var(--ds-color-border)}
+.loading-execution-drawer .loading-execution-header h2{color:var(--ds-color-text);font-size:21px}
+.loading-execution-drawer .loading-execution-header .ds-reference-code{display:block;margin-top:6px}
+.loading-execution-drawer .loading-execution-form{display:flex;flex-direction:column;gap:0}
+.loading-execution-drawer .readonly-operation-field{margin:18px 0 0;padding:10px 0;color:var(--ds-color-text-subtle);font-size:12px}
+.loading-execution-drawer .readonly-operation-field{display:none}
+.loading-execution-drawer .loading-execution-summary{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.loading-execution-drawer .ds-readonly-summary-heading{padding-bottom:10px;color:var(--ds-color-text-subtle);border-bottom-color:var(--ds-color-border)}
+.loading-execution-drawer .ds-readonly-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin-top:14px}
+.loading-execution-drawer .ds-readonly-field{padding:0;border:0;border-radius:0;background:transparent}
+.loading-execution-drawer .ds-readonly-field.emphasis{padding:0;border:0;background:transparent}
+.loading-execution-drawer .ds-readonly-field.emphasis>strong{color:var(--ds-color-danger)}
+.loading-execution-drawer .loading-execution-weight-overview{margin:0;padding:18px 0;border-bottom:1px solid var(--ds-color-border)}
+.loading-execution-drawer .loading-execution-weight-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.loading-execution-drawer .loading-execution-weight-cards>div{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--ds-color-border);border-radius:var(--ds-radius-sm);background:var(--ds-color-surface-subtle)}
+.loading-execution-drawer .loading-execution-weight-cards>div.tare{border-color:#f4c744;background:#fffdf4}
+.loading-execution-drawer .loading-execution-weight-cards>div.net{border-color:#cbd8e8;background:#f7fafd}
+.loading-execution-drawer .loading-execution-weight-cards span{color:var(--ds-color-text-subtle);font-size:10px;font-weight:700;text-transform:uppercase}
+.loading-execution-drawer .loading-execution-weight-cards strong{color:var(--ds-color-text);font:700 16px ui-monospace,SFMono-Regular,Menlo,monospace}
+.loading-execution-drawer .loading-execution-weight-cards .tare strong{color:#8f4014}
+.loading-execution-drawer .loading-execution-weight-cards .net strong{color:#08745e}
+.loading-execution-drawer .loading-execution-weight-cards small{color:var(--ds-color-text-subtle);font-size:10px}
+.loading-execution-drawer .loading-execution-entry{margin:0;padding:18px 0;border-bottom:1px solid var(--ds-color-border)}
+.loading-execution-drawer .loading-execution-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--ds-color-border)}
+.loading-execution-drawer .loading-execution-section-heading h3{margin:0;color:var(--ds-color-text);font-size:13px}
+.loading-execution-drawer .loading-execution-section-heading span{color:var(--ds-color-text-subtle);font-size:11px}
+.loading-execution-drawer .loading-execution-quantity-label{display:flex;flex-direction:column;gap:7px;margin-top:16px;color:var(--ds-color-text);font-size:12px;font-weight:600}
+.loading-execution-drawer .loading-execution-quantity-label em{color:var(--ds-color-danger);font-style:normal;margin-left:3px}
+.loading-execution-drawer .loading-execution-quantity-label .ds-input-with-suffix{width:100%}
+.loading-execution-drawer .loading-execution-quantity-label .ds-input-with-suffix input{height:52px;border:1px solid #cbd8e8;border-radius:9px;background:#fff;color:var(--ds-color-text);font:600 18px ui-monospace,SFMono-Regular,Menlo,monospace}
+.loading-execution-drawer .loading-execution-quantity-label .ds-input-with-suffix span{color:var(--ds-color-text-subtle);font-weight:700}
+.loading-execution-drawer .loading-plan-calculation{margin:14px 0 0;padding:11px 12px;border-color:#f2d58b;background:#fff8e6;color:#8a5a00;font-size:12px}
+.loading-execution-drawer .loading-plan-calculation-valid{border-color:#b7ead9;background:#effcf7;color:#08745e}
+.loading-execution-drawer .master-form-actions{position:sticky;bottom:-18px;z-index:3;margin:20px -24px -18px;padding:14px 24px 18px;background:var(--ds-color-surface);border-top:1px solid var(--ds-color-border);box-shadow:0 -8px 18px rgba(16,24,40,.08)}
+@media(max-width:520px){.loading-execution-drawer{padding:18px 16px 14px}.loading-execution-drawer .loading-execution-header{top:-18px;margin-left:-16px;margin-right:-16px;padding:18px 16px 14px}.loading-execution-drawer .ds-readonly-summary-grid,.loading-execution-drawer .loading-execution-weight-cards{grid-template-columns:1fr}.loading-execution-drawer .master-form-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+.sample-quality-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:rgba(16,24,40,.28);overflow:hidden}
+.sample-quality-drawer{width:min(700px,100%);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;border-radius:0;padding:22px 24px 18px;box-shadow:-12px 0 32px rgba(16,24,40,.18);animation:logistics-assignment-drawer-in .2s ease-out}
+.sample-quality-drawer .sample-quality-header{position:sticky;top:-22px;z-index:3;margin:0 -24px 0;padding:22px 24px 16px;background:var(--ds-color-surface);border-bottom:1px solid var(--ds-color-border)}
+.sample-quality-drawer .sample-quality-header h2{color:var(--ds-color-text);font-size:21px}
+.sample-quality-drawer .sample-quality-header .ds-reference-code{display:block;margin-top:6px}
+.sample-quality-drawer .sample-quality-form{display:flex;flex-direction:column;gap:0}
+.sample-quality-drawer .sample-quality-summary{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.sample-quality-drawer .ds-readonly-summary-heading{padding-bottom:10px;color:var(--ds-color-text-subtle);border-bottom-color:var(--ds-color-border)}
+.sample-quality-drawer .ds-readonly-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin-top:14px}
+.sample-quality-drawer .ds-readonly-field{padding:0;border:0;border-radius:0;background:transparent}
+.sample-quality-drawer .ds-readonly-field.emphasis{padding:0;border:0;background:transparent}
+.sample-quality-drawer .ds-readonly-field.emphasis>strong{color:var(--ds-color-danger)}
+.sample-quality-drawer .sample-quality-entry{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.sample-quality-drawer .sample-quality-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--ds-color-border)}
+.sample-quality-drawer .sample-quality-section-heading h3{margin:0;color:var(--ds-color-text);font-size:13px}
+.sample-quality-drawer .sample-quality-section-heading p{margin:4px 0 0;color:var(--ds-color-text-subtle);font-size:11px}
+.sample-quality-drawer .sample-quality-section-heading>span{color:var(--ds-color-text-subtle);font-size:11px;white-space:nowrap}
+.sample-quality-drawer .sample-quality-parameter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin-top:16px}
+.sample-quality-drawer .ds-field{margin:0}
+.sample-quality-drawer .ds-field-label{color:var(--ds-color-text);font-size:12px;font-weight:600}
+.sample-quality-drawer .ds-required{color:var(--ds-color-danger)}
+.sample-quality-drawer .ds-field input,.sample-quality-drawer .sample-quality-notes textarea,.sample-quality-drawer .sample-quality-notes input[type="file"]{width:100%;min-height:44px;border:1px solid #cbd8e8;border-radius:8px;background:#fff;color:var(--ds-color-text);font:inherit;padding:10px 12px}
+.sample-quality-drawer .ds-field input:focus,.sample-quality-drawer .sample-quality-notes textarea:focus{border-color:var(--ds-color-primary);box-shadow:0 0 0 3px rgba(33,102,193,.12);outline:0}
+.sample-quality-drawer .sample-quality-notes .ds-field{margin-top:16px}
+.sample-quality-drawer .sample-quality-notes .ds-field:first-of-type{margin-top:0}
+.sample-quality-drawer .sample-quality-notes textarea{min-height:108px;resize:vertical}
+.sample-quality-drawer .master-form-actions{position:sticky;bottom:-18px;z-index:3;margin:20px -24px -18px;padding:14px 24px 18px;background:var(--ds-color-surface);border-top:1px solid var(--ds-color-border);box-shadow:0 -8px 18px rgba(16,24,40,.08)}
+@media(max-width:520px){.sample-quality-drawer{padding:18px 16px 14px}.sample-quality-drawer .sample-quality-header{top:-18px;margin-left:-16px;margin-right:-16px;padding:18px 16px 14px}.sample-quality-drawer .ds-readonly-summary-grid,.sample-quality-drawer .sample-quality-parameter-grid{grid-template-columns:1fr}.sample-quality-drawer .master-form-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+.seal-record-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:rgba(16,24,40,.28);overflow:hidden}
+.seal-record-drawer{width:min(700px,100%);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;border-radius:0;padding:22px 24px 18px;box-shadow:-12px 0 32px rgba(16,24,40,.18);animation:logistics-assignment-drawer-in .2s ease-out}
+.seal-record-drawer .seal-record-header{position:sticky;top:-22px;z-index:3;margin:0 -24px 0;padding:22px 24px 16px;background:var(--ds-color-surface);border-bottom:1px solid var(--ds-color-border)}
+.seal-record-drawer .seal-record-header h2{color:var(--ds-color-text);font-size:21px}
+.seal-record-drawer .seal-record-header .ds-reference-code{display:block;margin-top:6px}
+.seal-record-drawer .seal-record-form{display:flex;flex-direction:column;gap:0}
+.seal-record-drawer .sample-quality-summary{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.seal-record-drawer .ds-readonly-summary-heading{padding-bottom:10px;color:var(--ds-color-text-subtle);border-bottom-color:var(--ds-color-border)}
+.seal-record-drawer .ds-readonly-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin-top:14px}
+.seal-record-drawer .ds-readonly-field{padding:0;border:0;border-radius:0;background:transparent}
+.seal-record-drawer .ds-readonly-field.emphasis{padding:0;border:0;background:transparent}
+.seal-record-drawer .ds-readonly-field.emphasis>strong{color:var(--ds-color-danger)}
+.seal-record-drawer .sample-quality-entry{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.seal-record-drawer .sample-quality-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--ds-color-border)}
+.seal-record-drawer .sample-quality-section-heading h3{margin:0;color:var(--ds-color-text);font-size:13px}
+.seal-record-drawer .sample-quality-section-heading p{margin:4px 0 0;color:var(--ds-color-text-subtle);font-size:11px}
+.seal-record-drawer .sample-quality-section-heading>span{color:var(--ds-color-text-subtle);font-size:11px;white-space:nowrap}
+.seal-record-drawer .seal-record-list{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.seal-record-drawer .seal-record-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;padding:12px;border:1px solid var(--ds-color-border);border-radius:var(--ds-radius-sm);background:var(--ds-color-surface-subtle)}
+.seal-record-drawer .seal-record-row .ds-field{margin:0}
+.seal-record-drawer .seal-record-row input,.seal-record-drawer .sample-quality-notes textarea{width:100%;min-height:44px;border:1px solid #cbd8e8;border-radius:8px;background:#fff;color:var(--ds-color-text);font:inherit;padding:10px 12px}
+.seal-record-drawer .seal-record-row input:focus,.seal-record-drawer .sample-quality-notes textarea:focus{border-color:var(--ds-color-primary);box-shadow:0 0 0 3px rgba(33,102,193,.12);outline:0}
+.seal-record-drawer .seal-add-button{margin-top:12px;align-self:flex-start}
+.seal-record-drawer .sample-quality-notes .ds-field{margin-top:16px}
+.seal-record-drawer .sample-quality-notes .ds-field:first-of-type{margin-top:0}
+.seal-record-drawer .sample-quality-notes textarea{min-height:108px;resize:vertical}
+.seal-record-drawer .master-form-actions{position:sticky;bottom:-18px;z-index:3;margin:20px -24px -18px;padding:14px 24px 18px;background:var(--ds-color-surface);border-top:1px solid var(--ds-color-border);box-shadow:0 -8px 18px rgba(16,24,40,.08)}
+@media(max-width:520px){.seal-record-drawer{padding:18px 16px 14px}.seal-record-drawer .seal-record-header{top:-18px;margin-left:-16px;margin-right:-16px;padding:18px 16px 14px}.seal-record-drawer .ds-readonly-summary-grid{grid-template-columns:1fr}.seal-record-drawer .seal-record-row{grid-template-columns:1fr}.seal-record-drawer .master-form-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+.second-weighment-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:rgba(16,24,40,.28);overflow:hidden}
+.second-weighment-drawer{width:min(700px,100%);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;border-radius:0;padding:22px 24px 18px;box-shadow:-12px 0 32px rgba(16,24,40,.18);animation:logistics-assignment-drawer-in .2s ease-out}
+.second-weighment-drawer .second-weighment-header{position:sticky;top:-22px;z-index:3;margin:0 -24px 0;padding:22px 24px 16px;background:var(--ds-color-surface);border-bottom:1px solid var(--ds-color-border)}
+.second-weighment-drawer .second-weighment-header h2{color:var(--ds-color-text);font-size:21px}
+.second-weighment-drawer .second-weighment-header .ds-reference-code{display:block;margin-top:6px}
+.second-weighment-drawer .second-weighment-form{display:flex;flex-direction:column;gap:0}
+.second-weighment-drawer .second-weighment-summary{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.second-weighment-drawer .ds-readonly-summary-heading{padding-bottom:10px;color:var(--ds-color-text-subtle);border-bottom-color:var(--ds-color-border)}
+.second-weighment-drawer .ds-readonly-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin-top:14px}
+.second-weighment-drawer .ds-readonly-field{padding:0;border:0;border-radius:0;background:transparent}
+.second-weighment-drawer .ds-readonly-field.emphasis{padding:0;border:0;background:transparent}
+.second-weighment-drawer .ds-readonly-field.emphasis>strong{color:var(--ds-color-danger)}
+.second-weighment-drawer .sample-quality-context{display:none}
+.second-weighment-drawer .sample-quality-section{margin:0;padding:18px 0;border:0;border-bottom:1px solid var(--ds-color-border);border-radius:0;background:transparent;box-shadow:none}
+.second-weighment-drawer .sample-quality-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--ds-color-border)}
+.second-weighment-drawer .sample-quality-section-heading h3{margin:0;color:var(--ds-color-text);font-size:13px}
+.second-weighment-drawer .sample-quality-section-heading p{margin:4px 0 0;color:var(--ds-color-text-subtle);font-size:11px}
+.second-weighment-drawer .sample-quality-section-heading>span{color:var(--ds-color-text-subtle);font-size:11px;white-space:nowrap}
+.second-weighment-drawer .second-weight-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.second-weighment-drawer .second-weight-overview>div{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--ds-color-border);border-radius:var(--ds-radius-sm);background:var(--ds-color-surface-subtle)}
+.second-weighment-drawer .second-weight-overview .second-weight-tare{border-color:#f4c744;background:#fffdf4}
+.second-weighment-drawer .second-weight-overview span{color:var(--ds-color-text-subtle);font-size:10px;font-weight:700;text-transform:uppercase}
+.second-weighment-drawer .second-weight-overview strong{color:var(--ds-color-text);font:700 16px ui-monospace,SFMono-Regular,Menlo,monospace}
+.second-weighment-drawer .second-weight-overview .second-weight-tare strong{color:#8f4014}
+.second-weighment-drawer .second-weight-overview>div:last-child strong{color:#08745e}
+.second-weighment-drawer .second-weight-overview em{color:var(--ds-color-text-subtle);font-size:10px;font-style:normal}
+.second-weighment-drawer .second-weighment-entry label{display:flex;flex-direction:column;gap:7px;margin-top:16px;color:var(--ds-color-text);font-size:12px;font-weight:600}
+.second-weighment-drawer .second-weighment-entry label input,.second-weighment-drawer .second-weighment-notes textarea,.second-weighment-drawer .second-weighment-notes input[type="file"]{width:100%;min-height:44px;border:1px solid #cbd8e8;border-radius:8px;background:#fff;color:var(--ds-color-text);font:inherit;padding:10px 12px}
+.second-weighment-drawer .second-weighment-entry label input{font:600 18px ui-monospace,SFMono-Regular,Menlo,monospace}
+.second-weighment-drawer .second-weighment-entry label input:focus,.second-weighment-drawer .second-weighment-notes textarea:focus{border-color:var(--ds-color-primary);box-shadow:0 0 0 3px rgba(33,102,193,.12);outline:0}
+.second-weighment-drawer .second-weight-help{margin:12px 0 0;color:var(--ds-color-text-subtle);font-size:11px}
+.second-weighment-drawer .second-weighment-notes label{display:flex;flex-direction:column;gap:7px;margin-top:16px;color:var(--ds-color-text);font-size:12px;font-weight:600}
+.second-weighment-drawer .second-weighment-notes label:first-of-type{margin-top:0}
+.second-weighment-drawer .second-weighment-notes textarea{min-height:108px;resize:vertical}
+.second-weighment-drawer .master-form-actions{position:sticky;bottom:-18px;z-index:3;margin:20px -24px -18px;padding:14px 24px 18px;background:var(--ds-color-surface);border-top:1px solid var(--ds-color-border);box-shadow:0 -8px 18px rgba(16,24,40,.08)}
+@media(max-width:520px){.second-weighment-drawer{padding:18px 16px 14px}.second-weighment-drawer .second-weighment-header{top:-18px;margin-left:-16px;margin-right:-16px;padding:18px 16px 14px}.second-weighment-drawer .ds-readonly-summary-grid,.second-weighment-drawer .second-weight-overview{grid-template-columns:1fr}.second-weighment-drawer .master-form-actions{bottom:-14px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}

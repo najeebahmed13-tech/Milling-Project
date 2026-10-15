@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getMasterDefinition, masterDefinitions } from "../config/masterData.js";
 import "./masters.css";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
+import { UnitsOfMeasureMaster } from "./UnitsOfMeasureMaster.jsx";
+import { QualityParameterMaster } from "./QualityParameterMaster.jsx";
 
 const excludedKeys = new Set(["customers", "suppliers", "materials", "productionLines", "vehicleTypes", "vehicles"]);
 const masterKeys = masterDefinitions.filter((definition) => !excludedKeys.has(definition.key));
@@ -23,6 +25,12 @@ function loadRecords(definition) {
 }
 
 export function MasterDataCenter({ masterKey, onNavigate }) {
+  if (masterKey === "uoms") return <UnitsOfMeasureMaster onNavigate={onNavigate} />;
+  if (masterKey === "qualityParameters") return <QualityParameterMaster onNavigate={onNavigate} />;
+  return <GenericMasterDataCenter masterKey={masterKey} onNavigate={onNavigate} />;
+}
+
+function GenericMasterDataCenter({ masterKey, onNavigate }) {
   const definition = masterKey ? getMasterDefinition(masterKey) : null;
   const [records, setRecords] = useState(() => definition ? loadRecords(definition) : []);
   const [search, setSearch] = useState("");

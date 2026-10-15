@@ -1,4 +1,5 @@
 import React from "react";
+import { getStatusDefinition, statusTone } from "./status-registry.js";
 
 export function Badge({ tone = "neutral", children, className = "", ...props }) {
   return (
@@ -8,14 +9,11 @@ export function Badge({ tone = "neutral", children, className = "", ...props }) 
   );
 }
 
-export function StatusBadge({ tone = "neutral", children, className = "", ...props }) {
-  return <Badge tone={tone} className={className} {...props}>{children}</Badge>;
+export function StatusBadge({ status, tone, children, className = "", ...props }) {
+  const definition = getStatusDefinition(status);
+  return <Badge tone={tone || (status ? statusTone(status) : "neutral")} className={className} {...props}>{children ?? definition?.label ?? status}</Badge>;
 }
 
 export function badgeToneForStatus(value) {
-  const normalized = String(value || "").toLowerCase();
-  if (/completed|approved|ready|active/.test(normalized)) return "info";
-  if (/pending|awaiting|weighing|review/.test(normalized)) return "warning";
-  if (/rejected|blocked|cancelled|failed/.test(normalized)) return "danger";
-  return "neutral";
+  return statusTone(value);
 }

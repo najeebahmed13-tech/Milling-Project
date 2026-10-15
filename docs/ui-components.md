@@ -7,6 +7,7 @@ This registry is the entry point for application-wide UI work. New screens shoul
 | Primitive | `Button` | `src/design-system` | Primary, secondary, and ghost actions |
 | Primitive | `IconButton` | `src/design-system` | Icon-only actions; always provide an accessible `label` |
 | Primitive | `FormField` | `src/design-system` | Label, required marker, hint, input, and validation message |
+| Primitive | `FileInput` | `src/design-system` | Shared file-upload control with the standard form-control surface |
 | Primitive | `StatusBadge` | `src/design-system` | Semantic status display |
 | Primitive | `Alert` | `src/design-system` | Inline info, warning, and error feedback |
 | Primitive | `Card` | `src/design-system` | Bounded content surfaces |

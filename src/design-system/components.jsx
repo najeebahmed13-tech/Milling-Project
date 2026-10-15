@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { EMPTY_VALUE, formatVehiclePlate } from "../shared/formatters.js";
 
@@ -39,21 +39,29 @@ export function PageHeader({ eyebrow, title, description, actions, className = "
   );
 }
 
-export function FormField({ label, required = false, hint, error, children, className = "" }) {
+export function FormField({ label, required = false, hint, error, id, children, className = "" }) {
+  const generatedId = useId().replace(/:/g, "");
+  const controlId = id || `field-${generatedId}`;
+  const hintId = hint ? `${controlId}-hint` : undefined;
+  const errorId = error ? `${controlId}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  const control = React.isValidElement(children)
+    ? React.cloneElement(children, { id: children.props.id || controlId, "aria-describedby": children.props["aria-describedby"] || describedBy, "aria-invalid": error ? true : children.props["aria-invalid"] })
+    : children;
   return (
     <div className={`ds-field ${error ? "ds-field-error" : ""} ${className}`.trim()}>
-      <label className="ds-field-label">
+      <label className="ds-field-label" htmlFor={controlId}>
         <span>{label}{required ? <span className="ds-required" aria-hidden="true"> *</span> : null}</span>
-        {hint ? <small>{hint}</small> : null}
+        {hint ? <small id={hintId}>{hint}</small> : null}
       </label>
-      {children}
-      {error ? <div className="ds-field-message" role="alert">{error}</div> : null}
+      {control}
+      {error ? <div id={errorId} className="ds-field-message" role="alert">{error}</div> : null}
     </div>
   );
 }
 
 export function Alert({ tone = "info", children, className = "" }) {
-  return <div className={`ds-alert ds-alert-${tone} ${className}`.trim()} role={tone === "error" ? "alert" : "status"}>{children}</div>;
+  return <div className={`ds-alert ds-alert-${tone} ${className}`.trim()} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
 }
 
 export function EmptyState({ title, description, action }) {

@@ -7,12 +7,58 @@ import "./loading-plans.css";
 import "./loading-plan-progress.css";
 import "./loading-plan-operation.css";
 import "./loading-plan-checklists.css";
-import { formatDate, formatVehiclePlate } from "../shared/formatters.js";
-import { ActionMenu, ActivityTimeline, Badge, DrawerCloseButton, ImageCarousel } from "../design-system/index.js";
+import { formatDate, formatDateTime, formatVehiclePlate } from "../shared/formatters.js";
+import { ActionMenu, ActivityTimeline, Badge, DetailValue, DrawerCloseButton, FormField, ImageCarousel, NumberInput, ReadOnlyField, ReadOnlySummary, ReferenceCode, StatusBadge } from "../design-system/index.js";
+import { QuantityInput } from "../design-system/form-fields.jsx";
+import { getLoadingPlanExecutionSteps, getLoadingPlanNextAction } from "./dispatchWorkflow.js";
 
 const KEY = "rockeye.commercial.deliveryRequests";
+const CONFIRMED_QUANTITY_REPAIRS = {
+  "DR-20261013-7766": "3000.00",
+};
 const value = (v, fallback = "—") =>
   v === undefined || v === null || v === "" ? fallback : v;
+const planQuantity = (plan = {}) => {
+  const linkedRequest =
+    plan.deliveryRequest ||
+    plan.deliveryRequestDetails ||
+    plan.delivery_request ||
+    plan.deliveryRequestData ||
+    plan.delivery_request_data ||
+    plan.request;
+  const candidates = [
+    plan.deliveryQuantity,
+    plan.deliveryRequestQuantity,
+    plan.requestedQuantity,
+    plan.quantity,
+    plan.loadingQuantity,
+    plan.deliveryQty,
+    plan.requestedQty,
+    plan.plannedQuantity,
+    plan.delivery_quantity,
+    plan.delivery_request_quantity,
+    plan.requested_quantity,
+    plan.delivery_qty,
+    plan.planned_quantity,
+    plan.quantity_mt,
+    plan.deliveryQuantityMt,
+    plan.requestedQuantityMt,
+    linkedRequest?.deliveryQuantity,
+    linkedRequest?.deliveryRequestQuantity,
+    linkedRequest?.requestedQuantity,
+    linkedRequest?.quantity,
+    linkedRequest?.delivery_quantity,
+    linkedRequest?.delivery_qty,
+    linkedRequest?.quantity_mt,
+  ];
+  return candidates.find((quantity) => {
+    if (quantity === undefined || quantity === null || quantity === "") return false;
+    const numericQuantity = typeof quantity === "number"
+      ? quantity
+      : Number(String(quantity).trim().match(/^\d+(?:\.\d+)?/)?.[0]);
+    return Number.isFinite(numericQuantity) && numericQuantity > 0;
+  })?.toString().match(/^\d+(?:\.\d+)?/)?.[0];
+};
 const waybillNumber = (plan) =>
   plan.waybillNo || `WBILL-${String(plan.id || "PLAN").slice(-8).toUpperCase()}`;
 const waybillUrl = (plan) =>
@@ -73,7 +119,27 @@ const downloadWaybill = async (plan) => {
 };
 const read = () => {
   try {
-    return JSON.parse(localStorage.getItem(KEY) || "[]");
+    const records = JSON.parse(localStorage.getItem(KEY) || "[]");
+    const safeRecords = Array.isArray(records) ? records : [];
+    let changed = false;
+    const normalized = safeRecords.map((record) => {
+      const confirmedQuantity =
+        CONFIRMED_QUANTITY_REPAIRS[record.requestNo] ||
+        CONFIRMED_QUANTITY_REPAIRS[record.loadingInstructionNo];
+      const resolvedQuantity = planQuantity(record) || confirmedQuantity;
+      if (resolvedQuantity === undefined || record.deliveryQuantity === resolvedQuantity) return record;
+      changed = true;
+      // Backfill the canonical field from an existing business value or an
+      // explicitly confirmed data repair for a known incomplete record.
+      return {
+        ...record,
+        deliveryQuantity: resolvedQuantity,
+        requestedQuantity: record.requestedQuantity || resolvedQuantity,
+        uom: record.uom || "MT",
+      };
+    });
+    if (changed) localStorage.setItem(KEY, JSON.stringify(normalized));
+    return normalized;
   } catch {
     return [];
   }
@@ -95,11 +161,11 @@ const status = (p) =>
                 ? "ASSIGNED"
                 : p.status === "DRAFT"
                   ? "DRAFT"
-                  : "PENDING LOGISTICS ASSIGNMENT";
-const Detail = ({ label, value: v }) => (
+                : "AWAITING LOGISTICS";
+const Detail = ({ label, value: v, pending = false }) => (
   <div>
     <span>{label}</span>
-    <strong>{value(v)}</strong>
+    <strong><DetailValue value={v} pending={pending} /></strong>
   </div>
 );
 const State = ({ label, done, value: v }) => (
@@ -145,13 +211,15 @@ function OperationForm({ action, plan, close, submit }) {
           loadingLine: plan.loadingLine || "",
           sourceStorage: plan.sourceStorage || "",
         }
-      : action === "load"
-        ? { actualLoadingQuantity: plan.actualLoadingQuantity || "" }
-        : action === "second"
+      : action === "arrival"
+        ? { tareWeight: plan.tareWeight || plan.emptyTareWeight || "" }
+        : action === "load"
+          ? { actualLoadingQuantity: plan.actualLoadingQuantity || "" }
+          : action === "exit"
       ? {
           grossWeight: plan.secondGrossWeight || plan.grossWeight || "",
-          tare: plan.tareWeight || plan.emptyTareWeight || "",
-          secondRemarks: "",
+          tare: plan.secondTareWeight || plan.tareWeight || plan.emptyTareWeight || "",
+          secondRemarks: plan.secondRemarks || "",
         }
       : action === "pre"
         ? {
@@ -185,6 +253,7 @@ function OperationForm({ action, plan, close, submit }) {
           }
       : { sampleReference: sample },
   );
+  const [validationError, setValidationError] = useState("");
   const [transporters, setTransporters] = useState([]);
   const [tanks, setTanks] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -308,44 +377,68 @@ function OperationForm({ action, plan, close, submit }) {
   );
   const checks = action === "pre" ? pre : post;
   const decisionField = action === "post" ? "postFinalStatus" : "finalStatus";
+  const deliveryQuantity = Number(planQuantity(plan) || 0);
+  const enteredLoadingQuantity = Number(data.actualLoadingQuantity || 0);
+  const loadingQuantityDifference = deliveryQuantity - enteredLoadingQuantity;
+  const tareWeight = Number(data.tare || 0);
+  const maximumGrossWeight = deliveryQuantity + tareWeight;
   const save = (e) => {
     e.preventDefault();
-    if (action === "assign" && (!data.transporter || !data.vehicle || !data.driver || !data.loadingBay))
-      return;
-    const plannedQuantity = Number(plan.remainingQuantity ?? plan.requestedQuantity ?? 0);
-    if (action === "load" && (Number(data.actualLoadingQuantity) <= 0 || (plannedQuantity > 0 && Number(data.actualLoadingQuantity) > plannedQuantity)))
-      return;
-    if (action === "second" && (Number(data.grossWeight) <= 0 || Number(data.tare) <= 0 || Number(data.grossWeight) < Number(data.tare)))
-      return;
+    const fail = (message) => {
+      setValidationError(message);
+    };
+    setValidationError("");
+    if (action === "assign" && (!data.transporter || !data.vehicle || !data.driver || !data.sourceStorage))
+      return fail("Select a transporter, vehicle, driver, and storage tank before saving.");
+    const plannedQuantity = Number(planQuantity(plan) ?? 0);
+    if (action === "load") {
+      const enteredQuantity = Number(data.actualLoadingQuantity);
+      if (plannedQuantity <= 0)
+        return fail("Delivery Quantity is not available for this Loading Plan.");
+      if (enteredQuantity <= 0)
+        return fail("Enter the Actual Loading Quantity.");
+      if (Math.abs(enteredQuantity - plannedQuantity) > 0.0001)
+        return fail(`Actual Loading Quantity must equal ${plannedQuantity.toFixed(2)} ${plan.uom || "MT"}.`);
+    }
+    if (action === "exit") {
+      const grossWeight = Number(data.grossWeight);
+      const tare = Number(data.tare);
+      if (grossWeight <= 0 || tare <= 0 || grossWeight < tare)
+        return fail("Enter valid weights. Gross Weight must be greater than or equal to Tare Weight.");
+      if (deliveryQuantity <= 0)
+        return fail("Delivery Quantity is not available for this Loading Plan.");
+      if (grossWeight > deliveryQuantity + tare + 0.0001)
+        return fail(`Gross Weight cannot exceed ${maximumGrossWeight.toFixed(3)} MT (Delivery Quantity ${deliveryQuantity.toFixed(3)} MT + Tare Weight ${tare.toFixed(3)} MT).`);
+    }
     if (
       action === "sample" &&
       ["ffa", "dobi", "moisture", "dirt"].some(
         (parameter) => data[parameter] === undefined || data[parameter] === "" || Number.isNaN(Number(data[parameter])),
       )
-    )
-      return;
+      )
+      return fail("Enter all required quality values.");
     if (action === "pre" && checks.some(([, n]) => data[n] !== "yes"))
-      return;
+      return fail("Complete all pre-loading checklist items.");
     if (action === "pre" && !data.finalStatus)
-      return;
+      return fail("Select the pre-loading checklist status.");
     if (
       action === "pre" &&
       data.finalStatus === "override" &&
       !data.preLoadingRemarks?.trim()
     )
-      return;
+      return fail("Add remarks when overriding the pre-loading checklist.");
     if (action === "post" && checks.some(([, n]) => data[n] !== "yes"))
-      return;
+      return fail("Complete all post-loading checklist items.");
     if (action === "post" && (data.sampleCollectedCheck !== "yes" || data.qualityTestingCheck !== "yes"))
-      return;
+      return fail("Complete the sample and quality testing checks.");
     if (action === "post" && (!plan.sampleCollectedAt || !plan.qualityReleased))
-      return;
+      return fail("Sample collection and quality release must be completed first.");
     if ((action === "pre" || action === "post") && !data[decisionField])
-      return;
+      return fail("Select the checklist decision.");
     if (action === "post" && data[decisionField] === "override" && !data.postLoadingRemarks?.trim())
-      return;
+      return fail("Add remarks when overriding the post-loading checklist.");
     if (action === "seal" && (!data.seals?.length || data.seals.some((seal) => !seal.sealNumber?.trim())))
-      return;
+      return fail("Enter at least one seal number.");
     submit(data);
   };
   const field = (label, name, type = "text", required = false) => (
@@ -363,9 +456,9 @@ function OperationForm({ action, plan, close, submit }) {
     </label>
   );
   return (
-    <div className={`loading-plan-form-overlay${action === "assign" ? " logistics-assignment-overlay" : ""}`}>
-      <form className={`loading-plan-operation-form${action === "assign" ? " logistics-assignment-drawer" : ""}`} onSubmit={save}>
-        <div className="master-form-head">
+    <div className={`loading-plan-form-overlay${action === "assign" ? " logistics-assignment-overlay" : action === "arrival" ? " vehicle-arrival-overlay" : action === "load" ? " loading-execution-overlay" : action === "sample" ? " sample-quality-overlay" : action === "seal" ? " seal-record-overlay" : action === "exit" ? " second-weighment-overlay" : ""}`}>
+      <form className={`loading-plan-operation-form${action === "assign" ? " logistics-assignment-drawer" : action === "arrival" ? " vehicle-arrival-drawer" : action === "load" ? " loading-execution-drawer" : action === "sample" ? " sample-quality-drawer" : action === "seal" ? " seal-record-drawer" : action === "exit" ? " second-weighment-drawer" : ""}`} onSubmit={save}>
+        <div className={`master-form-head${action === "arrival" ? " vehicle-arrival-header" : action === "load" ? " loading-execution-header" : action === "sample" ? " sample-quality-header" : action === "seal" ? " seal-record-header" : action === "exit" ? " second-weighment-header" : ""}`}>
           <div>
             <span>LOGISTICS / LOADING PLAN</span>
             <h2>
@@ -373,8 +466,8 @@ function OperationForm({ action, plan, close, submit }) {
                 ? "Logistics Assignment"
                 : action === "load"
                   ? "Loading Execution"
-                  : action === "empty"
-                ? "First Weighment · Empty Vehicle"
+                  : action === "arrival"
+                ? "Vehicle Arrival & First Weighment"
                 : action === "pre"
                   ? "Pre-Loading Checklist"
                   : action === "sample"
@@ -383,32 +476,31 @@ function OperationForm({ action, plan, close, submit }) {
                       ? "Record Seal"
                       : action === "post"
                         ? "Post-Loading Checklist"
-                        : "Second Weighment · Loaded Vehicle"}
+                        : action === "exit"
+                          ? "Second Weighment & Vehicle Exit"
+                          : "Loading Operation"}
             </h2>
-            <p>{plan.loadingInstructionNo || plan.requestNo}</p>
+            <ReferenceCode>{plan.loadingInstructionNo || plan.requestNo}</ReferenceCode>
           </div>
           <DrawerCloseButton onClick={close} label="Close logistics assignment" />{/*
             ×
           */}
         </div>
+        {validationError && <div className="form-error" role="alert">{validationError}</div>}
         {action === "assign" && (
-          <div className="loading-plan-assignment-form">
-            <section className="loading-plan-assignment-summary">
-              <div className="assignment-summary-heading"><span>Delivery Request</span><strong>{value(plan.requestNo)}</strong></div>
-              <div className="assignment-summary-grid">
-                <div><span>Customer / Consignee</span><strong>{value(plan.customerName)}</strong></div>
-                <div><span>Delivery Destination</span><strong>{value(plan.deliveryLocation || plan.millLocationGate, "Mill Gate")}</strong></div>
-                <div><span>Delivery Date</span><strong>{value(plan.deliveryDate)}</strong></div>
-                <div className="required-summary"><span>Requested Quantity</span><strong>{value(plan.requestedQuantity)} {value(plan.uom, "MT")}</strong><small>Product: {value(plan.product)}</small></div>
-              </div>
-            </section>
-            <section className="loading-plan-assignment-section">
-              <div className="loading-plan-assignment-heading"><h3>Transporter Assignment</h3><span>Logistics controlled fields</span></div>
+          <div className="loading-plan-assignment-form logistics-assignment-form">
+            <ReadOnlySummary title="Delivery Request" reference={plan.requestNo} className="logistics-assignment-summary">
+              <ReadOnlyField label="Customer / Consignee" value={plan.customerName} pending={!plan.customerName} />
+              <ReadOnlyField label="Delivery Destination" value={plan.deliveryLocation || plan.millLocationGate || "Mill Gate"} />
+              <ReadOnlyField label="Delivery Date" value={formatDate(plan.deliveryDate)} pending={!plan.deliveryDate} />
+              <ReadOnlyField label="Delivery Quantity" value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || "MT"}` : undefined} pending={!planQuantity(plan)} meta={plan.product ? `Product: ${plan.product}` : undefined} emphasis />
+            </ReadOnlySummary>
+            <section className="loading-plan-assignment-section logistics-assignment-entry">
+              <div className="loading-plan-assignment-heading"><h3>Transporter Assignment</h3><span>Required before vehicle arrival</span></div>
               <div className="loading-plan-operation-fields">
                 <label className="assignment-transporter"><span>Transporter Company<em>*</em></span><select value={data.transporter || ""} onChange={(e) => set("transporter", e.target.value)} required><option value="">Select transporter...</option>{transporters.filter((item) => String(item.status || "Active").toLowerCase() === "active").map((item) => <option key={item.id} value={item.companyName || item.tradingName}>{item.companyName || item.tradingName}</option>)}</select></label>
                 <label><span>Vehicle<em>*</em></span><select value={data.vehicle || ""} onChange={(e) => set("vehicle", e.target.value)} required disabled={!data.transporter}><option value="">Select vehicle...</option>{availableVehicles.map((item) => <option key={item.id} value={item.registration_no}>{item.registration_no} · {item.vehicle_type}</option>)}</select></label>
                 <label><span>Driver<em>*</em></span><select value={data.driver || ""} onChange={(e) => set("driver", e.target.value)} required disabled={!data.transporter}><option value="">Select driver...</option>{availableDrivers.map((item) => <option key={item.id} value={item.name}>{item.name} · {item.license_no}</option>)}</select></label>
-                <label><span>Loading Bay<em>*</em></span><select value={data.loadingBay || ""} onChange={(e) => set("loadingBay", e.target.value)} required><option value="">Select loading bay...</option><option>Loading Bay 01</option><option>Loading Bay 02</option></select></label>
                 <label><span>Storage Tank<em>*</em></span><select value={data.sourceStorage || ""} onChange={(e) => set("sourceStorage", e.target.value)} required><option value="">Select tank...</option>{tanks.filter((tank) => tank.active !== false && tank.name !== "Palm Kernel Tank 01").map((tank) => <option key={tank.id} value={tank.name || tank.code}>{tank.name || tank.code} · {tank.compatibleMaterial || "Configured material"}</option>)}</select></label>
               </div>
               {plan.loadingInstructions && <div className="assignment-instructions"><span>Special Loading Instructions</span><p>{plan.loadingInstructions}</p></div>}
@@ -416,13 +508,42 @@ function OperationForm({ action, plan, close, submit }) {
           </div>
         )}
         {action === "load" && (
-          <div className="loading-plan-operation-fields">
-            <p className="readonly-operation-field">Planned Quantity: {value(plan.requestedQuantity)} {value(plan.uom, "MT")} · Remaining: {value(plan.remainingQuantity ?? plan.requestedQuantity)} {value(plan.uom, "MT")}</p>
-            {field("Actual Loading Quantity (MT)", "actualLoadingQuantity", "number", true)}
-            <p className="loading-plan-calculation">Remaining after this execution: {Math.max(0, Number(plan.remainingQuantity ?? plan.requestedQuantity ?? 0) - Number(data.actualLoadingQuantity || 0)).toFixed(3)} MT</p>
+          <div className="loading-execution-form">
+            <ReadOnlySummary title="Loading Plan" reference={plan.requestNo} className="loading-execution-summary">
+              <ReadOnlyField label="Loading Plan No." value={plan.loadingInstructionNo} pending={!plan.loadingInstructionNo} />
+              <ReadOnlyField label="Customer / Consignee" value={plan.customerName} pending={!plan.customerName} />
+              <ReadOnlyField label="Product" value={plan.product} pending={!plan.product} />
+              <ReadOnlyField label="Delivery Quantity" value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || "MT"}` : undefined} pending={!planQuantity(plan)} emphasis />
+              <ReadOnlyField label="Transporter" value={plan.transporter} pending={!plan.transporter} />
+              <ReadOnlyField label="Storage Tank" value={plan.sourceStorage} pending={!plan.sourceStorage} />
+              <ReadOnlyField label="Vehicle" value={plan.vehicle} pending={!plan.vehicle} />
+              <ReadOnlyField label="Driver" value={plan.driver} pending={!plan.driver} />
+            </ReadOnlySummary>
+            <section className="loading-execution-weight-overview">
+              <div className="loading-execution-section-heading"><h3>Weight Overview</h3><span>Recorded weighbridge values</span></div>
+              <div className="loading-execution-weight-cards">
+                <div><span>Gross Weight (MT)</span><strong>{plan.grossWeight ? Number(plan.grossWeight).toFixed(3) : "Pending"}</strong><small>{plan.grossWeight ? "Recorded" : "Awaiting reading"}</small></div>
+                <div className="tare"><span>Tare Weight (MT)</span><strong>{plan.tareWeight || plan.emptyTareWeight ? Number(plan.tareWeight || plan.emptyTareWeight).toFixed(3) : "Pending"}</strong><small>{plan.tareWeight || plan.emptyTareWeight ? "First weighment" : "Awaiting reading"}</small></div>
+                <div className="net"><span>Net Weight (MT)</span><strong>{plan.netWeight ? Number(plan.netWeight).toFixed(3) : "Pending"}</strong><small>{plan.netWeight ? "Certified balance" : "Awaiting tare"}</small></div>
+              </div>
+            </section>
+            <section className="loading-execution-entry">
+              <div className="loading-execution-section-heading"><h3>Loading Quantity Entry</h3><span>Operational quantity</span></div>
+              <label className="loading-execution-quantity-label">
+              <span>Actual Loading Quantity (MT)<em>*</em></span>
+              <QuantityInput min="0.01" decimals={2} required value={data.actualLoadingQuantity || ""} onChange={(event) => set("actualLoadingQuantity", event.target.value)} />
+            </label>
+            <p className={`loading-plan-calculation${enteredLoadingQuantity > 0 && Math.abs(loadingQuantityDifference) < 0.0001 ? " loading-plan-calculation-valid" : ""}`}>
+              {enteredLoadingQuantity > 0
+                ? Math.abs(loadingQuantityDifference) < 0.0001
+                  ? `Entered quantity matches the Delivery Quantity: ${enteredLoadingQuantity.toFixed(2)} ${value(plan.uom, "MT")}`
+                  : `Entered: ${enteredLoadingQuantity.toFixed(2)} ${value(plan.uom, "MT")} · Difference to Delivery Quantity: ${Math.abs(loadingQuantityDifference).toFixed(2)} ${value(plan.uom, "MT")}`
+                : `Delivery Quantity: ${value(planQuantity(plan))} ${value(plan.uom, "MT")}`}
+            </p>
+            </section>
           </div>
         )}
-        {action === "empty" && (
+        {action === "arrival" && (
           <div className="loading-plan-weighment-form">
             <section className="loading-plan-assignment-summary">
               <div className="assignment-summary-heading"><span>Loading Plan Reference</span><strong>{value(plan.loadingInstructionNo || plan.requestNo)}</strong></div>
@@ -430,39 +551,48 @@ function OperationForm({ action, plan, close, submit }) {
                 <div className="loading-plan-summary-group">
                   <h4>Delivery Context</h4>
                   <div className="assignment-summary-grid">
-                    <div><span>Delivery Request</span><strong>{value(plan.requestNo)}</strong></div>
-                    <div><span>Customer</span><strong>{value(plan.customerName)}</strong></div>
-                    <div><span>Delivery Date</span><strong>{value(plan.deliveryDate)}</strong></div>
+                    <ReadOnlyField label="Delivery Request" value={plan.requestNo} pending={!plan.requestNo} />
+                    <ReadOnlyField label="Customer" value={plan.customerName} pending={!plan.customerName} />
+                    <ReadOnlyField label="Delivery Date" value={formatDate(plan.deliveryDate)} pending={!plan.deliveryDate} />
                   </div>
                 </div>
                 <div className="loading-plan-summary-group">
                   <h4>Loading Plan</h4>
                   <div className="assignment-summary-grid">
-                    <div><span>Product</span><strong>{value(plan.product)}</strong></div>
-                    <div className="required-summary"><span>Planned Quantity</span><strong>{value(plan.requestedQuantity)} {value(plan.uom, "MT")}</strong></div>
-                    <div><span>Loading Bay</span><strong>{value(plan.loadingBay)}</strong></div>
-                    <div><span>Storage Tank</span><strong>{value(plan.sourceStorage)}</strong></div>
+                    <ReadOnlyField label="Product" value={plan.product} pending={!plan.product} />
+                    <ReadOnlyField label="Delivery Quantity" value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || "MT"}` : undefined} pending={!planQuantity(plan)} emphasis />
+                    <ReadOnlyField label="Storage Tank" value={plan.sourceStorage} pending={!plan.sourceStorage} />
                   </div>
                 </div>
                 <div className="loading-plan-summary-group">
                   <h4>Transport Assignment</h4>
                   <div className="assignment-summary-grid">
-                    <div><span>Transporter</span><strong>{value(plan.transporter)}</strong></div>
-                    <div><span>Vehicle</span><strong>{value(plan.vehicle)}</strong></div>
-                    <div><span>Driver</span><strong>{value(plan.driver)}</strong></div>
+                    <ReadOnlyField label="Transporter" value={plan.transporter} pending={!plan.transporter} />
+                    <ReadOnlyField label="Vehicle" value={plan.vehicle} pending={!plan.vehicle} />
+                    <ReadOnlyField label="Driver" value={plan.driver} pending={!plan.driver} />
                   </div>
                 </div>
               </div>
             </section>
             <section className="loading-plan-weighment-entry">
-              <div className="loading-plan-assignment-heading"><h3>First Weighment · Empty Vehicle</h3><span>Weighbridge entry</span></div>
+              <div className="loading-plan-assignment-heading"><h3>Vehicle Arrival &amp; First Weighment</h3><span>Weighbridge entry</span></div>
               <p className="readonly-operation-field">Weighbridge Ticket No.: {ticket} · System generated / readonly</p>
               <div className="loading-plan-operation-fields">{field("Tare Weight (MT)", "tareWeight", "number", true)}</div>
             </section>
           </div>
         )}
-        {action === "second" && (
+        {action === "exit" && (
           <div className="second-weighment-form">
+            <ReadOnlySummary title="Second Weighment & Vehicle Exit" reference={plan.requestNo || plan.loadingInstructionNo} className="second-weighment-summary">
+              <ReadOnlyField label="Loading Plan No." value={plan.loadingInstructionNo} pending={!plan.loadingInstructionNo} />
+              <ReadOnlyField label="Weighbridge Ticket" value={ticket} />
+              <ReadOnlyField label="Customer / Consignee" value={plan.customerName} pending={!plan.customerName} />
+              <ReadOnlyField label="Product" value={plan.product} pending={!plan.product} />
+              <ReadOnlyField label="Delivery Quantity" value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || "MT"}` : undefined} pending={!planQuantity(plan)} emphasis />
+              <ReadOnlyField label="Vehicle" value={plan.vehicle} pending={!plan.vehicle} />
+              <ReadOnlyField label="Driver" value={plan.driver} pending={!plan.driver} />
+              <ReadOnlyField label="Storage Tank" value={plan.sourceStorage} pending={!plan.sourceStorage} />
+            </ReadOnlySummary>
             <section className="sample-quality-context">
               <div className="sample-quality-section-heading"><div><h3>Ticket &amp; Logistics Details</h3><p>Confirm the dispatch vehicle and weighbridge reference before recording the loaded reading.</p></div><span>Second weighing</span></div>
               <div className="sample-quality-context-grid">
@@ -483,6 +613,9 @@ function OperationForm({ action, plan, close, submit }) {
             <section className="sample-quality-section second-weighment-entry">
               <div className="sample-quality-section-heading"><div><h3>Second Weighment Entry</h3><p>Enter the loaded vehicle gross reading. Tare is carried forward from the first weighment.</p></div></div>
               <label><span>Gross Weight (MT) <em>*</em></span><input type="number" min="0" step="0.001" value={data.grossWeight || ""} onChange={(event) => set("grossWeight", event.target.value)} required placeholder="0.000" /></label>
+              {data.grossWeight && data.tare && deliveryQuantity > 0 && Number(data.grossWeight) > maximumGrossWeight && (
+                <p className="form-error" role="alert">Gross Weight cannot exceed {maximumGrossWeight.toFixed(3)} MT (Delivery Quantity + Tare Weight).</p>
+              )}
               <p className="second-weight-help">Net Weight = Gross Weight − First Tare Weight. The certified net weight will be locked after saving.</p>
               <label><span>Remarks</span><textarea value={data.secondRemarks || ""} onChange={(event) => set("secondRemarks", event.target.value)} rows="3" placeholder="Add vehicle exit notes, exceptions, or observations..." /></label>
               <label><span>Attachments <small>(Optional · multiple image or PDF files)</small></span><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => uploadDocuments(event.target.files, "secondAttachments")} /></label>
@@ -496,7 +629,7 @@ function OperationForm({ action, plan, close, submit }) {
                 <div><span>Vehicle</span><strong>{value(plan.vehicle)}</strong></div>
                 <div><span>Transporter</span><strong>{value(plan.transporter)}</strong></div>
                 <div><span>Product</span><strong>{value(plan.product)}</strong></div>
-                <div><span>Planned Qty</span><strong>{value(plan.requestedQuantity)} {value(plan.uom, "MT")}</strong></div>
+                <div><span>Delivery Qty</span><strong>{value(planQuantity(plan))} {value(plan.uom, "MT")}</strong></div>
                 <div><span>Source Tank</span><strong>{value(plan.sourceStorage)}</strong></div>
                 <div><span>Loading Bay</span><strong>{value(plan.loadingBay)}</strong></div>
                 <div><span>Tare Weight</span><strong>{plan.tareWeight ? `${Number(plan.tareWeight).toFixed(3)} MT` : "Pending"}</strong></div>
@@ -555,7 +688,7 @@ function OperationForm({ action, plan, close, submit }) {
                 <div><span>Vehicle</span><strong>{value(plan.vehicle)}</strong></div>
                 <div><span>Transporter</span><strong>{value(plan.transporter)}</strong></div>
                 <div><span>Product</span><strong>{value(plan.product)}</strong></div>
-                <div><span>Loaded Qty</span><strong>{value(plan.loadedQuantity || plan.requestedQuantity)} {value(plan.uom, "MT")}</strong></div>
+                <div><span>Loaded Qty</span><strong>{value(plan.loadedQuantity || planQuantity(plan))} {value(plan.uom, "MT")}</strong></div>
                 <div><span>Loading Bay</span><strong>{value(plan.loadingBay)}</strong></div>
                 <div><span>Storage Tank</span><strong>{value(plan.sourceStorage)}</strong></div>
                 <div><span>Seal Status</span><strong className="preloading-qc-status">{plan.sealRecordedAt ? "Recorded" : "Pending"}</strong></div>
@@ -609,41 +742,54 @@ function OperationForm({ action, plan, close, submit }) {
         )}
         {action === "sample" && (
           <div className="sample-quality-form">
-            <section className="sample-quality-context">
-              <div className="sample-quality-section-heading">
-                <div><h3>Loading &amp; Sample Details</h3><p>Confirm the dispatch sample and record the laboratory quality result.</p></div>
-                <span>Quality inspection</span>
-              </div>
-              <div className="sample-quality-context-grid">
-                <div><span>Loading Plan</span><strong>{value(plan.loadingInstructionNo || plan.requestNo)}</strong></div>
-                <div><span>Product</span><strong>{value(plan.product)}</strong></div>
-                <div><span>Vehicle</span><strong>{value(plan.vehicle)}</strong></div>
-                <div><span>Storage Tank</span><strong>{value(plan.sourceStorage)}</strong></div>
-              </div>
+            <ReadOnlySummary title="Loading & Sample Details" reference={plan.requestNo || plan.loadingInstructionNo} className="sample-quality-summary">
+              <ReadOnlyField label="Loading Plan No." value={plan.loadingInstructionNo} pending={!plan.loadingInstructionNo} />
+              <ReadOnlyField label="Customer / Consignee" value={plan.customerName} pending={!plan.customerName} />
+              <ReadOnlyField label="Product" value={plan.product} pending={!plan.product} />
+              <ReadOnlyField label="Delivery Quantity" value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || "MT"}` : undefined} pending={!planQuantity(plan)} emphasis />
+              <ReadOnlyField label="Vehicle" value={plan.vehicle} pending={!plan.vehicle} />
+              <ReadOnlyField label="Driver" value={plan.driver} pending={!plan.driver} />
+              <ReadOnlyField label="Storage Tank" value={plan.sourceStorage} pending={!plan.sourceStorage} />
+              <ReadOnlyField label="Loaded Quantity" value={plan.loadedQuantity ? `${plan.loadedQuantity} ${plan.uom || "MT"}` : undefined} pending={!plan.loadedQuantity} />
+            </ReadOnlySummary>
+            <section className="sample-quality-section sample-quality-entry">
+              <div className="sample-quality-section-heading"><div><h3>Sample Collection</h3><p>Confirm the system-generated sample reference before recording quality.</p></div><span>Required</span></div>
+              <ReadOnlyField label="Sample Reference" value={sample} emphasis />
             </section>
-            <section className="sample-quality-section">
-              <div className="sample-quality-section-heading"><div><h3>Sample Collection</h3><p>Sample reference is generated by the system.</p></div></div>
-              <label className="sample-quality-readonly"><span>Sample Reference</span><input value={sample} readOnly /></label>
-            </section>
-            <section className="sample-quality-section">
+            <section className="sample-quality-section sample-quality-entry">
               <div className="sample-quality-section-heading"><div><h3>Quality Parameters</h3><p>Enter the measured values from the laboratory result.</p></div><span className="sample-quality-required">All fields mandatory</span></div>
               <div className="sample-quality-parameter-grid">
-                {field("FFA", "ffa", "number", true)}
-                {field("DOBI", "dobi", "number", true)}
-                {field("Moisture", "moisture", "number", true)}
-                {field("Dirt", "dirt", "number", true)}
+                {[["FFA", "ffa"], ["DOBI", "dobi"], ["Moisture", "moisture"], ["Dirt", "dirt"]].map(([label, name]) => (
+                  <FormField key={name} label={label} required>
+                    <NumberInput name={name} min="0" step="0.001" required value={data[name] || ""} onChange={(event) => set(name, event.target.value)} placeholder="0.000" />
+                  </FormField>
+                ))}
               </div>
             </section>
-            <section className="sample-quality-section sample-quality-notes">
+            <section className="sample-quality-section sample-quality-entry sample-quality-notes">
               <div className="sample-quality-section-heading"><div><h3>Remarks &amp; Attachments</h3><p>Attach the laboratory report or supporting quality evidence.</p></div></div>
-              <label><span>Remarks</span><textarea value={data.qualityRemarks || ""} onChange={(event) => set("qualityRemarks", event.target.value)} rows="3" placeholder="Add quality observations or release notes..." /></label>
-              <label><span>Attachment</span><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => uploadDocuments(event.target.files, "qualityAttachments")} /></label>
+              <FormField label="Remarks" hint="Optional">
+                <textarea value={data.qualityRemarks || ""} onChange={(event) => set("qualityRemarks", event.target.value)} rows="4" placeholder="Add quality observations or release notes..." />
+              </FormField>
+              <FormField label="Attachment" hint="Optional · PDF or image">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => uploadDocuments(event.target.files, "qualityAttachments")} />
+              </FormField>
             </section>
           </div>
         )}
         {action === "seal" && (
           <div className="seal-record-form">
-            <section className="sample-quality-section">
+            <ReadOnlySummary title="Loading & Seal Details" reference={plan.requestNo || plan.loadingInstructionNo} className="sample-quality-summary">
+              <ReadOnlyField label="Loading Plan No." value={plan.loadingInstructionNo} pending={!plan.loadingInstructionNo} />
+              <ReadOnlyField label="Customer / Consignee" value={plan.customerName} pending={!plan.customerName} />
+              <ReadOnlyField label="Product" value={plan.product} pending={!plan.product} />
+              <ReadOnlyField label="Delivery Quantity" value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || "MT"}` : undefined} pending={!planQuantity(plan)} emphasis />
+              <ReadOnlyField label="Vehicle" value={plan.vehicle} pending={!plan.vehicle} />
+              <ReadOnlyField label="Driver" value={plan.driver} pending={!plan.driver} />
+              <ReadOnlyField label="Storage Tank" value={plan.sourceStorage} pending={!plan.sourceStorage} />
+              <ReadOnlyField label="Loaded Quantity" value={plan.loadedQuantity ? `${plan.loadedQuantity} ${plan.uom || "MT"}` : undefined} pending={!plan.loadedQuantity} />
+            </ReadOnlySummary>
+            <section className="sample-quality-section sample-quality-entry">
               <div className="sample-quality-section-heading">
                 <div><h3>Seal Registration</h3><p>Record every seal fitted to the vehicle before dispatch.</p></div>
                 <span className="sample-quality-required">At least one required</span>
@@ -651,16 +797,20 @@ function OperationForm({ action, plan, close, submit }) {
               <div className="seal-record-list">
                 {data.seals.map((seal, index) => (
                   <div className="seal-record-row" key={`seal-${index}`}>
-                    <label><span>Seal Number {index + 1} <em>*</em></span><input value={seal.sealNumber || ""} onChange={(event) => updateSeal(index, event.target.value)} placeholder="Enter seal number" required /></label>
+                    <FormField label={`Seal Number ${index + 1}`} required>
+                      <input value={seal.sealNumber || ""} onChange={(event) => updateSeal(index, event.target.value)} placeholder="Enter seal number" required />
+                    </FormField>
                     <button type="button" className="btn btn-secondary" onClick={() => removeSeal(index)} disabled={data.seals.length === 1}>Remove</button>
                   </div>
                 ))}
               </div>
               <button type="button" className="btn btn-secondary seal-add-button" onClick={addSeal}>+ Add another seal</button>
             </section>
-            <section className="sample-quality-section sample-quality-notes">
+            <section className="sample-quality-section sample-quality-entry sample-quality-notes">
               <div className="sample-quality-section-heading"><div><h3>Seal Remarks</h3><p>Add any seal condition or dispatch observation.</p></div></div>
-              <label><span>Remarks</span><textarea value={data.sealRemarks || ""} onChange={(event) => set("sealRemarks", event.target.value)} rows="3" placeholder="Add seal remarks or observations..." /></label>
+              <FormField label="Remarks" hint="Optional">
+                <textarea value={data.sealRemarks || ""} onChange={(event) => set("sealRemarks", event.target.value)} rows="4" placeholder="Add seal remarks or observations..." />
+              </FormField>
             </section>
           </div>
         )}
@@ -693,33 +843,7 @@ function LoadingPlanDetails({ plan, close, act }) {
   const [tab, setTab] = useState("overview");
   const [actionsOpen, setActionsOpen] = useState(false);
   const [attachmentViewer, setAttachmentViewer] = useState(null);
-  const next = !plan.transporter
-    ? ["assign", "Assign Logistics"]
-    : !plan.vehicleArrivedAt
-    ? ["arrival", "Confirm Vehicle Arrival"]
-    : !plan.emptyWeighmentAt
-      ? ["empty", "First Weighment · Empty Vehicle"]
-      : !plan.preLoadingChecklistAt
-        ? ["pre", "Pre-Loading Checklist"]
-        : !plan.atLoadingBayAt
-          ? ["bay", "Proceed to Loading Bay"]
-            : !plan.loadingStartedAt
-            ? ["start", "Start Loading"]
-            : !plan.loadingCompletedAt || Number(plan.remainingQuantity ?? plan.requestedQuantity ?? 0) > 0
-            ? ["load", "Record Loading Complete"]
-            : !plan.sampleCollectedAt
-              ? ["sample", "Sample Collection / Quality"]
-              : !plan.qualityReleased
-                ? ["sample", "Sample Collection / Quality"]
-                : !plan.sealRecordedAt
-                  ? ["seal", "Record Seal Number"]
-                  : !plan.postLoadingChecklistAt
-                    ? ["post", "Post-Loading Checklist"]
-                    : !plan.secondWeighmentAt
-                      ? ["second", "Second Weighment · Tare"]
-                      : !plan.vehicleExitAt
-                        ? ["exit", "Vehicle Exit"]
-                        : [null, "Completed"];
+  const next = getLoadingPlanNextAction(plan);
   const run = (action, data = {}) => {
     setActionsOpen(false);
     setForm(null);
@@ -734,19 +858,13 @@ function LoadingPlanDetails({ plan, close, act }) {
       ? [{ key: "assign", label: next[1], onClick: () => openForm("assign") }]
       : []),
     ...(next[0] === "arrival"
-      ? [{ key: "arrival", label: next[1], onClick: () => run("arrival") }]
+      ? [{ key: "arrival", label: next[1], onClick: () => openForm("arrival") }]
       : []),
-    ...(["empty", "pre", "sample", "seal", "post", "second", "load"].includes(next[0])
+    ...(["pre", "sample", "seal", "post", "exit", "load"].includes(next[0])
       ? [{ key: next[0], label: next[1], onClick: () => openForm(next[0]) }]
-      : []),
-    ...(next[0] === "bay"
-      ? [{ key: "bay", label: next[1], onClick: () => run("bay") }]
       : []),
     ...(next[0] === "start"
       ? [{ key: "start", label: next[1], onClick: () => run("start") }]
-      : []),
-    ...(next[0] === "exit"
-      ? [{ key: "exit", label: next[1], onClick: () => run("exit") }]
       : []),
     ...(!plan.vehicleArrivedAt && status(plan) !== "COMPLETED" && status(plan) !== "CANCELLED"
       ? [{ key: "cancel", label: "Cancel Loading Plan", danger: true, onClick: () => run("cancel") }]
@@ -755,7 +873,7 @@ function LoadingPlanDetails({ plan, close, act }) {
   const activities = (plan.auditEvents?.length ? plan.auditEvents : [
     { action: "created the loading plan", at: plan.createdAt || plan.created_at, actor: "System" },
   ]).map((event) => ({
-    date: event.at ? new Date(event.at).toISOString().slice(0, 10) : plan.deliveryDate,
+    date: event.at ? formatDate(event.at) : formatDate(plan.deliveryDate),
     time: event.at ? new Date(event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
     user: event.actor || "System User",
     role: "Logistics User",
@@ -821,94 +939,43 @@ function LoadingPlanDetails({ plan, close, act }) {
           <div className="loading-plan-detail-grid">
             <Detail label="Delivery Request" value={plan.requestNo} />
             <Detail label="Customer" value={plan.customerName} />
-            <Detail label="Delivery Date" value={plan.deliveryDate} />
+            <Detail label="Delivery Date" value={formatDate(plan.deliveryDate)} />
             <Detail label="Product" value={plan.product} />
             <Detail
               label="Quantity"
-              value={`${value(plan.requestedQuantity)} ${value(plan.uom, "")}`}
+              value={planQuantity(plan) ? `${planQuantity(plan)} ${plan.uom || ""}`.trim() : undefined}
             />
-            <Detail
-              label="Remaining Quantity"
-              value={`${value(plan.remainingQuantity ?? plan.requestedQuantity)} ${value(plan.uom, "")}`}
-            />
-            <Detail label="Transporter" value={plan.transporter} />
-            <Detail
-              label="Vehicle / Driver"
-              value={`${value(plan.vehicle)} / ${value(plan.driver)}`}
-            />
-            <Detail label="Source Tank / Silo" value={plan.sourceStorage} />
-            <Detail label="Loading Bay" value={plan.loadingBay} />
-            <Detail label="Tank" value={plan.sourceStorage} />
+            <Detail label="Transporter" value={plan.transporter} pending={!plan.transporter} />
+            <Detail label="Vehicle" value={plan.vehicle} pending={!plan.transporter || !plan.vehicle} />
+            <Detail label="Driver" value={plan.driver} pending={!plan.transporter || !plan.driver} />
+            <Detail label="Loading Bay" value={plan.loadingBay} pending={!plan.loadingBay} />
+            <Detail label="Tank" value={plan.sourceStorage} pending={!plan.sourceStorage} />
             <Detail label="Instructions" value={plan.loadingInstructions} />
           </div>
         </section>
         <section hidden={tab !== "overview"} className="loading-plan-detail-section">
           <h3>Loading Execution</h3>
           <div className="loading-plan-detail-grid">
-            <Detail label="Loaded Quantity" value={`${value(plan.loadedQuantity, "0")} ${value(plan.uom, "")}`} />
+            <Detail label="Loaded Quantity" value={plan.loadedQuantity !== undefined && plan.loadedQuantity !== null ? `${plan.loadedQuantity} ${plan.uom || ""}`.trim() : undefined} pending={!plan.loadingCompletedAt} />
             <Detail label="Execution Entries" value={plan.loadingExecutions?.length || 0} />
-            <Detail label="Quality Release Status" value={plan.qualityReleased ? "Released" : "Pending"} />
+            <Detail label="Quality Release Status" value={plan.qualityReleased ? "Released" : undefined} pending={!plan.qualityReleased} />
           </div>
         </section>
         <section className="loading-plan-detail-section loading-plan-execution-timeline">
           <h3>Execution Record</h3>
           <div className="loading-plan-checklist">
-            <State
-              label="Vehicle arrival"
-              done={Boolean(plan.vehicleArrivedAt)}
-              value={value(
-                plan.vehicleArrivedAt
-                  ? new Date(plan.vehicleArrivedAt).toLocaleString()
-                  : "Pending",
-              )}
-            />
-            <State
-              label="First weighment"
-              done={Boolean(plan.emptyWeighmentAt)}
-              value={
-                plan.emptyWeighmentAt
-                  ? `${value(plan.emptyWeighbridgeTicket)} · ${value(plan.tareWeight)} MT tare`
-                  : "Pending"
-              }
-            />
-            <State
-              label="Pre-loading checklist"
-              done={Boolean(plan.preLoadingChecklistAt)}
-              value={plan.preLoadingChecklistAt ? `${String(plan.finalStatus || "Completed").toUpperCase()}${plan.finalStatusRemarks ? ` · ${plan.finalStatusRemarks}` : ""}` : "Pending"}
-            />
-            <State
-              label="Loading / sample / seal"
-              done={Boolean(plan.sealRecordedAt || plan.sealNumbers)}
-              value={plan.sealRecordedAt ? (plan.seals || []).map((seal) => seal.sealNumber).join(", ") || value(plan.sealNumbers, "Recorded") : "Pending"}
-            />
-            <State
-              label="Post-loading checklist"
-              done={Boolean(plan.postLoadingChecklistAt)}
-              value={plan.postLoadingChecklistAt ? "Completed" : "Pending"}
-            />
-            <State
-              label="Second weighment"
-              done={Boolean(plan.secondWeighmentAt)}
-              value={
-                plan.secondWeighmentAt
-                  ? `${value(plan.grossWeight)} gross · ${value(plan.secondTareWeight)} tare · ${value(plan.netWeight)} net`
-                  : "Pending"
-              }
-            />
-            <State
-              label="Vehicle exit"
-              done={Boolean(plan.vehicleExitAt)}
-              value={plan.vehicleExitAt ? "Completed" : "Pending"}
-            />
+            {getLoadingPlanExecutionSteps(plan).map((step) => (
+              <State key={step.key} label={step.label} done={step.done} value={step.value} />
+            ))}
           </div>
         </section>
         <section hidden={tab !== "weighment"} className="loading-plan-detail-section">
           <h3>Weighment Details</h3>
           <div className="loading-plan-detail-grid">
             <Detail label="Weighbridge Ticket" value={plan.emptyWeighbridgeTicket || plan.weighbridgeTicket} />
-            <Detail label="First Tare Weight" value={plan.tareWeight ? `${plan.tareWeight} MT` : "Pending"} />
-            <Detail label="Loaded Gross Weight" value={plan.grossWeight ? `${plan.grossWeight} MT` : "Pending"} />
-            <Detail label="Certified Net Weight" value={plan.netWeight ? `${plan.netWeight} MT` : "Pending"} />
+            <Detail label="First Tare Weight" value={plan.tareWeight ? `${plan.tareWeight} MT` : undefined} pending={!plan.tareWeight} />
+            <Detail label="Loaded Gross Weight" value={plan.grossWeight ? `${plan.grossWeight} MT` : undefined} pending={!plan.grossWeight} />
+            <Detail label="Certified Net Weight" value={plan.netWeight ? `${plan.netWeight} MT` : undefined} pending={!plan.netWeight} />
             <Detail label="Second Weighment Remarks" value={plan.secondRemarks} />
           </div>
         </section>
@@ -926,7 +993,7 @@ function LoadingPlanDetails({ plan, close, act }) {
         </section>
         <section hidden={tab !== "weighment"} className="loading-plan-detail-section">
           <h3>Second Weighment Inputs</h3>
-          <div className="loading-plan-detail-grid"><Detail label="Gross Weight Entered" value={plan.grossWeight ? `${plan.grossWeight} MT` : "Pending"} /><Detail label="Tare From First Weighment" value={plan.tareWeight ? `${plan.tareWeight} MT` : "Pending"} /><Detail label="Net Weight Calculated" value={plan.netWeight ? `${plan.netWeight} MT` : "Pending"} /><Detail label="Remarks" value={plan.secondRemarks} /></div>
+          <div className="loading-plan-detail-grid"><Detail label="Gross Weight Entered" value={plan.grossWeight ? `${plan.grossWeight} MT` : undefined} pending={!plan.secondWeighmentAt} /><Detail label="Tare From First Weighment" value={plan.tareWeight ? `${plan.tareWeight} MT` : undefined} pending={!plan.secondWeighmentAt} /><Detail label="Net Weight Calculated" value={plan.netWeight ? `${plan.netWeight} MT` : undefined} pending={!plan.secondWeighmentAt} /><Detail label="Remarks" value={plan.secondRemarks} /></div>
           {plan.secondAttachments?.length ? <div className="loading-plan-document-list">{plan.secondAttachments.map((file, index) => <a href={file.data} target="_blank" rel="noreferrer" download={file.name} key={`${file.name}-${index}`}>{file.name}</a>)}</div> : <p className="muted">No second-weighment attachments uploaded.</p>}
         </section>
         {plan.secondWeighmentAt && <section hidden={tab !== "dispatch"} className="loading-plan-detail-section waybill-detail-section">
@@ -1042,15 +1109,7 @@ function LoadingPlanDetails({ plan, close, act }) {
                 Assign Transporter &amp; Vehicle
               </button>
             )}
-            {next[0] === "arrival" && (
-              <button
-                className="btn btn-primary"
-                onClick={() => run("arrival")}
-              >
-                Confirm Vehicle Arrival
-              </button>
-            )}
-            {["empty", "pre", "sample", "seal", "post", "second", "load"].includes(
+            {["arrival", "pre", "sample", "seal", "post", "exit", "load"].includes(
               next[0],
             ) && (
               <button
@@ -1060,19 +1119,9 @@ function LoadingPlanDetails({ plan, close, act }) {
                 {next[1]}
               </button>
             )}
-            {next[0] === "bay" && (
-              <button className="btn btn-primary" onClick={() => run("bay")}>
-                Proceed to Loading Bay
-              </button>
-            )}
             {next[0] === "start" && (
               <button className="btn btn-primary" onClick={() => run("start")}>
                 Start Loading
-              </button>
-            )}
-            {next[0] === "exit" && (
-              <button className="btn btn-primary" onClick={() => run("exit")}>
-                Vehicle Exit
               </button>
             )}
             {!plan.vehicleArrivedAt &&
@@ -1108,6 +1157,8 @@ function LoadingPlanDetails({ plan, close, act }) {
 export function LoadingPlansPage() {
   const [rows, setRows] = useState(read);
   const [selected, setSelected] = useState(null);
+  const [listAction, setListAction] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
   const { visibleItems, pagination } = usePaginatedItems(rows);
   useEffect(() => {
@@ -1125,19 +1176,16 @@ export function LoadingPlansPage() {
       if (action === "cancel" && item.vehicleArrivedAt) return item;
       let changes =
         action === "arrival"
-          ? { vehicleArrivedAt: time }
-          : action === "bay"
-            ? { atLoadingBayAt: time }
-            : action === "start"
+          ? {
+              ...data,
+              vehicleArrivedAt: item.vehicleArrivedAt || time,
+              emptyWeighmentAt: item.emptyWeighmentAt || time,
+              emptyWeighbridgeTicket:
+                item.emptyWeighbridgeTicket ||
+                `WB-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${String(item.id).slice(-4)}`,
+            }
+          : action === "start"
               ? { loadingStartedAt: time }
-              : action === "empty"
-                ? {
-                    ...data,
-                    emptyWeighbridgeTicket:
-                      item.emptyWeighbridgeTicket ||
-                      `WB-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${String(item.id).slice(-4)}`,
-                    emptyWeighmentAt: time,
-                  }
                 : action === "pre"
                   ? { ...data, preLoadingChecklistAt: time }
                   : action === "sample"
@@ -1150,15 +1198,22 @@ export function LoadingPlansPage() {
                       ? { ...data, sealRecordedAt: time }
                       : action === "post"
                         ? { ...data, postLoadingChecklistAt: time }
-                        : action === "second"
+                        : action === "exit"
                           ? {
                               ...data,
                               secondTareWeight: data.tare,
+                              secondGrossWeight: data.grossWeight,
                               netWeight:
                                 Number(data.grossWeight) - Number(data.tare),
                               waybillNo: item.waybillNo || `WBILL-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${String(item.id).slice(-4).toUpperCase()}`,
                               waybillGeneratedAt: item.waybillGeneratedAt || time,
-                              secondWeighmentAt: time,
+                              secondWeighmentAt: item.secondWeighmentAt || time,
+                              vehicleExitAt: time,
+                              dispatchAt: time,
+                              loadingFulfilled: true,
+                              deliveryRequestStatus: "FULFILLED",
+                              status: "FULFILLED",
+                              loadingPlanStatus: "COMPLETED",
                             }
                           : action === "assign"
                             ? { ...data, status: "ASSIGNED", loadingPlanStatus: "ASSIGNED", logisticsAssignedAt: time }
@@ -1166,27 +1221,13 @@ export function LoadingPlansPage() {
                               ? {
                                   ...data,
                                   loadingCompletedAt: time,
-                                  loadedQuantity:
-                                    Number(item.loadedQuantity || 0) + Number(data.actualLoadingQuantity || 0),
-                                  remainingQuantity: Math.max(
-                                    0,
-                                    Number(item.remainingQuantity ?? item.requestedQuantity ?? 0) - Number(data.actualLoadingQuantity || 0),
-                                  ),
+                                  loadedQuantity: Number(data.actualLoadingQuantity || 0),
                                   loadingExecutions: [
                                     ...(item.loadingExecutions || []),
                                     { id: `LE-${Date.now()}`, quantity: Number(data.actualLoadingQuantity || 0), createdAt: time },
                                   ],
                                 }
-                          : action === "exit"
-                            ? {
-                                vehicleExitAt: time,
-                                dispatchAt: time,
-                                loadingFulfilled: true,
-                                deliveryRequestStatus: "FULFILLED",
-                                status: "FULFILLED",
-                                loadingPlanStatus: "COMPLETED",
-                              }
-                            : {
+                          : {
                                 status: "CANCELLED",
                                 loadingPlanStatus: "CANCELLED",
                               };
@@ -1219,7 +1260,7 @@ export function LoadingPlansPage() {
         localStorage.setItem(qcKey, JSON.stringify(qcRequests));
       }
     }
-    if (action === "empty") {
+    if (action === "arrival") {
       const qcKey = "rockeye.quality.qcRequests";
       try {
         const qcRequests = JSON.parse(localStorage.getItem(qcKey) || "[]");
@@ -1229,7 +1270,7 @@ export function LoadingPlansPage() {
                 ...request,
                 status: "Ready for Loading",
                 vehicleStatus: "Ready for Loading",
-                firstWeighmentAt: time,
+                firstWeighmentAt: next.find((entry) => entry.id === id)?.emptyWeighmentAt || time,
                 weighbridgeTicket: next.find((entry) => entry.id === id)?.emptyWeighbridgeTicket || "System generated",
                 tareWeight: data.tareWeight,
                 transporter: item.transporter,
@@ -1247,6 +1288,31 @@ export function LoadingPlansPage() {
     const refreshed = read();
     setRows(refreshed);
     setSelected(refreshed.find((item) => item.id === id) || null);
+  };
+  const listActionItems = (row) => {
+    const [key, label] = getLoadingPlanNextAction(row);
+    return [
+      {
+        key: "view-details",
+        label: "View details",
+        onClick: () => {
+          setOpenActionId(null);
+          setSelected(row);
+        },
+      },
+      ...(key ? [{
+        key,
+        label,
+        onClick: () => {
+          setOpenActionId(null);
+          if (key === "start") {
+            act(row.id, key, {}, row);
+            return;
+          }
+          setListAction({ action: key, plan: row });
+        },
+      }] : []),
+    ];
   };
   if (selected) {
     return (
@@ -1303,28 +1369,27 @@ export function LoadingPlansPage() {
                   <td>{value(row.customerName)}</td>
                   <td>{value(row.product)}</td>
                   <td>
-                    {value(row.requestedQuantity)} {value(row.uom, "")}
+                    <DetailValue value={planQuantity(row)} /> {row.uom || ""}
                   </td>
-                  <td>{value(row.transporter)}</td>
-                  <td>{value(row.vehicle)}</td>
-                  <td>{value(row.driver)}</td>
-                  <td>{value(row.deliveryDate)}</td>
+                  <td><DetailValue value={row.transporter} pending={!row.transporter} /></td>
+                  <td><DetailValue value={row.vehicle} pending={!row.transporter || !row.vehicle} /></td>
+                  <td><DetailValue value={row.driver} pending={!row.transporter || !row.driver} /></td>
+                  <td>{formatDate(row.deliveryDate)}</td>
                   <td>
                     {row.secondWeighmentAt ? <div className="waybill-list-cell"><WaybillQr plan={row} size={38} /><button className="waybill-list-download" title="Download Waybill PDF" aria-label="Download Waybill PDF" onClick={(event) => { event.stopPropagation(); downloadWaybill(row); }}>⇩</button></div> : <span className="muted">Pending</span>}
                   </td>
                   <td>
-                    <span className="customer-status">{status(row)}</span>
+                    <StatusBadge status={status(row)} />
                   </td>
                   <td>
-                    <button
-                      className="master-edit"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(row);
-                      }}
-                    >
-                      View details
-                    </button>
+                    <div className="loading-plan-table-actions">
+                      <ActionMenu
+                        label="Actions"
+                        items={listActionItems(row)}
+                        open={openActionId === row.id}
+                        onToggle={() => setOpenActionId((current) => current === row.id ? null : row.id)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1333,23 +1398,43 @@ export function LoadingPlansPage() {
         </div> : <div className="loading-plan-card-grid">
           {visibleItems.map((row) => (
             <article className="loading-plan-card" key={row.id}>
-              <div className="loading-plan-card-head"><div><span className="loading-plan-card-code">{value(row.loadingInstructionNo)}</span><small>{value(row.requestNo)}</small></div><span className="customer-status">{status(row)}</span></div>
+              <div className="loading-plan-card-head"><div><span className="loading-plan-card-code">{value(row.loadingInstructionNo)}</span><small>{value(row.requestNo)}</small></div><StatusBadge status={status(row)} /></div>
               <div className="loading-plan-card-rule" />
-              <div className="loading-plan-card-primary"><span>Customer</span><strong>{value(row.customerName)}</strong></div>
+              <div className="loading-plan-card-primary-row">
+                <div className="loading-plan-card-primary"><span>Customer</span><strong>{value(row.customerName)}</strong></div>
+                <ActionMenu
+                  label="Actions"
+                  items={listActionItems(row)}
+                  open={openActionId === row.id}
+                  onToggle={() => setOpenActionId((current) => current === row.id ? null : row.id)}
+                  className="loading-plan-card-action-menu"
+                />
+              </div>
               <div className="loading-plan-card-grid-details">
                 <div><span>Product</span><strong>{value(row.product)}</strong></div>
-                <div><span>Quantity</span><strong>{value(row.requestedQuantity)} {value(row.uom, "")}</strong></div>
-                <div><span>Delivery Date</span><strong>{value(row.deliveryDate)}</strong></div>
-                <div><span>Transporter</span><strong>{value(row.transporter)}</strong></div>
-                <div><span>Vehicle</span><strong>{value(row.vehicle)}</strong></div>
-                <div><span>Driver</span><strong>{value(row.driver)}</strong></div>
+                <div><span>Delivery Quantity</span><strong><DetailValue value={planQuantity(row)} /> {row.uom || ""}</strong></div>
+                <div><span>Delivery Date</span><strong>{formatDate(row.deliveryDate)}</strong></div>
+                <div><span>Transporter</span><strong><DetailValue value={row.transporter} pending={!row.transporter} /></strong></div>
+                <div><span>Vehicle</span><strong><DetailValue value={row.vehicle} pending={!row.transporter || !row.vehicle} /></strong></div>
+                <div><span>Driver</span><strong><DetailValue value={row.driver} pending={!row.transporter || !row.driver} /></strong></div>
               </div>
               <div className="loading-plan-card-waybill">{row.secondWeighmentAt ? <><WaybillQr plan={row} size={42} /><span>{waybillNumber(row)}</span><button className="waybill-list-download" title="Download Waybill PDF" aria-label="Download Waybill PDF" onClick={() => downloadWaybill(row)}>⇩</button></> : <span>Waybill pending second weighment</span>}</div>
-              <div className="loading-plan-card-actions"><button className="master-edit" onClick={() => setSelected(row)}>View details</button>{row.secondWeighmentAt && <button className="waybill-card-download" onClick={() => downloadWaybill(row)}>Download Waybill</button>}</div>
+              {row.secondWeighmentAt && <div className="loading-plan-card-actions"><button className="waybill-card-download" onClick={() => downloadWaybill(row)}>Download Waybill</button></div>}
+              <div className="loading-plan-card-meta"><span>Added by: <DetailValue value={row.createdBy || row.created_by} /></span><span><DetailValue value={row.createdAt || row.created_at ? formatDateTime(row.createdAt || row.created_at) : formatDate(row.requestDate)} /></span></div>
             </article>
           ))}
         </div>}
         {pagination}
+        {listAction && <OperationForm
+          action={listAction.action}
+          plan={listAction.plan}
+          close={() => setListAction(null)}
+          submit={(data) => {
+            const { action, plan } = listAction;
+            setListAction(null);
+            act(plan.id, action, data, plan);
+          }}
+        />}
       </section>
     </main>
   );

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ListingActions } from "../components/ListingActions.jsx";
 import "./customer-details-overrides.css";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
+import { StatusBadge } from "../design-system/index.js";
 
 const Section = ({ title, action, children }) => (
   <section className="contract-section">
@@ -769,7 +770,7 @@ export function CustomersPage({ rows, onNew, onSelect }) {
                       <strong>{credit}</strong>
                     </td>
                     <td>
-                      <span className="customer-status">{row.status}</span>
+                      <StatusBadge status={row.status} />
                     </td>
                   </tr>
                 );
@@ -800,7 +801,7 @@ export function CustomerDetails({ customer, onBack, onEdit }) {
           <div className="customer-title-line">
             <h1>{customer.display_name || customer.legal_name}</h1>
             <span className="customer-code-pill">{customer.customer_code}</span>
-            <span className="customer-status">{customer.status}</span>
+            <StatusBadge status={customer.status} />
           </div>
           <p>
             {customer.legal_name} • {customer.business_classification} •{" "}

@@ -39,9 +39,8 @@ export function registerDispatchModule(app, db) {
     try { const stamp = now(); const info = db.prepare('INSERT INTO dispatch_orders (order_no,material,customer,quantity,uom,vehicle_no,driver_name,status,order_date,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(reference(), body.material, body.customer.trim(), quantity, 'MT', body.vehicleNo.trim().toUpperCase(), body.driverName || '', 'ORDERED', stamp, stamp); res.status(201).json(detail(db, info.lastInsertRowid)); }
     catch { res.status(400).json({ message: 'Unable to create dispatch order.' }); }
   });
-  app.post('/api/dispatch-orders/:id/empty-weighing', (req, res) => { const weight = Number(req.body.emptyWeight); if (!Number.isFinite(weight) || weight <= 0) return res.status(400).json({ message: 'A positive empty vehicle weight is required.' }); transition(req, res, 'ORDERED', 'UPDATE dispatch_orders SET empty_weight=?,status=?,empty_weighed_at=? WHERE id=?', [weight, 'EMPTY_WEIGHED', now()]); });
-  app.post('/api/dispatch-orders/:id/loading-bay', (req, res) => { if (!req.body.loadingBay) return res.status(400).json({ message: 'Loading bay is required.' }); transition(req, res, 'EMPTY_WEIGHED', 'UPDATE dispatch_orders SET loading_bay=?,status=?,bay_assigned_at=? WHERE id=?', [req.body.loadingBay.trim(), 'BAY_ASSIGNED', now()]); });
-  app.post('/api/dispatch-orders/:id/loading/start', (req, res) => transition(req, res, 'BAY_ASSIGNED', 'UPDATE dispatch_orders SET status=?,loading_started_at=? WHERE id=?', ['LOADING', now()]));
+  app.post('/api/dispatch-orders/:id/arrival-weighing', (req, res) => { const weight = Number(req.body.emptyWeight); if (!Number.isFinite(weight) || weight <= 0) return res.status(400).json({ message: 'A positive first-weighment tare weight is required.' }); transition(req, res, 'ORDERED', 'UPDATE dispatch_orders SET empty_weight=?,status=?,empty_weighed_at=? WHERE id=?', [weight, 'EMPTY_WEIGHED', now()]); });
+  app.post('/api/dispatch-orders/:id/loading/start', (req, res) => transition(req, res, 'EMPTY_WEIGHED', 'UPDATE dispatch_orders SET status=?,loading_started_at=? WHERE id=?', ['LOADING', now()]));
   app.post('/api/dispatch-orders/:id/loading/complete', (req, res) => { const quantity = Number(req.body.loadedQuantity); if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ message: 'Loaded quantity must be positive.' }); transition(req, res, 'LOADING', 'UPDATE dispatch_orders SET loaded_quantity=?,status=?,loading_completed_at=? WHERE id=?', [quantity, 'QUALITY_PENDING', now()]); });
   app.post('/api/dispatch-orders/:id/quality', (req, res) => {
     const order = requireOrder(req, res); if (!order) return; if (order.status !== 'QUALITY_PENDING') return res.status(409).json({ message: 'Loading must be completed before quality sampling.' });
@@ -51,11 +50,11 @@ export function registerDispatchModule(app, db) {
     db.prepare('UPDATE dispatch_orders SET status=? WHERE id=?').run(req.body.status === 'PASS' ? 'QUALITY_RELEASED' : 'QUALITY_HOLD', order.id);
     res.json(detail(db, order.id));
   });
-  app.post('/api/dispatch-orders/:id/loaded-weighing', (req, res) => { const weight = Number(req.body.loadedWeight); if (!Number.isFinite(weight) || weight <= 0) return res.status(400).json({ message: 'A positive loaded vehicle weight is required.' }); transition(req, res, 'QUALITY_RELEASED', 'UPDATE dispatch_orders SET loaded_weight=?,status=?,loaded_weighed_at=? WHERE id=?', [weight, 'LOADED_WEIGHED', now()]); });
-  app.post('/api/dispatch-orders/:id/vehicle-exit', (req, res) => {
-    const order = requireOrder(req, res); if (!order) return; if (order.status !== 'LOADED_WEIGHED') return res.status(409).json({ message: 'Loaded weighing must be completed before vehicle exit.' });
-    const tare = req.body.tareWeight === undefined || req.body.tareWeight === '' ? Number(order.empty_weight) : Number(req.body.tareWeight); const net = Number((Number(order.loaded_weight) - tare).toFixed(3));
+  app.post('/api/dispatch-orders/:id/loaded-weighing-exit', (req, res) => {
+    const order = requireOrder(req, res); if (!order) return; if (order.status !== 'QUALITY_RELEASED') return res.status(409).json({ message: 'Quality must be released before second weighment and vehicle exit.' });
+    const loaded = Number(req.body.loadedWeight); const tare = req.body.tareWeight === undefined || req.body.tareWeight === '' ? Number(order.empty_weight) : Number(req.body.tareWeight); const net = Number((loaded - tare).toFixed(3));
+    if (!Number.isFinite(loaded) || loaded <= 0) return res.status(400).json({ message: 'A positive loaded vehicle weight is required.' });
     if (!Number.isFinite(tare) || tare <= 0 || net <= 0) return res.status(400).json({ message: 'Tare must be positive and loaded weight must exceed tare.' });
-    const complete = db.transaction(() => { db.prepare('UPDATE dispatch_orders SET tare_weight=?,net_weight=?,status=?,vehicle_exit_at=? WHERE id=?').run(tare, net, 'COMPLETED', now(), order.id); db.prepare('UPDATE stock SET balance=MAX(0,balance-?),trend=? WHERE material=?').run(net, `-${net.toFixed(2)} MT`, order.material); }); complete(); res.json(detail(db, order.id));
+    const stamp = now(); const complete = db.transaction(() => { db.prepare('UPDATE dispatch_orders SET loaded_weight=?,tare_weight=?,net_weight=?,status=?,loaded_weighed_at=?,vehicle_exit_at=? WHERE id=?').run(loaded, tare, net, 'COMPLETED', stamp, stamp, order.id); db.prepare('UPDATE stock SET balance=MAX(0,balance-?),trend=? WHERE material=?').run(net, `-${net.toFixed(2)} MT`, order.material); }); complete(); res.json(detail(db, order.id));
   });
 }

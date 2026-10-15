@@ -1,0 +1,23 @@
+.delivery-request-fields {
+  align-items: start;
+}
+
+.delivery-request-fields .delivery-product-field,
+.delivery-request-fields .delivery-quantity-field,
+.delivery-request-fields .delivery-remarks-field,
+.delivery-request-fields .delivery-attachment-field { grid-area: auto; }
+.delivery-request-fields .delivery-remarks-field textarea {
+  min-height: 148px;
+  resize: vertical;
+}
+
+@media (max-width: 750px) {
+  .delivery-request-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .delivery-request-fields .delivery-remarks-field textarea {
+    min-height: 140px;
+    height: auto;
+  }
+}

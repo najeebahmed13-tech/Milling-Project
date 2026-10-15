@@ -14,8 +14,6 @@ All records below are currently represented by explicit frontend master definiti
 | Storage Location | Mill | Mill + code | Inventory balances, tanks/silos | Inactive if unused by active config | `storage.manage` |
 | Tank/Storage Unit | Mill | Mill + code | Material lots, quality, dispatch | Inactive; historical references remain | `storage.manage` |
 | Production Line | Mill | Mill + code | Plans, batches | Inactive/versioned | `production.manage` |
-| Process Definition | Tenant/Mill | Scope + code + version | Routes, operations | Supersede; never reinterpret history | `production.manage` |
-| Quality Parameter | Tenant | Tenant + code | Specifications, samples | Inactive; historical results remain | `quality.manage` |
 | Sampling Plan | Mill | Mill + code + effective version | Scheduled samples | Supersede/effective date | `quality.manage` |
 | Grading Parameter | Tenant | Tenant + code | Grading rules/results | Inactive only | `quality.manage` |
 | Grading Rule | Tenant/Mill | Scope + code + version | FFB grading | Supersede/effective date | `quality.manage` |

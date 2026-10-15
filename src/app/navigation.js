@@ -31,6 +31,19 @@ export const navigationItems = [
   { id: 'quality', label: 'Quality', icon: '✓', permission: 'quality.read' },
 ];
 
+const qualityNavigation = navigationItems.find((item) => item.id === 'quality');
+qualityNavigation.children = [
+  { id: 'qcRequests', label: 'Dispatch QC', icon: 'Q', permission: 'quality.read' },
+  { id: 'productionQualityCheckpoints', label: 'Quality Checkpoints', icon: 'C', permission: 'quality.read' },
+  { id: 'productionQualityRecords', label: 'Production Quality Records', icon: 'R', permission: 'quality.read' },
+];
+
+navigationItems.push({ id: 'maintenance', label: 'Maintenance', icon: 'W', permission: 'maintenance.read', children: [
+  { id: 'maintenance', label: 'Maintenance Overview', icon: 'W', permission: 'maintenance.read' },
+  { id: 'masterMachines', label: 'Equipment Master', icon: 'M', permission: 'production.manage' },
+  { id: 'items', label: 'MRO Item Master', icon: 'I', permission: 'configuration.manage' }
+] });
+
 export function getVisibleNavigation(items = navigationItems, permissions = new Set()) {
   return items
     .filter((item) => !item.permission || permissions.has('*') || permissions.has(item.permission))

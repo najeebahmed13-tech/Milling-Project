@@ -18,6 +18,7 @@ import { registerSalesInvoicesModule } from "./server/salesInvoices.js";
 import { registerPaymentsModule } from "./server/payments.js";
 import { registerDispatchModule } from "./server/dispatch.js";
 import { registerNotificationModule } from "./server/notifications.js";
+import { registerProductionQualityModule } from "./server/productionQuality.js";
 
 const hasCompletedFfbGrading = (receipt) => {
   if (receipt.state === "GRADING_COMPLETED") return true;
@@ -952,6 +953,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 registerProductionModule(app, db);
+registerProductionQualityModule(app, db);
 registerLogisticsModule(app, db);
 registerPurchaseContractsModule(app, db);
 registerPurchasingModule(app, db);

@@ -1,3 +1,55 @@
 .config-grid.single {
   grid-template-columns: 1fr;
 }
+
+.routing-layout,
+.routing-list {
+  min-width: 0;
+}
+
+/* Routing cards are direct children; keep their broad legacy button rule away from the global footer. */
+.routing-list .pagination-controls button {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 9px;
+}
+
+.routing-list .pagination-controls span {
+  font-size: inherit;
+  color: inherit;
+}
+
+.routing-output-list {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-2, 8px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.routing-title .routing-output-list .ds-status {
+  color: var(--ds-color-info);
+  background: var(--ds-color-info-soft);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: 0;
+  padding: 4px 9px;
+}
+
+.routing-page .production-system-page-header .ds-page-header-actions .ds-button {
+  white-space: nowrap;
+}
+
+@media (max-width: 950px) {
+  .routing-page .routing-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-2, 8px);
+  }
+}
+

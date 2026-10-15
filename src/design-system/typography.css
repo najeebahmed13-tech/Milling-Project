@@ -1,0 +1,107 @@
+/* Typography compatibility layer for modules that still use legacy field classes. */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--ds-font-family);
+}
+
+:root {
+  font-family: var(--ds-font-family);
+}
+
+.contract-field,
+.master-field,
+.master-form-grid > label:not(.master-checkbox),
+.production-form-grid label,
+.loading-plan-operation-fields label,
+.machine-form-grid label {
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-normal);
+}
+
+.contract-field > input,
+.contract-field > select,
+.contract-field > textarea,
+.master-field > input,
+.master-field > select,
+.master-field > textarea,
+.master-form-grid > label:not(.master-checkbox) > input,
+.master-form-grid > label:not(.master-checkbox) > select,
+.master-form-grid > label:not(.master-checkbox) > textarea,
+.production-form-grid label > input,
+.production-form-grid label > select,
+.production-form-grid label > textarea,
+.loading-plan-operation-fields label > input,
+.loading-plan-operation-fields label > select,
+.loading-plan-operation-fields label > textarea,
+.machine-form-grid label > input,
+.machine-form-grid label > select,
+.machine-form-grid label > textarea {
+  font-family: var(--ds-font-family);
+  font-size: var(--ds-font-size-body);
+}
+
+.machine-form-grid .ds-field {
+  min-width: 0;
+  gap: var(--ds-space-2);
+}
+.machine-form-grid .ds-field-label {
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+}
+.machine-form-grid .ds-field > input,
+.machine-form-grid .ds-field > select,
+.machine-form-grid .ds-field > textarea {
+  min-height: var(--ds-control-height);
+  margin-top: 0;
+  font-family: var(--ds-font-family);
+  font-size: var(--ds-font-size-body);
+}
+
+.machine-master-page .config-grid { display: none; }
+.machine-master-listing table { min-width: 1180px; }
+.machine-master-listing th,
+.machine-master-listing td { font-size: var(--ds-font-size-body); }
+.machine-master-listing td { vertical-align: middle; }
+.machine-master-page .production-heading-actions .btn-secondary {
+  min-height: var(--ds-button-height);
+  padding-inline: var(--ds-space-4);
+  color: var(--ds-color-on-brand);
+  background: var(--ds-color-brand);
+  border-color: var(--ds-color-brand);
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-bold);
+  box-shadow: var(--ds-shadow-sm);
+}
+.machine-master-page .production-heading-actions .btn-secondary:hover {
+  color: var(--ds-color-on-brand);
+  background: var(--ds-color-brand-strong);
+  border-color: var(--ds-color-brand-strong);
+}
+.machine-master-listing .production-reference {
+  color: var(--ds-color-text-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: var(--ds-font-weight-semibold);
+}
+.machine-name-link {
+  border: 0;
+  padding: 0;
+  color: var(--ds-color-brand);
+  background: transparent;
+  font: inherit;
+  font-weight: var(--ds-font-weight-semibold);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.machine-name-link:hover { color: var(--ds-color-brand-strong); }
+.machine-name-link:focus-visible {
+  outline: 0;
+  border-radius: var(--ds-radius-sm);
+  box-shadow: var(--ds-focus-ring);
+}

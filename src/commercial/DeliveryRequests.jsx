@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./sales-contract-details.css";
 import "./delivery-request-details.css";
+import "./delivery-request-form.css";
 import { formatDate } from "../shared/formatters.js";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
-import { Alert, Button, FormField, IconButton } from "../design-system/index.js";
-import { TextInput } from "../design-system/form-fields.jsx";
+import { Alert, Button, DateRangeFilter, DetailValue, FormField, IconButton, StatusBadge } from "../design-system/index.js";
+import { QuantityInput, TextInput } from "../design-system/form-fields.jsx";
 
 const STORAGE_KEY = "rockeye.commercial.deliveryRequests";
 const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -29,8 +30,8 @@ const seed = [
     deliveryType: "Company Delivery",
     product: "Crude Palm Oil (CPO)",
     requestedQuantity: "15000",
+    deliveryQuantity: "15000.00",
     uom: "MT",
-    remainingQuantity: "15000",
     loadingQuantity: "",
     sourceType: "Tank",
     sourceStorage: "",
@@ -79,14 +80,15 @@ const lifecycleStatus = (request) => {
     return "DELAYED";
   return request.status || "DRAFT";
 };
-const Field = ({ label, children, wide = false, readOnly = false, required = false }) => (
+const Field = ({ label, children, wide = false, readOnly = false, required = false, className = "" }) => (
   <FormField
     label={label}
     required={required}
     className={
       "master-field" +
       (wide ? " master-field-wide" : "") +
-      (readOnly ? " readonly-field" : "")
+      (readOnly ? " readonly-field" : "") +
+      (className ? ` ${className}` : "")
     }
   >
     {children}
@@ -94,10 +96,23 @@ const Field = ({ label, children, wide = false, readOnly = false, required = fal
 );
 function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
   const [tab, setTab] = useState("Summary");
-  const detail = (label, value) => (
+  const legacyDetailOld = (label, value) => (
     <div>
       <span>{label}</span>
       <strong>{value || "—"}</strong>
+    </div>
+  );
+  const displayDate = (date) => formatDate(date) === "-" ? "TBA" : formatDate(date);
+  const legacyDetail = (label, value) => (
+    <div>
+      <span>{label}</span>
+      <strong>{value === undefined || value === null || value === "" ? "TBA" : value}</strong>
+    </div>
+  );
+  const detail = (label, value, pending = false) => (
+    <div>
+      <span>{label}</span>
+      <strong><DetailValue value={value} pending={pending} /></strong>
     </div>
   );
   const removedFormFields = new Set([
@@ -105,7 +120,6 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
     "Quantity",
     "Tax",
     "Final Amount",
-    "Remaining Quantity",
     "Planned Loading Date",
     "Loading Instructions",
   ]);
@@ -116,21 +130,21 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
   const events = [
     [
       "Delivery request created",
-      request.requestDate,
+      displayDate(request.requestDate),
       "The delivery requirement was created by " +
         (request.createdBy || "system") +
         ".",
     ],
     [
       "Loading plan assigned",
-      request.deliveryDate || request.requestDate,
+      displayDate(request.deliveryDate || request.requestDate),
       request.transporter
         ? "Transporter, vehicle and driver were assigned for logistics execution."
         : "Loading plan is pending transporter assignment.",
     ],
     [
       "Current status",
-      request.status,
+      displayDate(request.deliveryDate || request.requestDate),
       "Request remains available for the next configured logistics workflow stage.",
     ],
   ];
@@ -148,10 +162,10 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
           <div className="sales-contract-title-line">
             <h1>{request.requestNo}</h1>
             <span className="sales-contract-code">{request.deliveryType}</span>
-            <span className="customer-status">{request.status}</span>
+            <StatusBadge status={request.status} />
           </div>
           <p>
-            {request.customerName} · {request.product} · {request.deliveryDate}
+            {request.customerName} · {request.product || "TBA"} · {displayDate(request.deliveryDate)}
           </p>
         </div>
         <div className="detail-header-actions">
@@ -192,7 +206,7 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
               <div className="sales-contract-grid">
                 {group([
                   ["Delivery Request No.", request.requestNo],
-                  ["Request Date", request.requestDate],
+                  ["Request Date", displayDate(request.requestDate)],
                   ["Customer", request.customerName],
                   ["Sales Contract", request.contractNumber],
                   ["Customer PO No. Reference", request.customerPo],
@@ -205,12 +219,12 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
               <div className="sales-contract-grid">
                 {group([
                   ["Delivery Location", request.deliveryLocation],
-                  ["Delivery Date", request.deliveryDate],
+                  ["Delivery Date", displayDate(request.deliveryDate)],
                   ["Delivery Type", request.deliveryType],
                   ["Product", request.product],
                   [
-                    "Requested Quantity",
-                    (request.requestedQuantity || "—") +
+                    "Delivery Quantity",
+                    (request.deliveryQuantity || request.requestedQuantity || "—") +
                       " " +
                       (request.uom || ""),
                   ],
@@ -222,28 +236,6 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
                 ])}
               </div>
             </section>
-            <section className="sales-contract-card">
-              <h2>3. Loading Plan</h2>
-              <div className="sales-contract-grid">
-                {group([
-                  ["Loading Instruction No.", request.loadingInstructionNo],
-                  [
-                    "Remaining Quantity",
-                    (request.remainingQuantity ?? "—") +
-                      " " +
-                      (request.uom || ""),
-                  ],
-                  ["Transporter", request.transporter],
-                  ["Vehicle", request.vehicle],
-                  ["Driver", request.driver],
-                  ["Loading Bay", request.loadingBay],
-                  ["Loading Line", request.loadingLine],
-                  ["Loading Instructions", request.loadingInstructions],
-                  ["Attachment", request.attachmentName],
-                  ["Remarks", request.remarks],
-                ])}
-              </div>
-            </section>
           </div>
           <aside className="sales-contract-side">
             <section className="sales-contract-card">
@@ -252,12 +244,12 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
                 ["Customer", request.customerName],
                 ["Product", request.product],
                 [
-                  "Quantity",
-                  (request.requestedQuantity || "—") +
+                  "Delivery Quantity",
+                  (request.deliveryQuantity || request.requestedQuantity || "—") +
                     " " +
                     (request.uom || ""),
                 ],
-                 ["Delivery Date", request.deliveryDate],
+                 ["Delivery Date", displayDate(request.deliveryDate)],
                 ["Status", request.status],
               ].map(([label, value]) => (
                 <div className="sales-contract-snapshot" key={label}>
@@ -274,6 +266,9 @@ function DeliveryRequestDetails({ request, onBack, onCancel, onEdit }) {
             <div>
               <h2>Delivery Request Activities</h2>
               <p>Traceable request and loading-plan events.</p>
+            </div>
+            <div className="sales-contract-activity-filters">
+              <DateRangeFilter start={events[events.length - 1]?.[1]} end={events[0]?.[1]} />
             </div>
           </div>
           <div className="sales-contract-activity-timeline">
@@ -453,7 +448,7 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
         millLocationGate: request.loadingBay || "Mill Gate",
         product: request.product,
         vehicleType: selectedVehicle?.vehicle_type || "Configured vehicle",
-        quantity: null,
+        quantity: request.deliveryQuantity || request.requestedQuantity || null,
       }),
     });
   };
@@ -467,9 +462,9 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
     };
     const {
       requestedQuantity: _requestedQuantity,
+      deliveryQuantity: rawDeliveryQuantity,
       plannedLoadingDate: _plannedLoadingDate,
       loadingInstructions: _loadingInstructions,
-      remainingQuantity: _remainingQuantity,
       unitPrice: _unitPrice,
       taxRate: _taxRate,
       finalAmount: _finalAmount,
@@ -479,6 +474,9 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
     if (!contract)
       return setError("Select a contract for the selected customer.");
     if (!selectedItem) return setError("Select an active item.");
+    if (!/^\d+(\.\d{1,2})?$/.test(String(rawDeliveryQuantity || "")) || Number(rawDeliveryQuantity) <= 0)
+      return setError("Enter a delivery quantity greater than zero with up to 2 decimal places.");
+    const deliveryQuantity = Number(rawDeliveryQuantity).toFixed(2);
     const request = {
       id: Date.now(),
       requestNo: makeNumber("DR"),
@@ -490,14 +488,17 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
       vehicle: data.vehicleId,
       driver: data.driverId,
       createdBy: "Sean Shapiro",
+      createdAt: editing?.createdAt || new Date().toISOString(),
       status: action === "draft" ? "DRAFT" : "PLANNED",
       loadingPlanStatus:
         action === "draft" ? "DRAFT" : "PENDING_LOGISTICS_ASSIGNMENT",
       attachmentName: form.elements.attachment?.files[0]?.name || "",
       ...data,
+      deliveryQuantity,
+      requestedQuantity: deliveryQuantity,
       itemId: selectedItem.id,
       product: selectedItem.name,
-      uom: selectedItem.unit || "",
+      uom: "MT",
     };
     const next = editing
       ? rows.map((item) =>
@@ -626,11 +627,9 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
                   <td>{request.customerName}</td>
                   <td>{request.contractNumber}</td>
                   <td>{request.product}</td>
-                  <td>{request.deliveryDate}</td>
+                  <td>{formatDate(request.deliveryDate)}</td>
                   <td>
-                    <span className="customer-status">
-                      {lifecycleStatus(request)}
-                    </span>
+                    <StatusBadge status={lifecycleStatus(request)} />
                   </td>
                 </tr>
               ))}
@@ -757,7 +756,7 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
                         <option>Company Delivery</option>
                       </select>
                     </Field>
-                    <Field label="Product" required wide>
+                    <Field label="Product" required className="delivery-product-field">
                       <select name="product" value={product} onChange={(event) => setProduct(event.target.value)} required>
                         <option value="">Select item from Item Master...</option>
                         {activeItems.map((item) => (
@@ -765,18 +764,31 @@ export function DeliveryRequestsPage({ customers = [], contracts = [], items = [
                         ))}
                       </select>
                     </Field>
-                    <Field label="Attachment" wide>
+                    <Field label="Delivery Quantity" required className="delivery-quantity-field">
+                      <QuantityInput
+                        name="deliveryQuantity"
+                        uom="MT"
+                        decimals={2}
+                        min="0.01"
+                        max="999999999.99"
+                        required
+                        defaultValue={editing?.deliveryQuantity || editing?.requestedQuantity || ""}
+                        aria-describedby="delivery-quantity-help"
+                      />
+                      <small id="delivery-quantity-help" className="ds-field-hint">Enter up to 2 decimal places.</small>
+                    </Field>
+                    <Field label="Remarks" className="delivery-remarks-field">
+                      <textarea
+                        name="remarks"
+                        defaultValue={editing?.remarks || ""}
+                        rows="5"
+                      />
+                    </Field>
+                    <Field label="Attachment" className="delivery-attachment-field">
                       <input
                         name="attachment"
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      />
-                    </Field>
-                    <Field label="Remarks" wide>
-                      <textarea
-                        name="remarks"
-                        defaultValue={editing?.remarks || ""}
-                        rows="3"
                       />
                     </Field>
                 </div>

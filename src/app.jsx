@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Boxes, Building2, CircleDollarSign, ClipboardCheck, Factory, House, LayoutGrid, Settings, Truck, Users, Warehouse } from "lucide-react";
+import { Boxes, Building2, CircleDollarSign, ClipboardCheck, Factory, House, LayoutGrid, Search, Settings, Truck, Users, Warehouse, Wrench } from "lucide-react";
 import "./styles.css";
 import "./react-app.css";
 import "./design-system/tokens.css";
@@ -9,8 +9,10 @@ import "./design-system/badges.css";
 import "./design-system/action-menu.css";
 import "./design-system/form-fields.css";
 import "./design-system/detail-sections.css";
+import "./design-system/readonly-summary.css";
 import "./design-system/date-range-filter.css";
 import "./design-system/image-carousel.css";
+import "./design-system/image-thumbnail.css";
 import { usePaginatedItems } from "./shared/PaginatedList.jsx";
 import {
   SalesContractsPage,
@@ -43,10 +45,16 @@ import { SalesInvoicesPage } from "./finance/SalesInvoices.jsx";
 import { DeliveryRequestsPage } from "./commercial/DeliveryRequests.jsx";
 import { LoadingPlansPage } from "./logistics/LoadingPlans.jsx";
 import { QCRequestsPage } from "./quality/QCRequests.jsx";
-import { StatusBadge } from "./design-system/index.js";
+import { ImageThumbnail, StatusBadge } from "./design-system/index.js";
+import { MaintenancePage } from "./maintenance/MaintenancePage.jsx";
+import { ProductionQualityPage } from "./quality/ProductionQuality.jsx";
 import "./design-system/tabs.css";
 import "./design-system/breadcrumbs.css";
 import "./design-system/detail-pages.css";
+import "./design-system/typography.css";
+import "./design-system/search-toggle.css";
+import "./design-system/layout-stability.css";
+import { GlobalSearch } from "./design-system/GlobalSearch.jsx";
 
 class DeliveryRequestBoundary extends React.Component {
   state = { error: null };
@@ -68,25 +76,20 @@ const nav = [
   ["logistics", "Logistics", "L"],
   ["masters", "Masters", "▦"],
 ];
+nav.splice(7, 0, ["maintenance", "Maintenance", "W"]);
 
 const navIcons = { dashboard: House, users: Users, customers: Building2, vendors: Warehouse, finance: CircleDollarSign, production: Factory, qualityAfterProduction: ClipboardCheck, stock: Boxes, logistics: Truck, masters: LayoutGrid, configuration: Settings };
+navIcons.maintenance = Wrench;
 nav.forEach((entry) => { entry[2] = navIcons[entry[0]] || Settings; });
 
-const tone = (value) =>
-  /reject|review/i.test(value)
-    ? "danger"
-    : /grading|pending|awaiting|loading/i.test(value)
-      ? "warning"
-      : /accepted|pass|released|available|completed/i.test(value)
-        ? "success"
-        : "neutral";
 const displayUom = (unit = "t") => /^(t|mt)$/i.test(String(unit).trim()) ? "MT" : unit;
 const qty = (value, unit = "t") =>
   `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${displayUom(unit)}`;
 function Badge({ children }) {
-  return <StatusBadge tone={tone(children)}>{children}</StatusBadge>;
+  return <StatusBadge status={children}>{children}</StatusBadge>;
 }
 function Header({ active, setActive, search, setSearch }) {
+  const [searchOpen, setSearchOpen] = useState(false);
   return (
     <header className="topbar">
       <div className="demo-rail">DEMO</div>
@@ -101,7 +104,9 @@ function Header({ active, setActive, search, setSearch }) {
           <span>Milling Operations</span>
         </div>
       </div>
-      <div className="global-search">
+      <GlobalSearch value={search} onChange={setSearch} />
+      <div className={`legacy-global-search ${searchOpen ? "is-open" : "is-collapsed"}`}>
+        {!searchOpen && <button type="button" className="global-search-trigger" onClick={() => setSearchOpen(true)} aria-label="Open global search" title="Search"><Search size={20} strokeWidth={1.9} aria-hidden="true" /></button>}
         <span className="search-icon">⌕</span>
         <input
           value={search}
@@ -182,10 +187,10 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "masters" ? (
             <div
               key={id}
-              className={`nav-group ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active-group" : ""}`}
+              className={`nav-group ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("machineDetails:") || active.startsWith("master:") ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("master:") ? "active" : ""}`}
+                className={`nav-item ${active === "masters" || active === "items" || active === "masterStations" || active === "masterMachines" || active.startsWith("machineDetails:") || active.startsWith("master:") ? "active" : ""}`}
                 onClick={() => setActive("masters")}
               >
                 <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
@@ -196,13 +201,10 @@ function Header({ active, setActive, search, setSearch }) {
                 <button onClick={() => setActive("masterStations")}>Station Master</button>
                 <button onClick={() => setActive("masterMachines")}>Machine Master</button>
                 <button onClick={() => setActive("master:uoms")}>Units of Measure</button>
+                <button onClick={() => setActive("master:qualityParameters")}>Quality Parameter Master</button>
                 <button onClick={() => setActive("master:storageLocations")}>Storage Location Master</button>
                 <button onClick={() => setActive("master:tanks")}>Tank Master</button>
-                <button onClick={() => setActive("master:processDefinitions")}>Process Definition Master</button>
-                <button onClick={() => setActive("master:qualityParameters")}>Quality Parameter Master</button>
                 <button onClick={() => setActive("master:samplingPlans")}>Sampling Plan Master</button>
-                <button onClick={() => setActive("master:gradingParameters")}>Grading Parameter Master</button>
-                <button onClick={() => setActive("master:gradingRules")}>Grading Rule Master</button>
                 <button onClick={() => setActive("master:rejectionReasons")}>Rejection Reason Master</button>
                 <button onClick={() => setActive("master:numberingSequences")}>Numbering Sequence Master</button>
               </div>
@@ -226,13 +228,16 @@ function Header({ active, setActive, search, setSearch }) {
               </div>
             </div>
           ) : id === "qualityAfterProduction" ? (
-            <div key={id} className={`nav-group ${active === "qcRequests" ? "active-group" : ""}`}>
-              <button className={`nav-item ${active === "qcRequests" ? "active" : ""}`} onClick={() => setActive("qcRequests")}>
+            <div key={id} className={`nav-group ${["qcRequests", "productionQualityCheckpoints", "productionQualityRecords"].includes(active) ? "active-group" : ""}`}>
+              <button className={`nav-item ${["qcRequests", "productionQualityCheckpoints", "productionQualityRecords"].includes(active) ? "active" : ""}`} onClick={() => setActive("qcRequests")}>
                 <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>Quality</span>
               </button>
               <div className="header-submenu">
-                <button onClick={() => setActive("qcRequests")}>QC Request</button>
+                <button onClick={() => setActive("qcRequests")}>Dispatch QC</button>
+                <button onClick={() => setActive("productionQualityRecords")}>Production QC</button>
+                <button onClick={() => setActive("productionQualityCheckpoints")}>Quality Checkpoints</button>
+                <button onClick={() => setActive("productionQualityRecords")}>Production Quality Records</button>
               </div>
             </div>
           ) : id === "logistics" ? (
@@ -548,6 +553,11 @@ function Listing({ type, rows, search, setSearch, onNew }) {
       "System settings and master data",
       "Open settings",
     ],
+    maintenance: [
+      "Maintenance",
+      "Equipment records and maintenance-store masters for mill reliability",
+      "Open Maintenance",
+    ],
   }[type] || ["Operations", "Operational workspace", "New record"];
   const tableType = ["receiving", "stock", "quality", "purchaseContracts", "dispatch"].includes(type)
     ? type
@@ -661,9 +671,11 @@ function UsersPage({ rows, search, setSearch, onSelect, onNavigate }) {
                     />
                   </td>
                   <td>
-                    <span className={`user-avatar theme-${index % 4}`}>
-                      {user.avatar || user.name.charAt(0).toUpperCase()}
-                    </span>
+                    <ImageThumbnail
+                      src={user.avatar}
+                      alt={`${user.name} profile`}
+                      fallback={user.name.charAt(0).toUpperCase()}
+                    />
                   </td>
                   <td className="user-name">{user.name}</td>
                   <td>{user.email}</td>
@@ -964,12 +976,16 @@ function App() {
         <PaymentForm onSaved={async () => { setActive("payments"); setToast("Payment saved as draft"); await load(); }} />
       ) : active === "masters" ? (
         <MasterDataCenter onNavigate={setActive} />
+      ) : active === "maintenance" ? (
+        <MaintenancePage onNavigate={setActive} />
       ) : active === "masterProductionLines" ? (
         <ProductionSystem mode="lineMaster" />
       ) : active === "masterStations" ? (
         <ProductionSystem mode="stationMaster" />
       ) : active === "masterMachines" ? (
-        <ProductionSystem mode="machineMaster" />
+        <ProductionSystem mode="machineMaster" onNavigate={setActive} />
+      ) : active.startsWith("machineDetails:") ? (
+        <ProductionSystem mode="machineDetails" machineId={active.split(":")[1]} onNavigate={setActive} />
       ) : active === "master:vehicleTypes" ? (
         <LogisticsMaster mode="vehicleTypes" />
       ) : active === "master:transporters" ? (
@@ -982,6 +998,10 @@ function App() {
         <LoadingPlansPage />
       ) : active === "qcRequests" ? (
         <QCRequestsPage />
+      ) : active === "productionQualityCheckpoints" ? (
+        <ProductionQualityPage mode="checkpoints" onNavigate={setActive} />
+      ) : active === "productionQualityRecords" ? (
+        <ProductionQualityPage mode="records" onNavigate={setActive} />
       ) : active.startsWith("master:") ? (
         <MasterDataCenter masterKey={active.split(":")[1]} onNavigate={setActive} />
       ) : active === "production" ? (
