@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { X } from "lucide-react";
-import { Button } from "../design-system/index.js";
+import { ArrowLeft } from "lucide-react";
+import { BreadcrumbSeparator, Button, Card, FormField, PageHeader } from "../design-system/index.js";
 
 async function request(url, options) {
   const response = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
@@ -9,44 +9,33 @@ async function request(url, options) {
   return payload;
 }
 
-export function StationQualityObservationDrawer({ checkpoints, stations = [], onClose, onSaved }) {
+const parameterKey = (parameter) => String(parameter.id || parameter.parameter);
+const parameterLabel = (parameter) => parameter.parameter || parameter.name || "Parameter";
+const inputType = (parameter) => ["INTEGER", "DECIMAL"].includes(parameter.dataType) ? "number" : "text";
+const ruleLabel = (rule) => rule === "EXACT_MATCH" ? "Exact match" : "Within range";
+
+export function StationQualityObservationPage({ checkpoints, stations = [], onBack, onSaved }) {
   const availableStations = stations.length ? stations : [...new Set(checkpoints.map((item) => item.process).filter(Boolean))].map((name) => ({ id: name, code: "", name }));
   const initialStation = availableStations[0]?.name || "";
   const initialCheckpoint = checkpoints.find((item) => item.process === initialStation) || checkpoints[0];
-  const [form, setForm] = useState({ station: initialStation, checkpointId: initialCheckpoint?.id || "", productionDate: new Date().toISOString().slice(0, 10), cycleNumber: "", observedValue: "", remarks: "", correctiveAction: "" });
+  const [form, setForm] = useState({ station: initialStation, checkpointId: initialCheckpoint?.id || "", productionDate: new Date().toISOString().slice(0, 10), cycleNumber: "", remarks: "", correctiveAction: "" });
+  const [values, setValues] = useState({});
   const [error, setError] = useState("");
   const stationCheckpoints = useMemo(() => checkpoints.filter((item) => !form.station || item.process === form.station), [checkpoints, form.station]);
   const selected = checkpoints.find((item) => Number(item.id) === Number(form.checkpointId));
+  const configuredParameters = selected?.parameters?.length ? selected.parameters : selected ? [selected] : [];
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const changeStation = (value) => {
-    const first = checkpoints.find((item) => item.process === value);
-    setForm((current) => ({ ...current, station: value, checkpointId: first?.id || "", observedValue: "" }));
-  };
+  const changeStation = (value) => { const first = checkpoints.find((item) => item.process === value); setForm((current) => ({ ...current, station: value, checkpointId: first?.id || "", cycleNumber: "" })); setValues({}); };
+  const changeCheckpoint = (value) => { setForm((current) => ({ ...current, checkpointId: value, cycleNumber: "" })); setValues({}); };
+  const updateValue = (parameter, value) => setValues((current) => ({ ...current, [parameterKey(parameter)]: value }));
   const submit = async (event) => {
-    event.preventDefault();
-    setError("");
-    try {
-      await request("/api/production-quality/observations", { method: "POST", body: JSON.stringify(form) });
-      onSaved();
-    } catch (err) {
-      setError(err.message);
-    }
+    event.preventDefault(); setError("");
+    const missing = configuredParameters.some((parameter) => values[parameterKey(parameter)] === undefined || values[parameterKey(parameter)] === "");
+    if (missing) { setError("Enter a result for every configured quality parameter."); return; }
+    try { await request("/api/production-quality/observations", { method: "POST", body: JSON.stringify({ ...form, parameters: configuredParameters.map((parameter) => ({ parameterId: parameter.id, parameter: parameter.parameter, observedValue: values[parameterKey(parameter)] })) }) }); onSaved(); } catch (err) { setError(err.message); }
   };
 
-  return <div className="drawer-backdrop" onClick={onClose}>
-    <aside className="drawer quality-observation-drawer" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="quality-observation-title">
-      <div className="drawer-head"><div><div className="eyebrow">QUALITY / PRODUCTION</div><h2 id="quality-observation-title">Record Station Quality</h2><p className="drawer-subtitle">Enter one periodic laboratory result against the selected station checkpoint.</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="Close quality record form"><X aria-hidden="true" /></button></div>
-      {error && <div className="form-error" role="alert">{error}</div>}
-      <form onSubmit={submit}>
-        <label>Station *<select value={form.station} onChange={(event) => changeStation(event.target.value)} required><option value="">Select station…</option>{availableStations.map((station) => <option key={station.id} value={station.name}>{station.code ? `${station.code} · ` : ""}{station.name}</option>)}</select></label>
-        <label>Checkpoint *<select value={form.checkpointId} onChange={(event) => update("checkpointId", event.target.value)} required>{stationCheckpoints.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.parameter}</option>)}</select></label>
-        <label>Production Date *<input type="date" value={form.productionDate} onChange={(event) => update("productionDate", event.target.value)} required /></label>
-        {selected?.frequency === "CYCLE" && <label>Cycle Number *<input value={form.cycleNumber} onChange={(event) => update("cycleNumber", event.target.value)} required /></label>}
-        <label>Observed Value *<input value={form.observedValue} onChange={(event) => update("observedValue", event.target.value)} required /></label>
-        <label>Remarks<textarea rows="3" value={form.remarks} onChange={(event) => update("remarks", event.target.value)} /></label>
-        <label>Corrective Action<textarea rows="3" value={form.correctiveAction} onChange={(event) => update("correctiveAction", event.target.value)} /></label>
-        <div className="drawer-actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit">Save Quality Record</Button></div>
-      </form>
-    </aside>
-  </div>;
+  return <main className="production-quality-page quality-observation-page"><div className="production-quality-breadcrumb"><button type="button" onClick={onBack}><ArrowLeft size={14} aria-hidden="true" /> Production QC</button><BreadcrumbSeparator /><strong>Record Production Quality</strong></div><PageHeader eyebrow="QUALITY / PRODUCTION" title="Record Production Quality" description="Capture every configured parameter and calculate the final checkpoint result." /><form className="quality-observation-form" onSubmit={submit}>{error && <div className="ds-alert ds-alert-error" role="alert">{error}</div>}<Card><div className="quality-observation-grid"><FormField label="Station" required><select value={form.station} onChange={(event) => changeStation(event.target.value)}><option value="">Select station...</option>{availableStations.map((station) => <option key={station.id} value={station.name}>{station.code ? `${station.code} · ` : ""}{station.name}</option>)}</select></FormField><FormField label="Checkpoint" required><select value={form.checkpointId} onChange={(event) => changeCheckpoint(event.target.value)}><option value="">Select checkpoint...</option>{stationCheckpoints.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></FormField><FormField label="Production Date" required><input type="date" value={form.productionDate} onChange={(event) => update("productionDate", event.target.value)} /></FormField>{selected?.frequency === "CYCLE" && <FormField label="Cycle Number" required><input value={form.cycleNumber} onChange={(event) => update("cycleNumber", event.target.value)} /></FormField>}</div></Card><Card><div className="quality-observation-context"><span><small>Parameters</small><strong>{configuredParameters.length}</strong></span><span><small>Checkpoint result</small><strong>Combined final result</strong></span></div><div className="quality-observation-parameter-list"><h2>Parameter results</h2>{configuredParameters.map((parameter) => <section className="quality-observation-parameter" key={parameterKey(parameter)}><div><strong>{parameterLabel(parameter)}</strong><span>{parameter.dataType || "DECIMAL"} · {parameter.uom || "No unit"} · {ruleLabel(parameter.passFailRule)}{parameter.allowedVariancePercent !== null && parameter.allowedVariancePercent !== undefined ? ` · ±${parameter.allowedVariancePercent}%` : ""}</span></div><FormField label={`Recorded ${parameterLabel(parameter)}`} required><input type={inputType(parameter)} step={parameter.dataType === "DECIMAL" ? "any" : undefined} value={values[parameterKey(parameter)] || ""} onChange={(event) => updateValue(parameter, event.target.value)} /></FormField><small className="quality-observation-limit">{parameter.passFailRule === "EXACT_MATCH" ? `Expected: ${parameter.targetValue || "Configured value"}` : `Limits: ${parameter.minLimit ?? "—"} to ${parameter.maxLimit ?? "—"}`}</small></section>)}</div></Card><Card><div className="quality-observation-notes"><FormField label="Remarks"><textarea rows="4" value={form.remarks} onChange={(event) => update("remarks", event.target.value)} /></FormField><FormField label="Corrective Action"><textarea rows="4" value={form.correctiveAction} onChange={(event) => update("correctiveAction", event.target.value)} /></FormField></div></Card><div className="quality-form-actions"><Button type="button" variant="secondary" onClick={onBack}>Cancel</Button><Button type="submit">Save Quality Record</Button></div></form></main>;
 }
+
+export const StationQualityObservationDrawer = StationQualityObservationPage;

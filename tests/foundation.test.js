@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatDate, formatQuantity, formatPercentage, formatVehiclePlate, statusTone } from '../src/shared/formatters.js';
 import { ApplicationError, normalizeError } from '../src/shared/errors.js';
-import { getVisibleNavigation } from '../src/app/navigation.js';
+import { getVisibleNavigation, navigationItems } from '../src/app/navigation.js';
 import { can } from '../src/security/permissions.js';
 import { masterDefinitions, getMasterDefinition } from '../src/config/masterData.js';
 import { transitionContract, validateContractDraft, quantitySummary, isContractEligible } from '../src/commercial/contracts.js';
@@ -11,6 +11,14 @@ import { DEFAULT_RECEIVING_SLIP_TEMPLATE, resolveReceivingSlipTemplate } from '.
 import { getLoadingPlanExecutionSteps, getLoadingPlanNextAction } from '../src/logistics/dispatchWorkflow.js';
 import { resolveDetailValue } from '../src/design-system/detail-values.js';
 import { getStatusDefinition, statusTone as registryStatusTone } from '../src/design-system/status-registry.js';
+import { normalizeBreadcrumbItems } from '../src/design-system/breadcrumbs.js';
+
+test('breadcrumb items are normalized for the shared navigation component', () => {
+  assert.deepEqual(
+    normalizeBreadcrumbItems([{ label: ' Masters ' }, null, { label: '' }, { label: 'Machine Master', onClick: true }]),
+    [{ label: 'Masters' }, { label: 'Machine Master', onClick: true }],
+  );
+});
 
 test('quantity and percentage formatters produce readable values', () => {
   assert.equal(formatQuantity(24.35, 't'), '24.35 t');
@@ -58,6 +66,18 @@ test('receiving slip template resolves configurable order, labels and visibility
 test('navigation and permission helpers are deny-by-default', () => {
   assert.equal(getVisibleNavigation([{ id: 'a', permission: 'a.read' }, { id: 'b', permission: null }], new Set(['b.read'])).length, 1);
   assert.equal(can('secret.read', { permissions: new Set() }), false);
+});
+
+test('quality navigation separates Production QC from checkpoint configuration', () => {
+  const quality = navigationItems.find((item) => item.id === 'quality');
+  assert.deepEqual(
+    quality.children.map(({ id, label }) => ({ id, label })),
+    [
+      { id: 'qcRequests', label: 'Dispatch QC' },
+      { id: 'productionQualityRecords', label: 'Production QC' },
+      { id: 'productionQualityCheckpoints', label: 'Quality Checkpoints' },
+    ],
+  );
 });
 
 test('loading plan merges vehicle arrival and first weighment', () => {

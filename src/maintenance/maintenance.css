@@ -1,6 +1,0 @@
-.maintenance-page { min-width: 0; padding: var(--ds-space-6) var(--ds-space-7) calc(var(--ds-space-8) + 84px); }
-.maintenance-breadcrumb { display: flex; align-items: center; gap: var(--ds-space-2); margin-bottom: var(--ds-space-5); color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-md); }
-.maintenance-breadcrumb button { padding: 0; border: 0; background: transparent; color: var(--ds-color-info); cursor: pointer; }
-.maintenance-breadcrumb button:hover { color: var(--ds-color-brand); }
-.maintenance-breadcrumb strong { color: var(--ds-color-text); font-weight: var(--ds-font-weight-semibold); }
-@media (max-width: 900px) { .maintenance-page { padding-inline: var(--ds-space-4); } }

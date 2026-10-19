@@ -46,9 +46,8 @@ import { DeliveryRequestsPage } from "./commercial/DeliveryRequests.jsx";
 import { LoadingPlansPage } from "./logistics/LoadingPlans.jsx";
 import { QCRequestsPage } from "./quality/QCRequests.jsx";
 import { ImageThumbnail, StatusBadge } from "./design-system/index.js";
-import { MaintenancePage } from "./maintenance/MaintenancePage.jsx";
 import { MachineMonitoringRequests } from "./maintenance/MachineMonitoringRequests.jsx";
-import { ProductionQualityPage } from "./quality/ProductionQuality.jsx";
+import { ProductionQCPage, QualityCheckpointsPage } from "./quality/ProductionQuality.jsx";
 import "./design-system/tabs.css";
 import "./design-system/breadcrumbs.css";
 import "./design-system/detail-pages.css";
@@ -238,7 +237,6 @@ function Header({ active, setActive, search, setSearch }) {
                 <button onClick={() => setActive("qcRequests")}>Dispatch QC</button>
                 <button onClick={() => setActive("productionQualityRecords")}>Production QC</button>
                 <button onClick={() => setActive("productionQualityCheckpoints")}>Quality Checkpoints</button>
-                <button onClick={() => setActive("productionQualityRecords")}>Production Quality Records</button>
               </div>
             </div>
           ) : id === "logistics" ? (
@@ -264,17 +262,16 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "maintenance" ? (
             <div
               key={id}
-              className={`nav-group ${active === "maintenance" || active === "machineMonitoringRequests" || active === "master:machineHealthParameters" ? "active-group" : ""}`}
+              className={`nav-group ${active === "machineMonitoringRequests" || active === "master:machineHealthParameters" ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "maintenance" || active === "machineMonitoringRequests" || active === "master:machineHealthParameters" ? "active" : ""}`}
-                onClick={() => setActive("maintenance")}
+                className={`nav-item ${active === "machineMonitoringRequests" || active === "master:machineHealthParameters" ? "active" : ""}`}
+                onClick={() => setActive("machineMonitoringRequests")}
               >
                 <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
                 <span>Maintenance</span>
               </button>
               <div className="header-submenu">
-                <button onClick={() => setActive("maintenance")}>Maintenance Overview</button>
                 <button onClick={() => setActive("machineMonitoringRequests")}>Machine Records</button>
                 <button onClick={() => setActive("master:machineHealthParameters")}>Monitoring Setup</button>
               </div>
@@ -995,9 +992,7 @@ function App() {
         <PaymentForm onSaved={async () => { setActive("payments"); setToast("Payment saved as draft"); await load(); }} />
       ) : active === "masters" ? (
         <MasterDataCenter onNavigate={setActive} />
-              ) : active === "maintenance" ? (
-        <MaintenancePage onNavigate={setActive} />
-      ) : active === "machineMonitoringRequests" ? (
+              ) : active === "machineMonitoringRequests" || active === "maintenance" ? (
         <MachineMonitoringRequests onNavigate={setActive} />
       ) : active === "masterProductionLines" ? (
         <ProductionSystem mode="lineMaster" />
@@ -1020,9 +1015,9 @@ function App() {
       ) : active === "qcRequests" ? (
         <QCRequestsPage />
       ) : active === "productionQualityCheckpoints" ? (
-        <ProductionQualityPage mode="checkpoints" onNavigate={setActive} />
+        <QualityCheckpointsPage onNavigate={setActive} />
       ) : active === "productionQualityRecords" ? (
-        <ProductionQualityPage mode="records" onNavigate={setActive} />
+        <ProductionQCPage onNavigate={setActive} />
       ) : active.startsWith("master:") ? (
         <MasterDataCenter masterKey={active.split(":")[1]} onNavigate={setActive} />
       ) : active === "production" ? (

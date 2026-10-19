@@ -1,6 +1,7 @@
 import React, { useId } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { EMPTY_VALUE, formatVehiclePlate } from "../shared/formatters.js";
+import { normalizeBreadcrumbItems } from "./breadcrumbs.js";
 
 export function Button({ variant = "primary", size = "md", className = "", type = "button", children, ...props }) {
   return <button type={type} className={`ds-button ds-button-${variant} ds-button-${size} ${className}`.trim()} {...props}>{children}</button>;
@@ -12,6 +13,23 @@ export function IconButton({ label, children, className = "", type = "button", .
 
 export function BreadcrumbSeparator({ className = "" }) {
   return <ChevronRight className={`ds-breadcrumb-separator ${className}`.trim()} size={14} strokeWidth={1.8} aria-hidden="true" />;
+}
+
+export function Breadcrumbs({ items = [], className = "" }) {
+  const normalizedItems = normalizeBreadcrumbItems(items);
+  return (
+    <nav className={`ds-breadcrumb ${className}`.trim()} aria-label="Breadcrumb">
+      {normalizedItems.map((item, index) => {
+        const current = index === normalizedItems.length - 1;
+        const content = current
+          ? <strong aria-current="page">{item.label}</strong>
+          : item.onClick
+            ? <button type="button" onClick={item.onClick}>{item.label}</button>
+            : <span>{item.label}</span>;
+        return <React.Fragment key={`${item.label}-${index}`}>{index ? <BreadcrumbSeparator /> : null}{content}</React.Fragment>;
+      })}
+    </nav>
+  );
 }
 
 export function DrawerCloseButton({ onClick, label = "Close drawer", className = "", ...props }) {

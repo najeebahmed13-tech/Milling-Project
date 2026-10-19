@@ -11,16 +11,33 @@
 .quality-row-actions { display: inline-flex; gap: 5px; }
 .quality-row-actions button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); color: var(--ds-color-text-subtle); cursor: pointer; }
 .quality-row-actions button:hover { color: var(--ds-color-brand); border-color: var(--ds-color-brand); }
-.quality-checkpoint-form { display: grid; gap: var(--ds-space-4); max-width: 1180px; }
+.quality-checkpoint-form { display: grid; gap: var(--ds-space-4); width: min(100%, 1440px); max-width: none; margin-inline: auto; }
 .quality-checkpoint-form .ds-card { padding: var(--ds-space-6); }
 .quality-checkpoint-form h2 { margin: 0 0 var(--ds-space-4); font-size: var(--ds-font-size-xl); }
-.quality-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-4); }
-.quality-form-grid label, .quality-observation-drawer label { display: flex; flex-direction: column; gap: 6px; color: var(--ds-color-text); font-size: var(--ds-font-size-body); font-weight: 600; }
+.quality-form-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-5); margin-bottom: var(--ds-space-5); }
+.quality-form-section-heading h2 { margin-bottom: 4px; }
+.quality-form-section-heading p { max-width: 760px; margin: 0; color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-body); line-height: 1.5; }
+.quality-checkpoint-entries { display: grid; gap: var(--ds-space-4); }
+.quality-checkpoint-entry { padding: var(--ds-space-5); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-md); background: var(--ds-color-surface-subtle); }
+.quality-entry-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-4); margin-bottom: var(--ds-space-4); padding-bottom: var(--ds-space-3); border-bottom: 1px solid var(--ds-color-border); color: var(--ds-color-text); }
+.quality-entry-heading .ds-button { flex: 0 0 auto; }
+.quality-parameter-readonly { margin: var(--ds-space-5) 0; padding: var(--ds-space-4); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); }
+.quality-parameter-readonly > strong { display: block; margin-bottom: var(--ds-space-3); color: var(--ds-color-text); font-size: var(--ds-font-size-body); }
+.quality-parameter-readonly-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.quality-parameter-readonly-grid span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.quality-parameter-readonly-grid small { color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-sm); }
+.quality-parameter-readonly-grid b { overflow-wrap: anywhere; color: var(--ds-color-text); font-size: var(--ds-font-size-body); font-weight: var(--ds-font-weight-medium); }
+.quality-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.quality-checkpoint-form > .ds-card:first-of-type .quality-form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.quality-checkpoint-entry > .quality-form-grid:first-of-type { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.quality-checkpoint-entry > .quality-form-grid:last-child { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.quality-observation-drawer label { display: flex; flex-direction: column; gap: 6px; color: var(--ds-color-text); font-size: var(--ds-font-size-body); font-weight: 600; }
 .quality-form-grid input, .quality-form-grid select, .quality-observation-drawer input, .quality-observation-drawer select, .quality-observation-drawer textarea { min-height: 40px; padding: 9px 12px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); }
 .quality-form-grid input:focus, .quality-form-grid select:focus, .quality-observation-drawer input:focus, .quality-observation-drawer select:focus, .quality-observation-drawer textarea:focus { outline: 0; border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); }
 .quality-checkbox-row { display: flex; flex-wrap: wrap; gap: var(--ds-space-5); margin-top: var(--ds-space-5); }
 .quality-checkbox-row label { display: inline-flex; align-items: center; gap: 8px; color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-body); }
 .quality-checkbox-row input { accent-color: var(--ds-color-brand); }
+.quality-rule-help { grid-column: 1 / -1; margin: 0; padding: var(--ds-space-3); color: var(--ds-color-text-subtle); background: var(--ds-color-surface-subtle); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); font-size: var(--ds-font-size-body); font-weight: 400; line-height: 1.5; }
 .quality-form-actions { display: flex; justify-content: flex-end; gap: var(--ds-space-3); }
 .quality-detail-card { padding: var(--ds-space-6); max-width: 980px; }
 .quality-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-5); }
@@ -29,5 +46,21 @@
 .quality-detail-grid strong { color: var(--ds-color-text); font-size: var(--ds-font-size-body); }
 .quality-observation-drawer { width: min(500px, 100%); overflow-y: auto; }
 .quality-observation-drawer form { display: flex; flex-direction: column; gap: var(--ds-space-4); height: 100%; }
+.quality-observation-form { padding-bottom: var(--ds-space-4); }
+.quality-observation-page .quality-observation-form { display: grid; gap: var(--ds-space-4); max-width: 1080px; }
+.quality-observation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.quality-observation-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.quality-observation-page .quality-observation-parameter-list h2 { margin: 0; color: var(--ds-color-text); font-size: var(--ds-font-size-lg); }
+.quality-observation-page .quality-form-actions { justify-content: flex-start; padding-bottom: var(--ds-space-6); }
+.quality-observation-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-3); padding: var(--ds-space-3); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface-subtle); }
+.quality-observation-context span { display: flex; flex-direction: column; gap: 3px; }
+.quality-observation-context small, .quality-observation-parameter > div span { color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-sm); }
+.quality-observation-parameter-list { display: grid; gap: var(--ds-space-3); }
+.quality-observation-parameter-list h3 { margin: 0; color: var(--ds-color-text); font-size: var(--ds-font-size-body); }
+.quality-observation-parameter { display: grid; gap: var(--ds-space-2); padding: var(--ds-space-4); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface-subtle); }
+.quality-observation-parameter > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-3); }
+.quality-observation-parameter .ds-field { gap: var(--ds-space-2); }
+.quality-observation-limit { color: var(--ds-color-text-subtle); font-size: var(--ds-font-size-sm); }
+@media (max-width: 1200px) { .quality-checkpoint-entry > .quality-form-grid:first-of-type, .quality-checkpoint-entry > .quality-form-grid:last-child, .quality-checkpoint-form > .ds-card:first-of-type .quality-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .production-quality-page { padding-inline: var(--ds-space-4); } .quality-form-grid, .quality-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .quality-form-grid, .quality-detail-grid { grid-template-columns: 1fr; } .quality-checkpoint-form .ds-card { padding: var(--ds-space-4); } }
+@media (max-width: 600px) { .quality-form-grid, .quality-detail-grid, .quality-parameter-readonly-grid, .quality-observation-grid, .quality-observation-notes { grid-template-columns: 1fr; } .quality-checkpoint-form .ds-card { padding: var(--ds-space-4); } .quality-checkpoint-entry { padding: var(--ds-space-4); } .quality-form-section-heading { flex-direction: column; } }

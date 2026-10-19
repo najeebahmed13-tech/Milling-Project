@@ -13,7 +13,7 @@ export function registerDispatchModule(app, db) {
     CREATE TABLE IF NOT EXISTS dispatch_orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT, order_no TEXT NOT NULL UNIQUE, material TEXT NOT NULL,
       customer TEXT NOT NULL, quantity REAL NOT NULL, uom TEXT NOT NULL DEFAULT 'MT',
-      vehicle_no TEXT NOT NULL, driver_name TEXT, loading_bay TEXT, status TEXT NOT NULL DEFAULT 'ORDERED',
+      vehicle_no TEXT NOT NULL, driver_name TEXT, transporter TEXT NOT NULL DEFAULT '', loading_bay TEXT, status TEXT NOT NULL DEFAULT 'ORDERED',
       empty_weight REAL, loaded_weight REAL, tare_weight REAL, net_weight REAL, loaded_quantity REAL,
       order_date TEXT NOT NULL, empty_weighed_at TEXT, bay_assigned_at TEXT, loading_started_at TEXT,
       loading_completed_at TEXT, loaded_weighed_at TEXT, vehicle_exit_at TEXT, created_at TEXT NOT NULL
@@ -25,6 +25,9 @@ export function registerDispatchModule(app, db) {
       FOREIGN KEY (dispatch_order_id) REFERENCES dispatch_orders(id)
     );
   `);
+  // Existing installations predate transporter capture. Keep the migration
+  // additive so historical dispatch orders remain readable and unchanged.
+  try { db.exec("ALTER TABLE dispatch_orders ADD COLUMN transporter TEXT NOT NULL DEFAULT ''"); } catch {}
   const list = () => db.prepare('SELECT * FROM dispatch_orders ORDER BY id DESC').all().map((row) => ({ ...row, qualityReceipt: db.prepare('SELECT * FROM dispatch_quality_receipts WHERE dispatch_order_id=? ORDER BY id DESC LIMIT 1').get(row.id) || null }));
   const requireOrder = (req, res) => { const order = db.prepare('SELECT * FROM dispatch_orders WHERE id=?').get(req.params.id); if (!order) { res.status(404).json({ message: 'Dispatch order not found.' }); return null; } return order; };
   const transition = (req, res, expected, update, values = []) => { const order = requireOrder(req, res); if (!order) return; if (order.status !== expected) return res.status(409).json({ message: `Dispatch order must be ${expected.replaceAll('_', ' ').toLowerCase()} before this step.` }); db.prepare(update).run(...values, order.id); res.json(detail(db, order.id)); };
@@ -36,7 +39,7 @@ export function registerDispatchModule(app, db) {
     if (!body.material || !body.customer || !body.vehicleNo || !Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ message: 'Material, customer, vehicle and positive quantity are required.' });
     const stock = db.prepare('SELECT COALESCE(SUM(balance),0) balance FROM stock WHERE material=?').get(body.material).balance;
     if (quantity > Number(stock || 0)) return res.status(409).json({ message: `Only ${Number(stock || 0).toFixed(3)} MT of ${body.material} is available for dispatch.` });
-    try { const stamp = now(); const info = db.prepare('INSERT INTO dispatch_orders (order_no,material,customer,quantity,uom,vehicle_no,driver_name,status,order_date,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(reference(), body.material, body.customer.trim(), quantity, 'MT', body.vehicleNo.trim().toUpperCase(), body.driverName || '', 'ORDERED', stamp, stamp); res.status(201).json(detail(db, info.lastInsertRowid)); }
+    try { const stamp = now(); const info = db.prepare('INSERT INTO dispatch_orders (order_no,material,customer,quantity,uom,vehicle_no,driver_name,transporter,status,order_date,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(reference(), body.material, body.customer.trim(), quantity, 'MT', body.vehicleNo.trim().toUpperCase(), body.driverName || '', body.transporter || '', 'ORDERED', stamp, stamp); res.status(201).json(detail(db, info.lastInsertRowid)); }
     catch { res.status(400).json({ message: 'Unable to create dispatch order.' }); }
   });
   app.post('/api/dispatch-orders/:id/arrival-weighing', (req, res) => { const weight = Number(req.body.emptyWeight); if (!Number.isFinite(weight) || weight <= 0) return res.status(400).json({ message: 'A positive first-weighment tare weight is required.' }); transition(req, res, 'ORDERED', 'UPDATE dispatch_orders SET empty_weight=?,status=?,empty_weighed_at=? WHERE id=?', [weight, 'EMPTY_WEIGHED', now()]); });

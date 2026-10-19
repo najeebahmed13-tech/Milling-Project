@@ -6,6 +6,7 @@ import { formatDate } from "../shared/formatters.js";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import { Alert, Button, DateRangeFilter, DetailValue, FormField, IconButton, StatusBadge } from "../design-system/index.js";
 import { QuantityInput, TextInput } from "../design-system/form-fields.jsx";
+import { DEVELOPMENT_LOADING_PLAN, DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO } from "./development-flow-fixture.js";
 
 const STORAGE_KEY = "rockeye.commercial.deliveryRequests";
 const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -48,12 +49,54 @@ const seed = [
     unitPrice: "925",
   },
 ];
+/* Legacy inline fixture retained in history; active development fixture is shared below.
+const developmentLoadingPlan = {
+  id: "DEMO-LOADING-PLAN-001",
+  requestNo: "DR-DEMO-STRAITS-CPO-001",
+  requestDate: "16-10-2026",
+  loadingInstructionNo: "LI-DEMO-STRAITS-CPO-001",
+  customerName: "Straits Palm Refining",
+  contractNumber: "SC-2026-0012",
+  customerPo: "SPR-PO-2026-1007",
+  deliveryLocation: "Delivery · Lot 27, Jalan Pelabuhan Tanjung Langsat, 81700 Pasir Gudang, Malaysia",
+  deliveryDate: "20-10-2026",
+  deliveryType: "Company Delivery",
+  product: "Crude Palm Oil",
+  requestedQuantity: "35.00",
+  deliveryQuantity: "35.00",
+  uom: "MT",
+  sourceType: "Tank",
+  sourceStorage: "CPO Tank 01",
+  availableStock: 1200,
+  loadingBay: "Loading Bay 01",
+  loadingLine: "Loading Line A",
+  loadingInstructions: "Development flow fixture: dispatch CPO from Tank 01 to the customer delivery location.",
+  createdBy: "Development Fixture",
+  createdAt: "2026-10-16T08:00:00.000Z",
+  transporter: "Kencana Haulage Sdn. Bhd.",
+  vehicle: "KCH-2601",
+  vehicleId: "112",
+  vehicleNo: "KCH-2601",
+  driver: "Ahmad Faizal Rahman",
+  driverId: "3",
+  driverName: "Ahmad Faizal Rahman",
+  itemId: "1",
+  status: "ASSIGNED",
+  loadingPlanStatus: "ASSIGNED",
+  logisticsAssignedAt: "2026-10-16T08:05:00.000Z",
+}; */
 const readRequests = () => {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
     const safe = Array.isArray(stored)
       ? stored.filter((item) => item && typeof item === "object")
       : [];
+    if (import.meta.env.DEV) {
+      const migrated = safe.map((item) => item.requestNo === DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO ? { ...item, ...DEVELOPMENT_LOADING_PLAN } : item);
+      const next = migrated.some((item) => item.requestNo === DEVELOPMENT_LOADING_PLAN.requestNo) ? migrated : [DEVELOPMENT_LOADING_PLAN, ...migrated];
+      if (JSON.stringify(next) !== JSON.stringify(safe)) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    }
     if (safe.length) return safe;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
   } catch {}

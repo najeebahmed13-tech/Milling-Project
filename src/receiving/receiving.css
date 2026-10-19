@@ -185,7 +185,6 @@
 @media(max-width:600px){
   .drawer-form-surface > .drawer-head { margin-top: -18px; padding-top: 18px; padding-bottom: 14px; }
 }
-.receiving-breadcrumb > b { display: none; }
 .receiving-drawer .items-form-heading > .icon-button:not(.ds-drawer-close),
 .receiving-drawer .drawer-head > .icon-button:not(.ds-drawer-close),
 .grading-drawer .drawer-head > .icon-button:not(.ds-drawer-close) { display: none; }

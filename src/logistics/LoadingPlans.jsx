@@ -11,6 +11,7 @@ import { formatDate, formatDateTime, formatVehiclePlate } from "../shared/format
 import { ActionMenu, ActivityTimeline, Badge, DetailValue, DrawerCloseButton, FormField, ImageCarousel, NumberInput, ReadOnlyField, ReadOnlySummary, ReferenceCode, StatusBadge } from "../design-system/index.js";
 import { QuantityInput } from "../design-system/form-fields.jsx";
 import { getLoadingPlanExecutionSteps, getLoadingPlanNextAction } from "./dispatchWorkflow.js";
+import { DEVELOPMENT_LOADING_PLAN, DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO } from "../commercial/development-flow-fixture.js";
 
 const KEY = "rockeye.commercial.deliveryRequests";
 const CONFIRMED_QUANTITY_REPAIRS = {
@@ -121,6 +122,12 @@ const read = () => {
   try {
     const records = JSON.parse(localStorage.getItem(KEY) || "[]");
     const safeRecords = Array.isArray(records) ? records : [];
+    if (import.meta.env.DEV) {
+      const migrated = safeRecords.map((record) => record.requestNo === DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO ? { ...record, ...DEVELOPMENT_LOADING_PLAN } : record);
+      const next = migrated.some((record) => record.requestNo === DEVELOPMENT_LOADING_PLAN.requestNo) ? migrated : [DEVELOPMENT_LOADING_PLAN, ...migrated];
+      if (JSON.stringify(next) !== JSON.stringify(safeRecords)) localStorage.setItem(KEY, JSON.stringify(next));
+      return next;
+    }
     let changed = false;
     const normalized = safeRecords.map((record) => {
       const confirmedQuantity =

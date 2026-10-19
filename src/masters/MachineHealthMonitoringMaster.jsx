@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Activity, Eye, Pencil, Plus } from "lucide-react";
 import { getMasterDefinition } from "../config/masterData.js";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
-import { BreadcrumbSeparator, Button, Card, DrawerCloseButton, EmptyState, FormField, PageHeader } from "../design-system/index.js";
+import { Breadcrumbs, Button, Card, DrawerCloseButton, EmptyState, FormField, PageHeader } from "../design-system/index.js";
 import { StatusBadge } from "../design-system/badges.jsx";
 import { MACHINE_HEALTH_DATA_TYPES, MACHINE_HEALTH_FREQUENCIES, normalizeMachineHealthParameter, validateMachineHealthParameter } from "../../packages/masters/machineHealthDomain.js";
 import { MACHINE_HEALTH_STANDARDS } from "../../packages/masters/machineHealthStandards.js";
@@ -90,7 +90,7 @@ export function MachineHealthMonitoringMaster({ onNavigate }) {
   };
 
   return <main className="machine-health-master-page">
-    <div className="machine-health-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={() => onNavigate?.("masters")}>Masters</button><BreadcrumbSeparator /><strong>Machine Health Monitoring</strong></div>
+    <Breadcrumbs className="machine-health-breadcrumb" items={[{ label: "Masters", onClick: () => onNavigate?.("masters") }, { label: "Machine Health Monitoring" }]} />
     <PageHeader eyebrow="MASTERS / PRODUCTION" title="Machine Health Monitoring" description="Configure periodic machine-health metrics, recording cadence, units, and operating limits by station." actions={<Button onClick={openCreate}><Plus size={16} aria-hidden="true" /> Add Monitoring Metric</Button>} />
     <div className="machine-health-summary-grid"><Card><span>Total metrics</span><strong>{records.length}</strong><small>Configured monitoring definitions</small></Card><Card><span>Active metrics</span><strong>{records.filter((item) => item.active).length}</strong><small>Available for future recording</small></Card><Card><span>Stations covered</span><strong>{new Set(records.map((item) => item.stationCode)).size}</strong><small>Station-scoped configuration</small></Card><Card><span>Periodic metrics</span><strong>{records.filter((item) => item.frequency === "PERIODIC").length}</strong><small>Scheduled interval definitions</small></Card></div>
     <Card className="machine-health-list-card">
