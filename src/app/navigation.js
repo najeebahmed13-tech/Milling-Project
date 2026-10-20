@@ -35,7 +35,7 @@ const qualityNavigation = navigationItems.find((item) => item.id === 'quality');
 qualityNavigation.children = [
   { id: 'qcRequests', label: 'Dispatch QC', icon: 'Q', permission: 'quality.read' },
   { id: 'productionQualityRecords', label: 'Production QC', icon: 'R', permission: 'quality.read' },
-  { id: 'productionQualityCheckpoints', label: 'Quality Checkpoints', icon: 'C', permission: 'quality.read' },
+  { id: 'productionQualityCheckpoints', label: 'Quality Configuration', icon: 'C', permission: 'quality.read' },
 ];
 
 navigationItems.push({ id: 'maintenance', label: 'Maintenance', icon: 'W', permission: 'maintenance.read', children: [

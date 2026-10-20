@@ -12,12 +12,18 @@ import { getLoadingPlanExecutionSteps, getLoadingPlanNextAction } from '../src/l
 import { resolveDetailValue } from '../src/design-system/detail-values.js';
 import { getStatusDefinition, statusTone as registryStatusTone } from '../src/design-system/status-registry.js';
 import { normalizeBreadcrumbItems } from '../src/design-system/breadcrumbs.js';
+import { masterName } from '../src/shared/masterDisplay.js';
 
 test('breadcrumb items are normalized for the shared navigation component', () => {
   assert.deepEqual(
     normalizeBreadcrumbItems([{ label: ' Masters ' }, null, { label: '' }, { label: 'Machine Master', onClick: true }]),
     [{ label: 'Masters' }, { label: 'Machine Master', onClick: true }],
   );
+});
+
+test('master selectors display names without technical codes', () => {
+  assert.equal(masterName({ code: 'ST-STER', name: 'Sterilization' }), 'Sterilization');
+  assert.equal(masterName({ code: 'UOM-MT' }), 'UOM-MT');
 });
 
 test('quantity and percentage formatters produce readable values', () => {
@@ -75,7 +81,7 @@ test('quality navigation separates Production QC from checkpoint configuration',
     [
       { id: 'qcRequests', label: 'Dispatch QC' },
       { id: 'productionQualityRecords', label: 'Production QC' },
-      { id: 'productionQualityCheckpoints', label: 'Quality Checkpoints' },
+      { id: 'productionQualityCheckpoints', label: 'Quality Configuration' },
     ],
   );
 });

@@ -236,7 +236,7 @@ function Header({ active, setActive, search, setSearch }) {
               <div className="header-submenu">
                 <button onClick={() => setActive("qcRequests")}>Dispatch QC</button>
                 <button onClick={() => setActive("productionQualityRecords")}>Production QC</button>
-                <button onClick={() => setActive("productionQualityCheckpoints")}>Quality Checkpoints</button>
+                <button onClick={() => setActive("productionQualityCheckpoints")}>Quality Configuration</button>
               </div>
             </div>
           ) : id === "logistics" ? (
@@ -1015,7 +1015,7 @@ function App() {
       ) : active === "qcRequests" ? (
         <QCRequestsPage />
       ) : active === "productionQualityCheckpoints" ? (
-        <QualityCheckpointsPage onNavigate={setActive} />
+        <QualityCheckpointsPage onNavigate={setActive} items={data.items} />
       ) : active === "productionQualityRecords" ? (
         <ProductionQCPage onNavigate={setActive} />
       ) : active.startsWith("master:") ? (
