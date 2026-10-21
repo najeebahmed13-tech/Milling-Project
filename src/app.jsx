@@ -8,6 +8,7 @@ import "./design-system/components.css";
 import "./design-system/badges.css";
 import "./design-system/action-menu.css";
 import "./design-system/form-fields.css";
+import "./design-system/multi-select.css";
 import "./design-system/detail-sections.css";
 import "./design-system/readonly-summary.css";
 import "./design-system/date-range-filter.css";

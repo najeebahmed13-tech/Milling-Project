@@ -1,0 +1,16 @@
+.ds-multi-select { position: relative; width: 100%; min-width: 0; }
+.ds-multi-select-trigger { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-3); border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); padding: 9px 12px; color: var(--ds-color-text-muted); background: var(--ds-color-surface); font: inherit; text-align: left; cursor: pointer; }
+.ds-multi-select-trigger:hover { border-color: var(--ds-color-border-hover); }
+.ds-multi-select-trigger:focus-visible { border-color: var(--ds-color-brand); box-shadow: var(--ds-focus-ring); outline: none; }
+.ds-multi-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-multi-select-value.has-value { color: var(--ds-color-text); }
+.ds-multi-select-trigger > svg { flex: 0 0 auto; color: var(--ds-color-text-subtle); transition: transform var(--ds-motion-fast); }
+.ds-multi-select.is-open .ds-multi-select-trigger > svg { transform: rotate(180deg); }
+.ds-multi-select.is-disabled .ds-multi-select-trigger { color: var(--ds-color-text-muted); background: var(--ds-color-surface-subtle); cursor: not-allowed; }
+.ds-multi-select-trigger[aria-invalid="true"] { border-color: var(--ds-color-danger); }
+.ds-multi-select-menu { position: absolute; z-index: 20; top: calc(100% + 5px); right: 0; left: 0; display: grid; max-height: 224px; overflow-y: auto; padding: 5px; border: 1px solid var(--ds-color-border-strong); border-radius: var(--ds-radius-sm); background: var(--ds-color-surface); box-shadow: var(--ds-shadow-md); }
+.ds-multi-select-option { min-height: 38px; display: flex; align-items: center; gap: 9px; border: 0; border-radius: 4px; padding: 7px 9px; color: var(--ds-color-text); background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.ds-multi-select-option:hover, .ds-multi-select-option:focus-visible { background: var(--ds-color-brand-soft); outline: none; }
+.ds-multi-select-option.is-selected { color: var(--ds-color-brand-strong); font-weight: var(--ds-font-weight-bold); }
+.ds-multi-select-check { width: 18px; height: 18px; display: inline-grid; place-items: center; border: 1px solid var(--ds-color-border-strong); border-radius: 4px; color: var(--ds-color-on-brand); background: var(--ds-color-surface); }
+.ds-multi-select-option.is-selected .ds-multi-select-check { border-color: var(--ds-color-brand); background: var(--ds-color-brand); }
