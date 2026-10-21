@@ -105,7 +105,7 @@ export function registerProductionModule(app, db) {
   if (!db.prepare('SELECT COUNT(*) count FROM production_machines').get().count) {
     const insertMachine = db.prepare('INSERT INTO production_machines (code,name,station,line_id,rated_capacity,capacity_uom,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
     [
-      ['STER-01','Sterilizer 01','Sterilizing',40], ['THR-01','Thresher 01','Threshing',40],
+      ['STER-01','Sterilizer 01','Sterilization',40], ['THR-01','Thresher 01','Threshing',40],
       ['PRESS-01','Digester & Screw Press 01','Pressing',35], ['CLAR-01','Clarification Line 01','Clarification',30],
       ['VAC-01','Vacuum Dryer 01','Purification',28], ['KERNEL-01','Kernel Recovery Line 01','Kernel Recovery',12]
     ].forEach(([code, name, station, capacity]) => insertMachine.run(code, name, station, line?.id || null, capacity, 'MT/HOUR', 'ACTIVE', created));
@@ -150,8 +150,13 @@ export function registerProductionModule(app, db) {
       const updateMachine = db.prepare('UPDATE production_machines SET station=? WHERE station=?');
       const updateStep = db.prepare('UPDATE production_route_steps SET station=? WHERE station=?');
       stationReferences.forEach((next, previous) => { updateMachine.run(next, previous); updateStep.run(next, previous); });
+      // Repair the original demo seed assignments without changing user-created machine records.
+      db.prepare("UPDATE production_machines SET station='Sterilization' WHERE code='STER-01' AND name='Sterilizer 01' AND station IN ('Digester','Threshing','Sterilizing')").run();
     })();
   }
+  // Keep the built-in sterilizer seed aligned with the station master after upgrades.
+  db.prepare("UPDATE production_machines SET station='Sterilization' WHERE code='STER-01' AND name='Sterilizer 01' AND station IN ('Digester','Threshing','Sterilizing')").run();
+  db.prepare("UPDATE production_machines SET station='Threshing' WHERE code='THR-01' AND name='Thresher 01' AND station IN ('Digester','Threshing','Sterilizing')").run();
   if (!db.prepare('SELECT COUNT(*) count FROM production_routings').get().count) {
     const routingInfo = db.prepare('INSERT INTO production_routings (code,name,version,input_material,outputs_json,status,created_at) VALUES (?,?,?,?,?,?,?)')
       .run('RT-FFB-CPO-PK-01', 'FFB to CPO & Palm Kernel', 1, 'FFB', JSON.stringify(['CPO','PK','EFB','Fibre','Shell']), 'ACTIVE', created);
