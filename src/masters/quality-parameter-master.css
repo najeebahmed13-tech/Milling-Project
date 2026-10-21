@@ -42,6 +42,8 @@
 .quality-parameter-detail-row strong { max-width: 64%; color: var(--ds-color-text); text-align: right; overflow-wrap: anywhere; }
 .quality-parameter-form { display: flex; flex-direction: column; gap: 16px; padding-top: 18px; min-height: calc(100% - 76px); }
 .quality-parameter-form-error { color: var(--ds-color-danger); background: var(--ds-color-danger-soft); border: 1px solid #ffc8cd; border-radius: var(--ds-radius-sm); padding: 10px 12px; font-size: 12px; }
+.quality-parameter-multi-select { min-height: 92px; padding: 7px 10px; }
+.quality-parameter-multi-select option { padding: 5px 2px; }
 .quality-parameter-active-field { display: flex; align-items: center; gap: 9px; color: var(--ds-color-text); font-size: 13px; }
 .quality-parameter-active-field input { width: 17px; height: 17px; accent-color: var(--ds-color-brand); }
 .quality-parameter-form .drawer-actions, .quality-parameter-drawer > .drawer-actions { margin-top: auto; }

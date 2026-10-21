@@ -4,8 +4,14 @@ import { normalizeQualityParameter, validateQualityParameter } from "../packages
 
 test("quality parameter normalization canonicalizes codes and data types", () => {
   assert.deepEqual(normalizeQualityParameter({ code: " ffa ", name: " Free Fatty Acid ", dataType: "decimal", precision: "2", active: 1 }), {
-    code: "FFA", name: "Free Fatty Acid", dataType: "DECIMAL", uom: "", precision: 2, material: "BOTH", description: "", active: true,
+    code: "FFA", name: "Free Fatty Acid", dataType: "DECIMAL", uom: "", precision: 2, material: "BOTH", parameterTypes: [], description: "", active: true,
   });
+});
+
+test("quality parameter types normalize as unique supported selections", () => {
+  assert.deepEqual(normalizeQualityParameter({ parameterTypes: ["machine", "PRODUCT", "machine", "unknown"] }).parameterTypes, ["MACHINE", "PRODUCT", "UNKNOWN"]);
+  assert.equal(validateQualityParameter({ code: "TEMP", name: "Temperature", dataType: "DECIMAL", parameterTypes: ["LOSS"] }, []).valid, true);
+  assert.equal(validateQualityParameter({ code: "TEMP", name: "Temperature", dataType: "DECIMAL", parameterTypes: ["OTHER"] }, []).valid, false);
 });
 
 test("quality parameter validation enforces supported types and precision", () => {
