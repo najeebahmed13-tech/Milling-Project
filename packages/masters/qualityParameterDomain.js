@@ -24,6 +24,7 @@ export function validateQualityParameter(input, existing = [], editingId = null)
   if (!value.name) errors.name = "Enter a parameter name.";
   if (!QUALITY_PARAMETER_DATA_TYPES.includes(value.dataType)) errors.dataType = "Select a valid data type.";
   if (!QUALITY_PARAMETER_MATERIALS.includes(value.material)) errors.material = "Select CPO, PK, or Both.";
+  if (!value.parameterTypes.length) errors.parameterTypes = "Parameter type is required; select at least one type.";
   if (value.parameterTypes.some((type) => !QUALITY_PARAMETER_TYPES.includes(type))) errors.parameterTypes = "Select valid parameter types.";
   if (value.precision !== "" && (!Number.isInteger(value.precision) || value.precision < 0 || value.precision > 12)) {
     errors.precision = "Use a whole number from 0 to 12.";
