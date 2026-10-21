@@ -9,7 +9,8 @@ test("quality parameter normalization canonicalizes codes and data types", () =>
 });
 
 test("quality parameter types normalize as unique supported selections", () => {
-  assert.deepEqual(normalizeQualityParameter({ parameterTypes: ["machine", "PRODUCT", "machine", "unknown"] }).parameterTypes, ["MACHINE", "PRODUCT", "UNKNOWN"]);
+  assert.deepEqual(normalizeQualityParameter({ parameterTypes: ["production", "STORAGE", "production", "unknown"] }).parameterTypes, ["PRODUCTION", "STORAGE", "UNKNOWN"]);
+  assert.equal(validateQualityParameter({ code: "TEMP", name: "Temperature", dataType: "DECIMAL", parameterTypes: ["PRODUCTION"] }, []).valid, true);
   assert.equal(validateQualityParameter({ code: "TEMP", name: "Temperature", dataType: "DECIMAL", parameterTypes: ["LOSS"] }, []).valid, true);
   assert.equal(validateQualityParameter({ code: "TEMP", name: "Temperature", dataType: "DECIMAL", parameterTypes: ["OTHER"] }, []).valid, false);
 });
@@ -28,7 +29,7 @@ test("quality parameter validation enforces supported types and precision", () =
 });
 
 test("quality parameter codes are unique while the current edit remains valid", () => {
-  const existing = [{ id: "QP-1", code: "FFA", name: "FFA", dataType: "DECIMAL", parameterTypes: ["PRODUCT"] }];
-  assert.equal(validateQualityParameter({ code: "ffa", name: "Other", dataType: "TEXT" }, existing).valid, false);
+  const existing = [{ id: "QP-1", code: "FFA", name: "FFA", dataType: "DECIMAL", parameterTypes: ["PRODUCTION"] }];
+  assert.equal(validateQualityParameter({ code: "ffa", name: "Other", dataType: "TEXT", parameterTypes: ["PRODUCTION"] }, existing).valid, false);
   assert.equal(validateQualityParameter(existing[0], existing, "QP-1").valid, true);
 });

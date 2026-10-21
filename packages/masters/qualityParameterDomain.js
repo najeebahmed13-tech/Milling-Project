@@ -1,6 +1,6 @@
 export const QUALITY_PARAMETER_DATA_TYPES = ["DECIMAL", "INTEGER", "TEXT", "BOOLEAN", "SELECTION"];
 export const QUALITY_PARAMETER_MATERIALS = ["CPO", "PK", "BOTH"];
-export const QUALITY_PARAMETER_TYPES = ["MACHINE", "PRODUCT", "LOSS"];
+export const QUALITY_PARAMETER_TYPES = ["PRODUCTION", "STORAGE", "DISPATCH", "LOSS"];
 
 export function normalizeQualityParameter(input = {}) {
   return {
