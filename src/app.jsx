@@ -33,6 +33,8 @@ import { StorageAreaPage } from "./inventory/StorageAreas.jsx";
 import { FFBReceivingPage } from "./receiving/FFBReceiving.jsx";
 import { FFBGradingPage } from "./receiving/FFBGrading.jsx";
 import { ProductionSystem } from "./production/ProductionSystem.jsx";
+import { ProductionOrdersPage } from "./production/ProductionOrders.jsx";
+import { ProductionPlanningPage } from "./production/ProductionPlanning.jsx";
 import { MasterDataCenter } from "./masters/MasterDataCenter.jsx";
 import "./masters/master-navigation.css";
 import { LogisticsMaster } from "./masters/LogisticsMasters.jsx";
@@ -209,15 +211,18 @@ function Header({ active, setActive, search, setSearch }) {
                 <button onClick={() => setActive("master:samplingPlans")}>Sampling Plan Master</button>
                 <button onClick={() => setActive("master:rejectionReasons")}>Rejection Reason Master</button>
                 <button onClick={() => setActive("master:numberingSequences")}>Numbering Sequence Master</button>
+                <button onClick={() => setActive("master:mills")}>Mill Master</button>
+                <button onClick={() => setActive("master:routingStages")}>Routing Stage Master</button>
+                <button onClick={() => setActive("master:shifts")}>Shift Master</button>
               </div>
             </div>
           ) : id === "production" ? (
             <div
               key={id}
-              className={`nav-group ${active === "production" || active === "productionRouting" || active === "masterProductionLines" ? "active-group" : ""}`}
+              className={`nav-group ${["production", "productionOrders", "productionPlanning", "productionPlanningWorkspace", "productionDemandView", "productionPlanActual", "productionRouting", "masterProductionLines"].includes(active) ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${active === "production" || active === "productionRouting" || active === "masterProductionLines" ? "active" : ""}`}
+                className={`nav-item ${["production", "productionOrders", "productionPlanning", "productionPlanningWorkspace", "productionDemandView", "productionPlanActual", "productionRouting", "masterProductionLines"].includes(active) ? "active" : ""}`}
                 onClick={() => setActive("production")}
               >
                 <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
@@ -225,6 +230,11 @@ function Header({ active, setActive, search, setSearch }) {
               </button>
               <div className="header-submenu">
                 <button onClick={() => setActive("production")}>Production Runs</button>
+                <button onClick={() => setActive("productionPlanning")}>Plan Register</button>
+                <button onClick={() => setActive("productionPlanningWorkspace")}>Planning Workspace</button>
+                <button onClick={() => setActive("productionDemandView")}>Demand View</button>
+                <button onClick={() => setActive("productionPlanActual")}>Plan vs Actual</button>
+                <button onClick={() => setActive("productionOrders")}>Production Orders</button>
                 <button onClick={() => setActive("productionRouting")}>Routing</button>
                 <button onClick={() => setActive("masterProductionLines")}>Production Line</button>
               </div>
@@ -1022,6 +1032,10 @@ function App() {
         <ProductionQCPage onNavigate={setActive} />
       ) : active.startsWith("master:") ? (
         <MasterDataCenter masterKey={active.split(":")[1]} onNavigate={setActive} />
+              ) : ["productionPlanning", "productionPlanningWorkspace", "productionDemandView", "productionPlanActual"].includes(active) ? (
+        <ProductionPlanningPage initialView={{ productionPlanning: "list", productionPlanningWorkspace: "workspace", productionDemandView: "demand", productionPlanActual: "actual" }[active]} />
+      ) : active === "productionOrders" ? (
+        <ProductionOrdersPage />
       ) : active === "production" ? (
         <ProductionSystem mode="runs" onApplicationRefresh={load} />
       ) : active === "productionRouting" ? (

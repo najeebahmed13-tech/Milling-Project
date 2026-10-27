@@ -45,6 +45,19 @@ export const masterDefinitions = [
   { key: 'productionLines', title: 'Production Lines', category: 'Production', description: 'Mill-scoped production line configuration.', permission: 'production.manage', fields: [
     { key: 'code', label: 'Code', required: true }, { key: 'name', label: 'Name', required: true }, { key: 'mill', label: 'Mill', required: true }, { key: 'capacityPerShift', label: 'Capacity per shift', type: 'number' }, { key: 'capacityUom', label: 'Capacity UOM' }, { key: 'active', label: 'Active', type: 'checkbox' }
   ], seed: [{ id: 'LINE-001', code: 'LINE-01', name: 'Production Line 01', mill: 'Main Mill', capacityPerShift: 240, capacityUom: 't', active: true }], columns: ['code', 'name', 'mill', 'capacityPerShift', 'active'] },
+  { key: 'routingStages', title: 'Routing Stages', category: 'Production', description: 'Controlled production operations available when building routing versions.', permission: 'production.manage', fields: [
+    { key: 'code', label: 'Stage code', required: true }, { key: 'name', label: 'Stage name', required: true }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'attachment', label: 'Attachment', type: 'file' }, { key: 'status', label: 'Status', type: 'select', options: ['ACTIVE', 'INACTIVE'], required: true }
+  ], seed: [
+    { id: 'ROUTE-STAGE-001', code: 'STERILIZATION', name: 'Sterilization', description: '', status: 'ACTIVE', active: true },
+    { id: 'ROUTE-STAGE-002', code: 'THRESHING', name: 'Threshing', description: '', status: 'ACTIVE', active: true },
+    { id: 'ROUTE-STAGE-003', code: 'PRESS-DIGEST', name: 'Pressing & Digestion', description: '', status: 'ACTIVE', active: true },
+    { id: 'ROUTE-STAGE-004', code: 'CLARIFICATION', name: 'Clarification', description: '', status: 'ACTIVE', active: true },
+    { id: 'ROUTE-STAGE-005', code: 'VACUUM-DRYING', name: 'Vaccum Drying', description: '', status: 'ACTIVE', active: true },
+    { id: 'ROUTE-STAGE-006', code: 'CPO-STORAGE', name: 'CPO Storage', description: '', status: 'ACTIVE', active: true },
+  ], columns: ['code', 'name', 'description', 'status'] },
+  { key: 'shifts', title: 'Shifts', category: 'Production', description: 'Line-scoped operating shifts used for production planning and execution.', permission: 'production.manage', fields: [
+    { key: 'millName', label: 'Mill / Facility', required: true }, { key: 'code', label: 'Shift code', required: true }, { key: 'name', label: 'Shift name', required: true }, { key: 'startTime', label: 'Start time', type: 'time', required: true }, { key: 'endTime', label: 'End time', type: 'time', required: true }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'status', label: 'Status', type: 'select', options: ['ACTIVE', 'INACTIVE'], required: true }
+  ], seed: [], columns: ['mill_name', 'code', 'name', 'start_time', 'end_time', 'status'] },
   { key: 'qualityParameters', title: 'Quality Parameters', category: 'Quality', description: 'Controlled measurement definitions used by quality checkpoints and production records.', permission: 'quality.manage', fields: [
     { key: 'code', label: 'Code', required: true }, { key: 'name', label: 'Parameter name', required: true }, { key: 'parameterTypes', label: 'Parameter Type', type: 'multiselect', options: ['PRODUCTION', 'STORAGE', 'DISPATCH', 'LOSS'], required: true }, { key: 'dataType', label: 'Data type', type: 'select', options: ['DECIMAL', 'INTEGER', 'TEXT', 'BOOLEAN', 'SELECTION'], required: true }, { key: 'uom', label: 'Unit of measure' }, { key: 'precision', label: 'Decimal precision', type: 'number' }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'active', label: 'Active', type: 'checkbox' }
   ], seed: STATION_QUALITY_PARAMETER_SEEDS, columns: ['code', 'name', 'dataType', 'uom', 'material', 'precision', 'active'] },

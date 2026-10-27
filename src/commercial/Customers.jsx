@@ -54,28 +54,30 @@ const emptyContact = {
   name: "",
   designation: "",
   email: "",
-  mobileCode: "+971",
+  mobileCode: "+60",
   mobile: "",
+  primary: false,
+  status: "Active",
 };
 const emptyAddress = {
   type: "Registered",
-  country: "United Arab Emirates",
-  state: "Dubai",
+  name: "",
+  country: "Malaysia",
+  state: "",
   city: "",
   line1: "",
   line2: "",
+  postalCode: "",
   nearestPort: "",
+  default: false,
+  status: "Active",
 };
 const emptyProduct = {
-  product: "Crude Palm Oil (CPO)",
-  pricingMethod: "Fixed Price",
-  price: "",
-  currency: "USD",
-  uom: "MT (Metric Tonne)",
-  moq: "",
-  deliveryTerm: "Mill Gate (EXW)",
-  approved: "Yes",
+  product: "",
+  uom: "",
 };
+const emptyCommercialProfile = { legalEntity: "", currency: "MYR - Malaysian Ringgit", taxTreatment: "", status: "Active" };
+const emptyDocument = { type: "Company Registration", number: "", issueDate: "", expiryDate: "", fileName: "", status: "Active" };
 
 function LegacyCustomersPage({ rows, onNew }) {
   return (
@@ -137,7 +139,7 @@ function LegacyCustomersPage({ rows, onNew }) {
   );
 }
 
-export function CustomerForm({ onClose, onSaved }) {
+function LegacyCustomerForm({ onClose, onSaved }) {
   const [form, setForm] = useState({
     customerCode: "",
     legalName: "",
@@ -679,6 +681,114 @@ export function CustomerForm({ onClose, onSaved }) {
       </form>
     </div>
   );
+}
+
+export function CustomerForm({ onClose, onSaved }) {
+  const [form, setForm] = useState({
+    customerCode: "", legalName: "", displayName: "", entityType: "Company",
+    registrationNo: "", incorporationDate: "", website: "", email: "", logoFileName: "",
+    businessClassification: "Refinery", relationshipType: "External", businessDescription: "",
+    contacts: [{ ...emptyContact }], addresses: [{ ...emptyAddress }],
+    commercialProfiles: [{ ...emptyCommercialProfile }], products: [], documents: [], status: "Active",
+  });
+  const [error, setError] = useState("");
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const setArray = (key, index, name, value) => setForm((current) => ({
+    ...current, [key]: current[key].map((item, itemIndex) => itemIndex === index ? { ...item, [name]: value } : item),
+  }));
+  const add = (key, item) => setForm((current) => ({ ...current, [key]: [...current[key], { ...item }] }));
+  const remove = (key, index) => setForm((current) => ({ ...current, [key]: current[key].filter((_, itemIndex) => itemIndex !== index) }));
+  const submit = async (event) => {
+    event.preventDefault();
+    const invalidContact = form.contacts.some((contact) => !contact.type || !contact.name.trim() || (!contact.email.trim() && !contact.mobile.trim()));
+    const invalidAddress = form.addresses.some((address) => !address.type || !address.country || !address.line1.trim() || !address.city.trim());
+    const defaultAddressTypes = form.addresses.filter((address) => address.default).map((address) => address.type);
+    const hasDuplicateDefault = defaultAddressTypes.some((type, index) => defaultAddressTypes.indexOf(type) !== index);
+    const invalidDocument = form.documents.some((document) => !document.fileName);
+    if (invalidContact || invalidAddress || invalidDocument || hasDuplicateDefault) {
+      setError(hasDuplicateDefault ? "Only one default address is allowed per address type." : "Complete each contact and address. Each contact needs an email or mobile number; each document needs a file.");
+      return;
+    }
+    const commercial = { ...(form.commercialProfiles[0] || {}), profiles: form.commercialProfiles };
+    const response = await fetch("/api/customers", {
+      method: "POST", headers: contextHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ ...form, customerType: form.entityType, customerOrigin: form.relationshipType, customerGroup: form.relationshipType, commercial }),
+    });
+    const payload = await response.json();
+    if (!response.ok) { setError(payload.message || "Unable to save customer."); return; }
+    onSaved(payload);
+  };
+  const repeatHeader = (label, index, key, canRemove = true) => <div className="repeat-heading"><strong>{label} #{index + 1}</strong>{canRemove && <button type="button" className="row-more" onClick={() => remove(key, index)}>×</button>}</div>;
+  return <div className="contract-screen"><form className="contract-form customer-form" onSubmit={submit}>
+    <div className="contract-form-heading"><div><span className="eyebrow">CUSTOMERS / MASTER DATA</span><h1>Add Customer</h1><p>Capture the complete customer master record and its repeatable commercial references.</p></div><button type="button" className="icon-button" onClick={onClose}>×</button></div>
+    {error && <div className="form-error" role="alert">{error}</div>}
+    <Section title="1. Basic Information"><div className="contract-grid two">
+      <Field label="Customer Code" value={form.customerCode} onChange={(v) => set("customerCode", v)} required placeholder="Unique tenant customer code" />
+      <Field label="Legal Name" value={form.legalName} onChange={(v) => set("legalName", v)} required placeholder="Registered legal/business name" />
+      <Field label="Display Name" value={form.displayName} onChange={(v) => set("displayName", v)} />
+      <Select label="Entity Type" value={form.entityType} onChange={(v) => set("entityType", v)} options={["Company", "Cooperative", "Partnership", "Sole Proprietorship", "Individual", "Other"]} required />
+      <Field label="Registration No." value={form.registrationNo} onChange={(v) => set("registrationNo", v)} />
+      <Field label="Incorporation Date" type="date" value={form.incorporationDate} onChange={(v) => set("incorporationDate", v)} />
+      <Field label="Company Website" type="url" value={form.website} onChange={(v) => set("website", v)} />
+      <Field label="Company Email" type="email" value={form.email} onChange={(v) => set("email", v)} />
+      <label className="contract-field">Company Logo<input type="file" accept="image/*" onChange={(e) => set("logoFileName", e.target.files?.[0]?.name || "")} /></label>
+    </div></Section>
+    <Section title="2. Classification"><div className="contract-grid two">
+      <Select label="Business Classification" value={form.businessClassification} onChange={(v) => set("businessClassification", v)} options={["Refinery", "Kernel Crushing Plant", "Oleochemical Manufacturer", "Food Manufacturer", "Biodiesel Producer", "Trader", "Distributor", "Exporter", "Industrial User", "Other"]} required />
+      <Select label="Relationship Type" value={form.relationshipType} onChange={(v) => set("relationshipType", v)} options={["Group Company", "External"]} required />
+    </div><label className="contract-field">Business Description<textarea rows="3" value={form.businessDescription} onChange={(e) => set("businessDescription", e.target.value)} /></label></Section>
+    <Section title="3. Contacts" action={<button type="button" className="text-button" onClick={() => add("contacts", emptyContact)}>＋ Add Contact</button>}>
+      {form.contacts.map((contact, index) => <div className="customer-repeat" key={index}>{repeatHeader("Contact", index, "contacts", form.contacts.length > 1)}<div className="contract-grid two">
+        <Select label="Contact Type" value={contact.type} onChange={(v) => setArray("contacts", index, "type", v)} options={["Commercial", "Procurement", "Finance", "Logistics", "Quality", "Management", "Export", "Other"]} required />
+        <Field label="Contact Name" value={contact.name} onChange={(v) => setArray("contacts", index, "name", v)} required />
+        <Field label="Designation" value={contact.designation} onChange={(v) => setArray("contacts", index, "designation", v)} />
+        <Field label="Contact Email" type="email" value={contact.email} onChange={(v) => setArray("contacts", index, "email", v)} />
+        <label className="contract-field">Mobile Country Code / Number<div className="customer-phone-fields"><select value={contact.mobileCode} onChange={(e) => setArray("contacts", index, "mobileCode", e.target.value)}><option>+60</option><option>+971</option><option>+62</option><option>+1</option></select><input value={contact.mobile} onChange={(e) => setArray("contacts", index, "mobile", e.target.value)} /></div></label>
+        <label className="contract-field"><span>Primary Contact</span><input type="checkbox" checked={contact.primary} onChange={(e) => setArray("contacts", index, "primary", e.target.checked)} /></label>
+        <Select label="Contact Status" value={contact.status} onChange={(v) => setArray("contacts", index, "status", v)} options={["Active", "Inactive"]} required />
+      </div></div>)}
+    </Section>
+    <Section title="4. Addresses" action={<button type="button" className="text-button" onClick={() => add("addresses", { ...emptyAddress, type: "Shipping" })}>＋ Add Address</button>}>
+      {form.addresses.map((address, index) => <div className="customer-repeat" key={index}>{repeatHeader("Address", index, "addresses", form.addresses.length > 1)}<div className="contract-grid two">
+        <Select label="Address Type" value={address.type} onChange={(v) => setArray("addresses", index, "type", v)} options={["Registered", "Shipping", "Billing", "Other"]} required />
+        <Field label="Address Name" value={address.name} onChange={(v) => setArray("addresses", index, "name", v)} placeholder="Head office / terminal name" />
+        <Field label="Country" value={address.country} onChange={(v) => setArray("addresses", index, "country", v)} required placeholder="Country Master reference" />
+        <Field label="Address Line 1" value={address.line1} onChange={(v) => setArray("addresses", index, "line1", v)} required />
+        <Field label="Address Line 2" value={address.line2} onChange={(v) => setArray("addresses", index, "line2", v)} />
+        <Field label="State / Province" value={address.state} onChange={(v) => setArray("addresses", index, "state", v)} />
+        <Field label="City" value={address.city} onChange={(v) => setArray("addresses", index, "city", v)} required />
+        <Field label="Postal / ZIP Code" value={address.postalCode} onChange={(v) => setArray("addresses", index, "postalCode", v)} />
+        {(address.type === "Shipping" || address.type === "Billing") && <Field label="Nearest / Preferred Port" value={address.nearestPort} onChange={(v) => setArray("addresses", index, "nearestPort", v)} />}
+        <label className="contract-field"><span>Default Address</span><input type="checkbox" checked={address.default} onChange={(e) => setArray("addresses", index, "default", e.target.checked)} /></label>
+        <Select label="Address Status" value={address.status} onChange={(v) => setArray("addresses", index, "status", v)} options={["Active", "Inactive"]} required />
+      </div></div>)}
+    </Section>
+    <Section title="5. Commercial Profile" action={<button type="button" className="text-button" onClick={() => add("commercialProfiles", emptyCommercialProfile)}>＋ Add Commercial Profile</button>}>
+      {form.commercialProfiles.map((profile, index) => <div className="customer-repeat" key={index}>{repeatHeader("Commercial Profile", index, "commercialProfiles", form.commercialProfiles.length > 1)}<div className="contract-grid two">
+        <Field label="Selling Legal Entity" value={profile.legalEntity} onChange={(v) => setArray("commercialProfiles", index, "legalEntity", v)} required />
+        <Select label="Default Currency" value={profile.currency} onChange={(v) => setArray("commercialProfiles", index, "currency", v)} options={["MYR - Malaysian Ringgit", "USD - US Dollar", "EUR - Euro"]} required />
+        <Field label="Default Tax Treatment" value={profile.taxTreatment} onChange={(v) => setArray("commercialProfiles", index, "taxTreatment", v)} />
+        <Select label="Commercial Profile Status" value={profile.status} onChange={(v) => setArray("commercialProfiles", index, "status", v)} options={["Active", "Inactive"]} required />
+      </div></div>)}
+    </Section>
+    <Section title="6. Preferred Products" action={<button type="button" className="text-button" onClick={() => add("products", emptyProduct)}>＋ Add Product</button>}>
+      {form.products.map((product, index) => <div className="customer-repeat" key={index}>{repeatHeader("Preferred Product", index, "products")}<div className="contract-grid two"><Field label="Product / Item" value={product.product} onChange={(v) => setArray("products", index, "product", v)} required /><Field label="Sales UOM" value={product.uom} onChange={(v) => setArray("products", index, "uom", v)} required /></div></div>)}
+      {!form.products.length && <p className="form-help">No preferred products configured.</p>}
+    </Section>
+    <Section title="7. Documents" action={<button type="button" className="text-button" onClick={() => add("documents", emptyDocument)}>＋ Add Document</button>}>
+      {form.documents.map((document, index) => <div className="customer-repeat" key={index}>{repeatHeader("Document", index, "documents")}<div className="contract-grid two">
+        <Select label="Document Type" value={document.type} onChange={(v) => setArray("documents", index, "type", v)} options={["Company Registration", "Tax Certificate", "Trade License", "Other"]} required />
+        <Field label="Document Number" value={document.number} onChange={(v) => setArray("documents", index, "number", v)} />
+        <Field label="Issue Date" type="date" value={document.issueDate} onChange={(v) => setArray("documents", index, "issueDate", v)} />
+        <Field label="Expiry Date" type="date" value={document.expiryDate} onChange={(v) => setArray("documents", index, "expiryDate", v)} />
+        <label className="contract-field">Document File<em>*</em><input type="file" required={!document.fileName} onChange={(e) => setArray("documents", index, "fileName", e.target.files?.[0]?.name || "")} /></label>
+        <Select label="Document Status" value={document.status} onChange={(v) => setArray("documents", index, "status", v)} options={["Active", "Expired", "Inactive"]} required />
+      </div></div>)}
+      {!form.documents.length && <p className="form-help">No documents added.</p>}
+    </Section>
+    <Section title="8. Status"><Select label="Customer Status" value={form.status} onChange={(v) => set("status", v)} options={["Active", "Inactive"]} required /></Section>
+    <div className="contract-actions"><button type="button" className="btn btn-secondary" onClick={onClose}>Discard</button><button className="btn btn-primary">Save Customer</button></div>
+  </form></div>;
 }
 
 export function CustomersPage({ rows, onNew, onSelect }) {

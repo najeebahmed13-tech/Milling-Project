@@ -5,6 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { registerProductionModule } from "./server/production.js";
+import { registerProductionOrderModule } from "./server/productionOrders.js";
+import { registerProductionPlanningModule } from "./server/productionPlanning.js";
 import {
   createFfbReceiptHandler,
   registerLogisticsModule,
@@ -22,6 +24,15 @@ import { registerProductionQualityModule } from "./server/productionQuality.js";
 import { registerApiDocumentation } from "./server/apiDocumentation.js";
 import { attachRequestContext, requestContext } from "./server/requestContext.js";
 import { buildFfbLotNumber, normalizeFfbDisposition } from "./server/ffbReceiptDomain.js";
+import {
+  ITEM_CATEGORIES,
+  ITEM_STORAGE_TYPES,
+  ITEM_STATUSES,
+  ITEM_TRACEABILITY_METHODS,
+  normalizeItemInput,
+  itemValidationErrors,
+  changedItemValues,
+} from "./server/itemDomain.js";
 
 const hasCompletedFfbGrading = (receipt) => {
   if (receipt.state === "GRADING_COMPLETED") return true;
@@ -36,6 +47,7 @@ const hasCompletedFfbGrading = (receipt) => {
     return false;
   }
 };
+const parseJson = (value, fallback) => { try { return JSON.parse(value || ""); } catch { return fallback; } };
 
 const db = new Database(
   path.join(path.dirname(fileURLToPath(import.meta.url)), "rockeye.sqlite"),
@@ -54,6 +66,11 @@ db.exec(
 db.exec(
   `CREATE TABLE IF NOT EXISTS customers (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_code TEXT NOT NULL UNIQUE, legal_name TEXT NOT NULL, display_name TEXT, registration_no TEXT, incorporation_date TEXT, website TEXT, email TEXT, customer_origin TEXT NOT NULL, business_classification TEXT NOT NULL, customer_group TEXT NOT NULL, business_description TEXT, contacts_json TEXT NOT NULL, addresses_json TEXT NOT NULL, commercial_json TEXT NOT NULL, products_json TEXT NOT NULL, credit_applicable INTEGER NOT NULL DEFAULT 0, documents_json TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Active', created_at TEXT NOT NULL);`,
 );
+for (const column of ["entity_type TEXT", "logo_file_name TEXT"]) {
+  try { db.exec(`ALTER TABLE customers ADD COLUMN ${column}`); } catch (error) {
+    if (!String(error.message).includes("duplicate column name")) throw error;
+  }
+}
 db.exec(
   `CREATE TABLE IF NOT EXISTS suppliers (id INTEGER PRIMARY KEY AUTOINCREMENT, supplier_code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, category TEXT NOT NULL, supplier_group TEXT NOT NULL, contact_person TEXT NOT NULL, phone TEXT NOT NULL, email TEXT NOT NULL, location TEXT NOT NULL, payment_terms TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Active');`,
 );
@@ -107,11 +124,100 @@ for (const column of [
   "tracking_method TEXT NOT NULL DEFAULT 'Batch / Lot'",
   "quality_inspection INTEGER NOT NULL DEFAULT 1",
   "specification TEXT NOT NULL DEFAULT ''",
+  "item_short_name TEXT NOT NULL DEFAULT ''",
+  "item_description TEXT NOT NULL DEFAULT ''",
+  "item_sku TEXT NOT NULL DEFAULT ''",
+  "storage_type TEXT NOT NULL DEFAULT 'None'",
+  "inventory_controlled INTEGER NOT NULL DEFAULT 1",
+  "traceability_required INTEGER NOT NULL DEFAULT 0",
+  "traceability_method TEXT NOT NULL DEFAULT 'None'",
+  "quality_managed INTEGER NOT NULL DEFAULT 1",
+  "image_data TEXT NOT NULL DEFAULT ''",
+  "tenant_id TEXT NOT NULL DEFAULT 'demo-tenant'",
+  "mill_id TEXT NOT NULL DEFAULT 'demo-mill'",
+  "created_by TEXT NOT NULL DEFAULT 'system'",
+  "updated_at TEXT",
+  "updated_by TEXT",
 ]) {
   try {
     db.exec(`ALTER TABLE items ADD COLUMN ${column}`);
   } catch {}
 }
+db.exec(`
+  CREATE TABLE IF NOT EXISTS item_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    UNIQUE(tenant_id, mill_id, name)
+  );
+  CREATE TABLE IF NOT EXISTS item_uoms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    UNIQUE(tenant_id, mill_id, code)
+  );
+  CREATE TABLE IF NOT EXISTS item_policies (
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    duplicate_matching_json TEXT NOT NULL DEFAULT '{"code":true,"name":true,"shortName":true,"sku":true}',
+    sku_unique INTEGER NOT NULL DEFAULT 1,
+    traceability_rules_json TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(tenant_id, mill_id)
+  );
+  CREATE TABLE IF NOT EXISTS item_audit_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    actor_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    changed_values_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS item_usage_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'OPEN',
+    posted_at TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(tenant_id, mill_id, item_id, entity_type, entity_id)
+  );
+  CREATE TABLE IF NOT EXISTS item_configuration_references (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    configuration_type TEXT NOT NULL,
+    configuration_id TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    UNIQUE(tenant_id, mill_id, item_id, configuration_type, configuration_id)
+  );
+`);
+db.prepare("UPDATE items SET tenant_id=COALESCE(NULLIF(tenant_id,''),'demo-tenant'), mill_id=COALESCE(NULLIF(mill_id,''),'demo-mill'), created_by=COALESCE(NULLIF(created_by,''),'system')").run();
+function ensureItemReferenceData(scope) {
+  const now = new Date().toISOString();
+  const addCategory = db.prepare("INSERT OR IGNORE INTO item_categories (tenant_id,mill_id,name,active,created_at) VALUES (?,?,?,?,?)");
+  ITEM_CATEGORIES.forEach((name) => addCategory.run(scope.tenantId, scope.millId, name, 1, now));
+  db.prepare("UPDATE item_categories SET active=0 WHERE tenant_id=? AND mill_id=? AND name='Co-product'").run(scope.tenantId, scope.millId);
+  const addUom = db.prepare("INSERT OR IGNORE INTO item_uoms (tenant_id,mill_id,code,name,active,created_at) VALUES (?,?,?,?,?,?)");
+  [["T", "Tonne"], ["KG", "Kilogram"], ["MT", "Metric Tonne"], ["Sets", "Sets"], ["L", "Litre"]].forEach(([code, name]) => addUom.run(scope.tenantId, scope.millId, code, name, 1, now));
+  db.prepare("INSERT OR IGNORE INTO item_policies (tenant_id,mill_id,created_at) VALUES (?,?,?)").run(scope.tenantId, scope.millId, now);
+}
+const seedItemReferenceData = db.transaction(() => ensureItemReferenceData({ tenantId: "demo-tenant", millId: "demo-mill" }));
+seedItemReferenceData();
 for (const column of [
   "receipt_code TEXT",
   "remarks TEXT NOT NULL DEFAULT ''",
@@ -993,6 +1099,8 @@ app.use(express.json({ limit: "25mb" }));
 app.use("/api", (req, res, next) => req.path === "/health" ? next() : attachRequestContext(req, res, next));
 registerApiDocumentation(app);
 registerProductionModule(app, db);
+registerProductionOrderModule(app, db);
+registerProductionPlanningModule(app, db);
 registerProductionQualityModule(app, db);
 registerLogisticsModule(app, db);
 registerPurchaseContractsModule(app, db);
@@ -1106,9 +1214,77 @@ app.get("/api/suppliers", (req, res) => {
       })),
   );
 });
-app.get("/api/items", (_req, res) =>
-  res.json(db.prepare("SELECT * FROM items ORDER BY id DESC").all()),
-);
+const itemScope = (req) => requestContext(req);
+const itemRows = (scope) => db.prepare("SELECT * FROM items WHERE tenant_id=? AND mill_id=? ORDER BY id DESC").all(scope.tenantId, scope.millId);
+const itemDuplicateGroups = (scope) => {
+  const refs = itemReferenceData(scope);
+  const matching = parseJson(refs.policy.duplicate_matching_json, { code: true, name: true, shortName: true, sku: true });
+  const fields = [
+    ["item_code", "code", "Item Code"],
+    ["name", "name", "Item Name"],
+    ["item_short_name", "shortName", "Item Short Name"],
+    ["item_sku", "sku", "Item SKU"],
+  ];
+  const rows = itemRows(scope);
+  return fields.flatMap(([column, policyKey, label]) => {
+    if (!matching[policyKey]) return [];
+    const groups = new Map();
+    rows.forEach((row) => {
+      const value = String(row[column] || "").trim().toLowerCase();
+      if (value) groups.set(value, [...(groups.get(value) || []), row]);
+    });
+    return [...groups.entries()].filter(([, group]) => group.length > 1).map(([value, group]) => ({ field: policyKey, label, value, items: group.map((row) => ({ id: row.id, itemCode: row.item_code, name: row.name, status: row.status })) }));
+  });
+};
+const itemReferenceData = (scope) => {
+  ensureItemReferenceData(scope);
+  return {
+  categories: db.prepare("SELECT * FROM item_categories WHERE tenant_id=? AND mill_id=? ORDER BY name").all(scope.tenantId, scope.millId),
+  uoms: db.prepare("SELECT * FROM item_uoms WHERE tenant_id=? AND mill_id=? ORDER BY code").all(scope.tenantId, scope.millId),
+  policy: db.prepare("SELECT * FROM item_policies WHERE tenant_id=? AND mill_id=?").get(scope.tenantId, scope.millId) || { duplicate_matching_json: "{}", sku_unique: 1, traceability_rules_json: "[]" },
+  };
+};
+const itemAudit = (scope, itemId, actorId, action, changedValues = {}) => db.prepare("INSERT INTO item_audit_events (tenant_id,mill_id,item_id,actor_id,action,changed_values_json,created_at) VALUES (?,?,?,?,?,?,?)").run(scope.tenantId, scope.millId, itemId, actorId, action, JSON.stringify(changedValues), new Date().toISOString());
+const itemUsage = (scope, id, state = null) => state ? db.prepare("SELECT COUNT(*) count FROM item_usage_records WHERE tenant_id=? AND mill_id=? AND item_id=? AND state=?").get(scope.tenantId, scope.millId, id, state).count : db.prepare("SELECT COUNT(*) count FROM item_usage_records WHERE tenant_id=? AND mill_id=? AND item_id=?").get(scope.tenantId, scope.millId, id).count;
+const itemValidation = (scope, item, currentId = null) => {
+  const refs = itemReferenceData(scope);
+  const policy = { ...refs.policy, matching: parseJson(refs.policy.duplicate_matching_json, {}) };
+  const errors = itemValidationErrors(item, { categories: refs.categories, uoms: refs.uoms, policies: policy });
+  const matching = policy.matching || {};
+  const duplicateFields = [
+    ["item_code", "itemCode", "Item code"],
+    ["name", "name", "Item name"],
+    ["item_short_name", "shortName", "Item short name"],
+    ["item_sku", "sku", "SKU"],
+  ];
+  for (const [column, key, label] of duplicateFields) {
+    if (!matching[key] || !item[key]) continue;
+    const duplicate = db.prepare(`SELECT id FROM items WHERE tenant_id=? AND mill_id=? AND lower(trim(${column}))=lower(trim(?)) AND id != COALESCE(?,0) LIMIT 1`).get(scope.tenantId, scope.millId, item[key], currentId);
+    if (duplicate) errors[key] = `${label} already exists in this tenant and mill.`;
+  }
+  if (policy.sku_unique && item.sku) {
+    const duplicate = db.prepare("SELECT id FROM items WHERE tenant_id=? AND mill_id=? AND lower(trim(item_sku))=lower(trim(?)) AND item_sku<>'' AND id != COALESCE(?,0) LIMIT 1").get(scope.tenantId, scope.millId, item.sku, currentId);
+    if (duplicate) errors.sku = "SKU must be unique.";
+  }
+  return errors;
+};
+const itemError = (res, errors) => res.status(400).json({ code: "ITEM_VALIDATION_FAILED", message: Object.values(errors)[0] || "Item validation failed.", errors });
+
+app.get("/api/items", (req, res) => res.json(itemRows(itemScope(req))));
+app.get("/api/items/duplicates", (req, res) => {
+  const groups = itemDuplicateGroups(itemScope(req));
+  res.json({ duplicateGroups: groups, duplicateItemIds: [...new Set(groups.flatMap((group) => group.items.map((item) => item.id)))], checkedAt: new Date().toISOString() });
+});
+app.get("/api/items/reference-data", (req, res) => {
+  const refs = itemReferenceData(itemScope(req));
+  res.json({ categories: refs.categories.filter((row) => row.active), uoms: refs.uoms.filter((row) => row.active), storageTypes: ITEM_STORAGE_TYPES, traceabilityMethods: ITEM_TRACEABILITY_METHODS, statuses: ITEM_STATUSES, policy: refs.policy });
+});
+app.get("/api/items/:id/audit", (req, res) => {
+  const scope = itemScope(req);
+  const item = db.prepare("SELECT id FROM items WHERE id=? AND tenant_id=? AND mill_id=?").get(req.params.id, scope.tenantId, scope.millId);
+  if (!item) return res.status(404).json({ code: "ITEM_NOT_FOUND", message: "Item not found." });
+  res.json(db.prepare("SELECT * FROM item_audit_events WHERE item_id=? AND tenant_id=? AND mill_id=? ORDER BY id DESC").all(item.id, scope.tenantId, scope.millId).map((event) => ({ ...event, changedValues: parseJson(event.changed_values_json, {}) })));
+});
 app.get("/api/ffb-receiving", (req, res) => {
   const { tenantId, millId } = requestContext(req);
   return res.json(
@@ -1292,48 +1468,23 @@ app.post("/api/ffb-receiving/:id/vehicle-exit", (req, res) => {
   }
 });
 app.post("/api/items", (req, res) => {
-  const body = req.body;
-  if (
-    !body.itemCode ||
-    !body.name ||
-    !body.category ||
-    !body.unit ||
-    !body.itemType
-  )
-    return res
-      .status(400)
-      .json({
-        message:
-          "Item code, name, type, category and inventory UOM are required.",
-      });
+  const scope = itemScope(req);
+  const item = normalizeItemInput(req.body);
+  const errors = itemValidation(scope, item);
+  if (Object.keys(errors).length) return itemError(res, errors);
   try {
     const info = db
       .prepare(
-        "INSERT INTO items (item_code,name,category,item_type,unit,stock_unit,reorder_level,max_stock,lead_time_days,location,storage_condition,tracking_method,quality_inspection,specification,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO items (item_code,name,item_short_name,item_description,category,item_sku,item_type,unit,stock_unit,storage_type,inventory_controlled,traceability_required,traceability_method,quality_managed,image_data,status,created_at,tenant_id,mill_id,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       )
       .run(
-        body.itemCode.trim(),
-        body.name.trim(),
-        body.category,
-        body.itemType,
-        body.unit,
-        body.stockUnit || body.unit,
-        body.reorderLevel === "" ? null : Number(body.reorderLevel),
-        body.maxStock === "" ? null : Number(body.maxStock),
-        body.leadTimeDays === "" ? null : Number(body.leadTimeDays),
-        body.location || "",
-        body.storageCondition || "Covered / Dry",
-        body.trackingMethod || "Batch / Lot",
-        body.qualityInspection ? 1 : 0,
-        body.specification || "",
-        body.status || "Active",
-        new Date().toISOString().slice(0, 10),
+        item.itemCode, item.name, item.shortName, item.description, item.category, item.sku,
+        req.body.itemType || "ITEM", item.unit, item.unit, item.storageType, item.inventoryControlled ? 1 : 0, item.traceabilityRequired ? 1 : 0, item.traceabilityMethod, item.qualityManaged ? 1 : 0, item.imageData, item.status,
+        new Date().toISOString(), scope.tenantId, scope.millId, scope.actorId,
       );
-    res
-      .status(201)
-      .json(
-        db.prepare("SELECT * FROM items WHERE id=?").get(info.lastInsertRowid),
-      );
+    const row = db.prepare("SELECT * FROM items WHERE id=? AND tenant_id=? AND mill_id=?").get(info.lastInsertRowid, scope.tenantId, scope.millId);
+    itemAudit(scope, row.id, scope.actorId, "ITEM_CREATED", changedItemValues({}, row));
+    res.status(201).json(row);
   } catch (error) {
     res
       .status(400)
@@ -1346,46 +1497,36 @@ app.post("/api/items", (req, res) => {
   }
 });
 app.patch("/api/items/:id", (req, res) => {
-  const body = req.body;
-  if (
-    !body.itemCode ||
-    !body.name ||
-    !body.category ||
-    !body.unit ||
-    !body.itemType
-  )
-    return res
-      .status(400)
-      .json({
-        message:
-          "Item code, name, type, category and inventory UOM are required.",
-      });
+  const scope = itemScope(req);
+  const current = db.prepare("SELECT * FROM items WHERE id=? AND tenant_id=? AND mill_id=?").get(req.params.id, scope.tenantId, scope.millId);
+  if (!current) return res.status(404).json({ code: "ITEM_NOT_FOUND", message: "Item not found." });
+  const item = normalizeItemInput(req.body);
+  const errors = itemValidation(scope, item, current.id);
+  if (Object.keys(errors).length) return itemError(res, errors);
+  const postedUsage = itemUsage(scope, current.id, "POSTED") > 0;
+  const changedProtectedField = current.category !== item.category || current.unit !== item.unit || Boolean(current.traceability_required) !== item.traceabilityRequired || current.traceability_method !== item.traceabilityMethod;
+  if (postedUsage && changedProtectedField) return res.status(409).json({ code: "ITEM_POSTED_USAGE_LOCK", message: "Category, UOM, and traceability cannot change after posted usage." });
+  if (postedUsage && current.item_code !== item.itemCode) return res.status(409).json({ code: "ITEM_CODE_IMMUTABLE", message: "Item code cannot change after posted references." });
+  if (current.status === "Active" && item.status === "Inactive") {
+    const openUsage = itemUsage(scope, current.id, "OPEN");
+    const activeConfigs = db.prepare("SELECT COUNT(*) count FROM item_configuration_references WHERE tenant_id=? AND mill_id=? AND item_id=? AND active=1").get(scope.tenantId, scope.millId, current.id).count;
+    if (openUsage || activeConfigs) return res.status(409).json({ code: "ITEM_DEACTIVATION_BLOCKED", message: "Resolve open transactions and active configurations before deactivating this item." });
+  }
   try {
     const info = db
       .prepare(
-        "UPDATE items SET item_code=?,name=?,category=?,item_type=?,unit=?,stock_unit=?,reorder_level=?,max_stock=?,lead_time_days=?,location=?,storage_condition=?,tracking_method=?,quality_inspection=?,specification=?,status=? WHERE id=?",
+        "UPDATE items SET item_code=?,name=?,item_short_name=?,item_description=?,category=?,item_sku=?,unit=?,stock_unit=?,storage_type=?,inventory_controlled=?,traceability_required=?,traceability_method=?,quality_managed=?,image_data=?,status=?,updated_at=?,updated_by=? WHERE id=? AND tenant_id=? AND mill_id=?",
       )
       .run(
-        body.itemCode.trim(),
-        body.name.trim(),
-        body.category,
-        body.itemType,
-        body.unit,
-        body.stockUnit || body.unit,
-        body.reorderLevel === "" ? null : Number(body.reorderLevel),
-        body.maxStock === "" ? null : Number(body.maxStock),
-        body.leadTimeDays === "" ? null : Number(body.leadTimeDays),
-        body.location || "",
-        body.storageCondition || "Covered / Dry",
-        body.trackingMethod || "Batch / Lot",
-        body.qualityInspection ? 1 : 0,
-        body.specification || "",
-        body.status || "Active",
-        req.params.id,
+        item.itemCode, item.name, item.shortName, item.description, item.category, item.sku, item.unit, item.unit,
+        item.storageType, item.inventoryControlled ? 1 : 0, item.traceabilityRequired ? 1 : 0, item.traceabilityMethod, item.qualityManaged ? 1 : 0,
+        item.imageData, item.status, new Date().toISOString(), scope.actorId, req.params.id, scope.tenantId, scope.millId,
       );
     if (!info.changes)
       return res.status(404).json({ message: "Item not found." });
-    res.json(db.prepare("SELECT * FROM items WHERE id=?").get(req.params.id));
+    const row = db.prepare("SELECT * FROM items WHERE id=? AND tenant_id=? AND mill_id=?").get(req.params.id, scope.tenantId, scope.millId);
+    itemAudit(scope, row.id, scope.actorId, current.status !== row.status ? "ITEM_STATUS_CHANGED" : "ITEM_UPDATED", changedItemValues(current, row));
+    res.json(row);
   } catch (error) {
     res
       .status(400)
@@ -1398,10 +1539,15 @@ app.patch("/api/items/:id", (req, res) => {
   }
 });
 app.delete("/api/items/:id", (req, res) => {
-  const info = db.prepare("DELETE FROM items WHERE id=?").run(req.params.id);
-  if (!info.changes)
-    return res.status(404).json({ message: "Item not found." });
-  res.status(204).end();
+  const scope = itemScope(req);
+  const current = db.prepare("SELECT * FROM items WHERE id=? AND tenant_id=? AND mill_id=?").get(req.params.id, scope.tenantId, scope.millId);
+  if (!current) return res.status(404).json({ code: "ITEM_NOT_FOUND", message: "Item not found." });
+  if (current.status === "Inactive") return res.json(current);
+  if (itemUsage(scope, current.id, "OPEN") || db.prepare("SELECT COUNT(*) count FROM item_configuration_references WHERE tenant_id=? AND mill_id=? AND item_id=? AND active=1").get(scope.tenantId, scope.millId, current.id).count) return res.status(409).json({ code: "ITEM_DEACTIVATION_BLOCKED", message: "Resolve open transactions and active configurations before deactivating this item." });
+  db.prepare("UPDATE items SET status='Inactive',updated_at=?,updated_by=? WHERE id=? AND tenant_id=? AND mill_id=?").run(new Date().toISOString(), scope.actorId, current.id, scope.tenantId, scope.millId);
+  const row = db.prepare("SELECT * FROM items WHERE id=? AND tenant_id=? AND mill_id=?").get(current.id, scope.tenantId, scope.millId);
+  itemAudit(scope, row.id, scope.actorId, "ITEM_STATUS_CHANGED", changedItemValues(current, row));
+  res.json(row);
 });
 app.post("/api/suppliers", (req, res) => {
   const body = req.body;
@@ -1468,14 +1614,6 @@ app.post("/api/suppliers", (req, res) => {
 });
 app.post("/api/customers", (req, res) => {
   const body = req.body;
-  const hasDeliveryAddress = (body.addresses || []).some((address) =>
-    address &&
-    (address.type === "Delivery" || address.type === "Shipping") &&
-    address.country &&
-    String(address.line1 || "").trim() &&
-    String(address.state || "").trim() &&
-    String(address.city || "").trim(),
-  );
   if (
     !body.customerCode ||
     !body.legalName ||
@@ -1489,23 +1627,24 @@ app.post("/api/customers", (req, res) => {
         message:
           "Customer code, legal name, origin, business classification and customer group are required.",
       });
-  if (!hasDeliveryAddress)
-    return res.status(400).json({
-      message: "At least one complete Shipping address is required as the customer delivery address.",
-    });
+  const defaultAddressTypes = (body.addresses || []).filter((address) => address?.default).map((address) => address.type);
+  if (new Set(defaultAddressTypes).size !== defaultAddressTypes.length)
+    return res.status(400).json({ message: "Only one default address is allowed per address type." });
   try {
     const info = db
       .prepare(
-        "INSERT INTO customers (customer_code,legal_name,display_name,registration_no,incorporation_date,website,email,customer_origin,business_classification,customer_group,business_description,contacts_json,addresses_json,commercial_json,products_json,credit_applicable,documents_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO customers (customer_code,legal_name,display_name,entity_type,registration_no,incorporation_date,website,email,logo_file_name,customer_origin,business_classification,customer_group,business_description,contacts_json,addresses_json,commercial_json,products_json,credit_applicable,documents_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       )
       .run(
         body.customerCode,
         body.legalName,
         body.displayName || "",
+        body.customerType || body.entityType || "Company",
         body.registrationNo || "",
         body.incorporationDate || "",
         body.website || "",
         body.email || "",
+        body.logoFileName || "",
         body.customerOrigin,
         body.businessClassification,
         body.customerGroup,
@@ -1516,7 +1655,7 @@ app.post("/api/customers", (req, res) => {
         JSON.stringify(body.products || []),
         body.creditApplicable ? 1 : 0,
         JSON.stringify(body.documents || []),
-        "Active",
+        body.status || "Active",
         new Date().toISOString().slice(0, 10),
       );
     res

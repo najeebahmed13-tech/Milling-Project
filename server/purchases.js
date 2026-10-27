@@ -131,7 +131,7 @@ export function registerPurchasingModule(app, db) {
     if (normalized.some((line) => !Number.isInteger(line.itemId) || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitPrice) || line.unitPrice < 0)) return res.status(400).json({ code: 'PURCHASE_INVOICE_LINE_INVALID', message: 'Each invoice line requires an item, positive quantity and non-negative unit price.' });
     try {
       const updated = db.transaction(() => {
-        const items = normalized.map((line) => db.prepare('SELECT id, name, unit FROM items WHERE id = ? AND status = ?').get(line.itemId, 'Active'));
+        const items = normalized.map((line) => db.prepare('SELECT id, name, unit FROM items WHERE id = ? AND status = ? AND tenant_id=? AND mill_id=?').get(line.itemId, 'Active', tenantId, millId));
         if (items.some((item) => !item)) throw Object.assign(new Error('One or more selected items are not active.'), { code: 'ITEM_NOT_FOUND' });
         const subtotal = Number(normalized.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0).toFixed(2));
         const taxAmount = Number((subtotal * (Number(body.taxRate || 0) / 100)).toFixed(2));
@@ -166,7 +166,7 @@ export function registerPurchasingModule(app, db) {
       const result = db.transaction(() => {
         const existing = db.prepare('SELECT * FROM direct_purchases WHERE tenant_id = ? AND idempotency_key = ?').get(tenantId, key);
         if (existing) return db.prepare(`${invoiceQuery} AND i.id = ?`).get(tenantId, millId, existing.invoice_id);
-        const items = normalized.map((line) => db.prepare('SELECT id, name, unit FROM items WHERE id = ? AND status = ?').get(line.itemId, 'Active'));
+        const items = normalized.map((line) => db.prepare('SELECT id, name, unit FROM items WHERE id = ? AND status = ? AND tenant_id=? AND mill_id=?').get(line.itemId, 'Active', tenantId, millId));
         if (items.some((item) => !item)) throw Object.assign(new Error('One or more selected items are not active.'), { code: 'ITEM_NOT_FOUND' });
         const subtotal = Number(normalized.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0).toFixed(2));
         const taxAmount = Number((subtotal * (Number(body.taxRate || 0) / 100)).toFixed(2));
@@ -179,7 +179,7 @@ export function registerPurchasingModule(app, db) {
         const invoice = db.prepare(`INSERT INTO purchase_invoices (tenant_id,mill_id,invoice_number,supplier_id,source_type,source_id,invoice_date,currency,subtotal,tax_amount,total_amount,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?)`).run(tenantId, millId, invoiceNumber, supplierId, 'DIRECT_PURCHASE', purchase.lastInsertRowid, body.purchaseDate, body.currency, subtotal, taxAmount, totalAmount, stamp);
         const lineInsert = db.prepare('INSERT INTO direct_purchase_lines (purchase_id,item_id,description,quantity,uom,unit_price,line_total) VALUES (?,?,?,?,?,?,?)');
         const invoiceLineInsert = db.prepare('INSERT INTO purchase_invoice_lines (invoice_id,item_id,description,quantity,uom,unit_price,line_total) VALUES (?,?,?,?,?,?,?)');
-        normalized.forEach((line, index) => { const item = items[index]; const total = Number((line.quantity * line.unitPrice).toFixed(2)); lineInsert.run(purchase.lastInsertRowid, line.itemId, item.name, line.quantity, item.unit, line.unitPrice, total); invoiceLineInsert.run(invoice.lastInsertRowid, line.itemId, item.name, line.quantity, item.unit, line.unitPrice, total); });
+        normalized.forEach((line, index) => { const item = items[index]; const total = Number((line.quantity * line.unitPrice).toFixed(2)); lineInsert.run(purchase.lastInsertRowid, line.itemId, item.name, line.quantity, item.unit, line.unitPrice, total); invoiceLineInsert.run(invoice.lastInsertRowid, line.itemId, item.name, line.quantity, item.unit, line.unitPrice, total); db.prepare('INSERT OR IGNORE INTO item_usage_records (tenant_id,mill_id,item_id,entity_type,entity_id,state,posted_at,created_at) VALUES (?,?,?,?,?,?,?,?)').run(tenantId, millId, line.itemId, 'DIRECT_PURCHASE', String(purchase.lastInsertRowid), 'POSTED', stamp, stamp); });
         db.prepare('UPDATE direct_purchases SET invoice_id = ? WHERE id = ?').run(invoice.lastInsertRowid, purchase.lastInsertRowid);
         db.prepare('INSERT INTO purchase_audit_events (tenant_id,mill_id,actor_id,action,entity_type,entity_id,details_json,created_at) VALUES (?,?,?,?,?,?,?,?)').run(tenantId, millId, actorId, 'DIRECT_PURCHASE_POSTED', 'DIRECT_PURCHASE', String(purchase.lastInsertRowid), JSON.stringify({ purchaseNumber, invoiceNumber, totalAmount }), stamp);
         return db.prepare(`${invoiceQuery} AND i.id = ?`).get(tenantId, millId, invoice.lastInsertRowid);
@@ -196,7 +196,7 @@ export function createDraftPurchaseInvoiceForFfbReceipt(db, receipt, { tenantId 
   if (existing) return existing;
   const supplier = db.prepare('SELECT * FROM suppliers WHERE name=? AND status=?').get(receipt.supplier, 'Active');
   if (!supplier) throw Object.assign(new Error('Supplier linked to the FFB receipt was not found.'), { code: 'SUPPLIER_NOT_FOUND' });
-  const item = db.prepare("SELECT id,name,unit FROM items WHERE (name=? OR item_type=?) AND status='Active' ORDER BY CASE WHEN name=? THEN 0 ELSE 1 END, id LIMIT 1").get(receipt.product_type, receipt.product_type, receipt.product_type);
+  const item = db.prepare("SELECT id,name,unit FROM items WHERE (name=? OR item_type=?) AND status='Active' AND tenant_id=? AND mill_id=? ORDER BY CASE WHEN name=? THEN 0 ELSE 1 END, id LIMIT 1").get(receipt.product_type, receipt.product_type, tenantId, millId, receipt.product_type);
   if (!item) throw Object.assign(new Error('The received item is not configured in the item master.'), { code: 'ITEM_NOT_FOUND' });
   const quantity = Number(receipt.net_weight || receipt.gross_weight || 0);
   if (!Number.isFinite(quantity) || quantity <= 0) throw Object.assign(new Error('A positive net quantity is required before creating the purchase invoice draft.'), { code: 'INVALID_RECEIPT_QUANTITY' });

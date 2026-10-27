@@ -32,6 +32,19 @@ export const masterDefinitions = [
   { key: 'productionLines', title: 'Production Lines', category: 'Production', description: 'Mill-scoped production line configuration.', permission: 'production.manage', fields: [
     { key: 'code', label: 'Code', required: true }, { key: 'name', label: 'Name', required: true }, { key: 'mill', label: 'Mill', required: true }, { key: 'capacityPerShift', label: 'Capacity per shift', type: 'number' }, { key: 'capacityUom', label: 'Capacity UOM' }, { key: 'active', label: 'Active', type: 'checkbox' }
   ], seed: [{ id: 'LINE-001', code: 'LINE-01', name: 'Production Line 01', mill: 'Main Mill', capacityPerShift: 240, capacityUom: 't', active: true }], columns: ['code', 'name', 'mill', 'capacityPerShift', 'active'] },
+  { key: 'mills', title: 'Mill Master', category: 'Production', description: 'Authorized mill and facility references used by production planning.', permission: 'production.manage', fields: [
+    { key: 'code', label: 'Mill code', required: true }, { key: 'name', label: 'Mill name', required: true }, { key: 'timezone', label: 'Time zone', required: true }, { key: 'active', label: 'Active', type: 'checkbox' }
+  ], seed: [{ id: 'demo-mill', code: 'MAIN-MILL', name: 'Main Mill', timezone: 'Asia/Kuala_Lumpur', active: true }], columns: ['code', 'name', 'timezone', 'active'] },
+  { key: 'routingStages', title: 'Routing Stages', category: 'Production', description: 'Controlled production operations available when building routing versions.', permission: 'production.manage', fields: [
+    { key: 'code', label: 'Stage code', required: true }, { key: 'name', label: 'Stage name', required: true }, { key: 'sequence', label: 'Default sequence', type: 'number', required: true }, { key: 'active', label: 'Active', type: 'checkbox' }
+  ], seed: [
+    { id: 'ROUTE-STAGE-001', code: 'STERILIZATION', name: 'Sterilization', sequence: 1, active: true },
+    { id: 'ROUTE-STAGE-002', code: 'THRESHING', name: 'Threshing', sequence: 2, active: true },
+    { id: 'ROUTE-STAGE-003', code: 'PRESS-DIGEST', name: 'Pressing & Digestion', sequence: 3, active: true },
+    { id: 'ROUTE-STAGE-004', code: 'CLARIFICATION', name: 'Clarification', sequence: 4, active: true },
+    { id: 'ROUTE-STAGE-005', code: 'VACUUM-DRYING', name: 'Vaccum Drying', sequence: 5, active: true },
+    { id: 'ROUTE-STAGE-006', code: 'CPO-STORAGE', name: 'CPO Storage', sequence: 6, active: true },
+  ], columns: ['code', 'name', 'sequence', 'active'] },
   { key: 'qualityParameters', title: 'Quality Parameters', category: 'Quality', description: 'Controlled measurement definitions used by quality checkpoints and production records.', permission: 'quality.manage', fields: [
     { key: 'code', label: 'Code', required: true }, { key: 'name', label: 'Parameter name', required: true }, { key: 'parameterTypes', label: 'Parameter Type', type: 'multiselect', options: ['PRODUCTION', 'STORAGE', 'DISPATCH', 'LOSS'], required: true }, { key: 'dataType', label: 'Data type', type: 'select', options: ['DECIMAL', 'INTEGER', 'TEXT', 'BOOLEAN', 'SELECTION'], required: true }, { key: 'uom', label: 'Unit of measure' }, { key: 'precision', label: 'Decimal precision', type: 'number' }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'active', label: 'Active', type: 'checkbox' }
   ], seed: STATION_QUALITY_PARAMETER_SEEDS, columns: ['code', 'name', 'dataType', 'uom', 'material', 'precision', 'active'] },

@@ -10,6 +10,10 @@ export const navigationItems = [
   ] },
   { id: 'production', label: 'Production', icon: '▥', permission: 'production.read', children: [
     { id: 'productionRuns', label: 'Production Runs', icon: 'R', permission: 'production.read' },
+    { id: 'productionPlanning', label: 'Plan Register', icon: 'P', permission: 'production.read' },
+    { id: 'productionPlanningWorkspace', label: 'Planning Workspace', icon: 'P', permission: 'production.read' },
+    { id: 'productionDemandView', label: 'Demand View', icon: 'P', permission: 'production.read' },
+    { id: 'productionPlanActual', label: 'Plan vs Actual', icon: 'P', permission: 'production.read' },
     { id: 'productionRouting', label: 'Routing', icon: 'P', permission: 'production.read' }
   ] },
   { id: 'stock', label: 'Stock', icon: '◇', permission: 'inventory.read', children: [

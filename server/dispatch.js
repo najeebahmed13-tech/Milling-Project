@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { requestContext } from './requestContext.js';
 
 const now = () => new Date().toISOString();
 const reference = () => `DO-${now().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -37,6 +38,10 @@ export function registerDispatchModule(app, db) {
   app.post('/api/dispatch-orders', (req, res) => {
     const body = req.body; const quantity = Number(body.quantity);
     if (!body.material || !body.customer || !body.vehicleNo || !Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ message: 'Material, customer, vehicle and positive quantity are required.' });
+    const { tenantId, millId } = requestContext(req);
+    const item = db.prepare("SELECT id,inventory_controlled,status FROM items WHERE tenant_id=? AND mill_id=? AND status='Active' AND (item_code=? OR name=? OR item_type=?) ORDER BY CASE WHEN item_code=? THEN 0 WHEN name=? THEN 1 ELSE 2 END LIMIT 1").get(tenantId, millId, body.material, body.material, body.material, body.material, body.material);
+    if (!item) return res.status(400).json({ code: 'ITEM_NOT_FOUND', message: 'The selected material is not configured as an active Item.' });
+    if (!item.inventory_controlled) return res.status(409).json({ code: 'INVENTORY_CONTROLLED_REQUIRED', message: 'This Item is not Inventory Controlled and cannot be used for conventional inventory posting.' });
     const stock = db.prepare('SELECT COALESCE(SUM(balance),0) balance FROM stock WHERE material=?').get(body.material).balance;
     if (quantity > Number(stock || 0)) return res.status(409).json({ message: `Only ${Number(stock || 0).toFixed(3)} MT of ${body.material} is available for dispatch.` });
     try { const stamp = now(); const info = db.prepare('INSERT INTO dispatch_orders (order_no,material,customer,quantity,uom,vehicle_no,driver_name,transporter,status,order_date,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(reference(), body.material, body.customer.trim(), quantity, 'MT', body.vehicleNo.trim().toUpperCase(), body.driverName || '', body.transporter || '', 'ORDERED', stamp, stamp); res.status(201).json(detail(db, info.lastInsertRowid)); }

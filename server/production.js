@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { requestContext } from './requestContext.js';
 
 const now = () => new Date().toISOString();
 const reference = (prefix) => `${prefix}-${now().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -15,10 +16,10 @@ export function registerProductionModule(app, db) {
       status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS production_shifts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, line_id INTEGER NOT NULL, code TEXT NOT NULL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT, line_id INTEGER, mill_id TEXT NOT NULL DEFAULT 'demo-mill', code TEXT NOT NULL,
       name TEXT NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL,
-      capacity_mt REAL, status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL,
-      FOREIGN KEY (line_id) REFERENCES production_lines(id), UNIQUE(line_id, code)
+      capacity_mt REAL, capacity_uom TEXT NOT NULL DEFAULT 'MT', description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL,
+      FOREIGN KEY (line_id) REFERENCES production_lines(id), UNIQUE(mill_id, code)
     );
     CREATE TABLE IF NOT EXISTS production_machines (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
@@ -81,6 +82,24 @@ export function registerProductionModule(app, db) {
     );
   `);
   try { db.exec('ALTER TABLE production_runs ADD COLUMN shift_id INTEGER REFERENCES production_shifts(id)'); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_shifts ADD COLUMN mill_id TEXT NOT NULL DEFAULT 'demo-mill'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_shifts ADD COLUMN capacity_uom TEXT NOT NULL DEFAULT 'MT'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_shifts ADD COLUMN description TEXT NOT NULL DEFAULT ''"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  const shiftSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='production_shifts'").get()?.sql || "";
+  if (shiftSchema.includes('line_id INTEGER NOT NULL')) {
+    db.pragma('foreign_keys = OFF');
+    db.exec(`CREATE TABLE production_shifts_migrated (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, line_id INTEGER, mill_id TEXT NOT NULL DEFAULT 'demo-mill', code TEXT NOT NULL,
+      name TEXT NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL, capacity_mt REAL, capacity_uom TEXT NOT NULL DEFAULT 'MT',
+      description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL,
+      FOREIGN KEY (line_id) REFERENCES production_lines(id), UNIQUE(mill_id, code)
+    );
+    INSERT INTO production_shifts_migrated (id,line_id,mill_id,code,name,start_time,end_time,capacity_mt,capacity_uom,description,status,created_at)
+      SELECT id,line_id,COALESCE(mill_id,'demo-mill'),code,name,start_time,end_time,capacity_mt,COALESCE(capacity_uom,'MT'),COALESCE(description,''),status,created_at FROM production_shifts;
+    DROP TABLE production_shifts;
+    ALTER TABLE production_shifts_migrated RENAME TO production_shifts;`);
+    db.pragma('foreign_keys = ON');
+  }
   try { db.exec("ALTER TABLE production_quality_results ADD COLUMN checkpoint_timing TEXT NOT NULL DEFAULT 'AFTER_PROCESS'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
   try { db.exec("ALTER TABLE production_stations ADD COLUMN station_image TEXT NOT NULL DEFAULT ''"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
   try { db.exec("ALTER TABLE production_stations ADD COLUMN attachment TEXT NOT NULL DEFAULT ''"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
@@ -99,8 +118,8 @@ export function registerProductionModule(app, db) {
   }
   const line = db.prepare("SELECT id FROM production_lines WHERE code='LINE-01'").get();
   if (line && !db.prepare('SELECT COUNT(*) count FROM production_shifts WHERE line_id=?').get(line.id).count) {
-    const insertShift = db.prepare('INSERT INTO production_shifts (line_id,code,name,start_time,end_time,capacity_mt,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
-    [['SHIFT-A','Morning Shift','06:00','14:00',240],['SHIFT-B','Evening Shift','14:00','22:00',240],['SHIFT-C','Night Shift','22:00','06:00',240]].forEach(([code,name,start,end,capacity]) => insertShift.run(line.id, code, name, start, end, capacity, 'ACTIVE', created));
+    const insertShift = db.prepare('INSERT INTO production_shifts (line_id,mill_id,code,name,start_time,end_time,capacity_mt,capacity_uom,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    [['SHIFT-A','Morning Shift','06:00','14:00',240],['SHIFT-B','Evening Shift','14:00','22:00',240],['SHIFT-C','Night Shift','22:00','06:00',240]].forEach(([code,name,start,end,capacity]) => insertShift.run(line.id, 'demo-mill', code, name, start, end, capacity, 'MT', 'ACTIVE', created));
   }
   if (!db.prepare('SELECT COUNT(*) count FROM production_machines').get().count) {
     const insertMachine = db.prepare('INSERT INTO production_machines (code,name,station,line_id,rated_capacity,capacity_uom,status,created_at) VALUES (?,?,?,?,?,?,?,?)');
@@ -205,7 +224,7 @@ export function registerProductionModule(app, db) {
     });
     res.json({
       availableFfb: availability(), lines,
-      shifts: db.prepare('SELECT * FROM production_shifts WHERE status=\'ACTIVE\' ORDER BY line_id,start_time').all(),
+      shifts: db.prepare('SELECT * FROM production_shifts WHERE status=\'ACTIVE\' ORDER BY mill_id,start_time').all(),
       stations: db.prepare('SELECT * FROM production_stations ORDER BY sequence,name').all(),
       machines: db.prepare('SELECT * FROM production_machines ORDER BY station,name').all(),
       routings: db.prepare('SELECT * FROM production_routings ORDER BY id DESC').all().map(routingWithSteps),
@@ -221,12 +240,32 @@ export function registerProductionModule(app, db) {
     catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Production line code must be unique.' : 'Unable to save production line.' }); }
   });
 
+  app.get('/api/production/shifts', (_req, res) => {
+    res.json(db.prepare('SELECT shifts.*, mills.code AS mill_code, mills.name AS mill_name, lines.code AS line_code, lines.name AS line_name FROM production_shifts shifts LEFT JOIN production_mills mills ON mills.id=shifts.mill_id LEFT JOIN production_lines lines ON lines.id=shifts.line_id ORDER BY mills.name, shifts.start_time, shifts.code').all());
+  });
+
   app.post('/api/production/shifts', (req, res) => {
     const body = req.body; const capacity = body.capacityMt === '' || body.capacityMt === undefined ? null : Number(body.capacityMt);
-    if (!body.lineId || !body.code || !body.name || !body.startTime || !body.endTime) return res.status(400).json({ message: 'Line, shift code, name, start time and end time are required.' });
+    const mill = db.prepare("SELECT id FROM production_mills WHERE status='ACTIVE' AND (id=? OR code=? COLLATE NOCASE OR name=? COLLATE NOCASE)").get(body.millId || body.millName, body.millName || body.millId, body.millName || body.millId);
+    if (!mill || !body.code || !body.name || !body.startTime || !body.endTime) return res.status(400).json({ message: 'A registered active Mill / Facility, shift code, name, start time and end time are required.' });
     if (capacity !== null && (!Number.isFinite(capacity) || capacity <= 0)) return res.status(400).json({ message: 'Shift capacity must be positive when supplied.' });
-    try { const info = db.prepare('INSERT INTO production_shifts (line_id,code,name,start_time,end_time,capacity_mt,status,created_at) VALUES (?,?,?,?,?,?,?,?)').run(Number(body.lineId), body.code.trim().toUpperCase(), body.name.trim(), body.startTime, body.endTime, capacity, 'ACTIVE', now()); res.status(201).json(db.prepare('SELECT * FROM production_shifts WHERE id=?').get(info.lastInsertRowid)); }
+    const status = String(body.status || 'ACTIVE').trim().toUpperCase();
+    if (!['ACTIVE', 'INACTIVE'].includes(status)) return res.status(400).json({ message: 'Shift status must be Active or Inactive.' });
+    try { const info = db.prepare('INSERT INTO production_shifts (line_id,mill_id,code,name,start_time,end_time,capacity_mt,capacity_uom,description,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(null, mill.id, body.code.trim().toUpperCase(), body.name.trim(), body.startTime, body.endTime, capacity, body.capacityUom || 'MT', body.description || '', status, now()); res.status(201).json(db.prepare('SELECT * FROM production_shifts WHERE id=?').get(info.lastInsertRowid)); }
     catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Shift code must be unique for this production line.' : 'Unable to save shift.' }); }
+  });
+
+  app.patch('/api/production/shifts/:id', (req, res) => {
+    const body = req.body; const shift = db.prepare('SELECT * FROM production_shifts WHERE id=?').get(Number(req.params.id));
+    if (!shift) return res.status(404).json({ message: 'Shift was not found.' });
+    const capacity = body.capacityMt === '' || body.capacityMt === undefined ? null : Number(body.capacityMt);
+    const mill = db.prepare("SELECT id FROM production_mills WHERE status='ACTIVE' AND (id=? OR code=? COLLATE NOCASE OR name=? COLLATE NOCASE)").get(body.millId || body.millName, body.millName || body.millId, body.millName || body.millId);
+    if (!mill || !body.code || !body.name || !body.startTime || !body.endTime) return res.status(400).json({ message: 'A registered active Mill / Facility, shift code, name, start time and end time are required.' });
+    if (capacity !== null && (!Number.isFinite(capacity) || capacity <= 0)) return res.status(400).json({ message: 'Shift capacity must be positive when supplied.' });
+    const status = String(body.status || 'ACTIVE').trim().toUpperCase();
+    if (!['ACTIVE', 'INACTIVE'].includes(status)) return res.status(400).json({ message: 'Shift status must be Active or Inactive.' });
+    try { db.prepare('UPDATE production_shifts SET line_id=NULL,mill_id=?,code=?,name=?,start_time=?,end_time=?,capacity_mt=?,capacity_uom=?,description=?,status=? WHERE id=?').run(mill.id, body.code.trim().toUpperCase(), body.name.trim(), body.startTime, body.endTime, capacity, body.capacityUom || 'MT', body.description || '', status, shift.id); res.json(db.prepare('SELECT * FROM production_shifts WHERE id=?').get(shift.id)); }
+    catch (error) { res.status(400).json({ message: error.code === 'SQLITE_CONSTRAINT_UNIQUE' ? 'Shift code must be unique for this production line.' : 'Unable to update shift.' }); }
   });
 
   app.post('/api/production/machines', (req, res) => {
@@ -302,7 +341,7 @@ export function registerProductionModule(app, db) {
     const body = req.body; const quantity = Number(body.plannedFfbQty);
     const routing = db.prepare("SELECT * FROM production_routings WHERE id=? AND status='ACTIVE'").get(body.routingId);
     const lineRecord = db.prepare("SELECT * FROM production_lines WHERE id=? AND status='ACTIVE'").get(body.lineId);
-    const shift = db.prepare("SELECT * FROM production_shifts WHERE id=? AND line_id=? AND status='ACTIVE'").get(body.shiftId, body.lineId);
+    const shift = lineRecord ? db.prepare("SELECT * FROM production_shifts WHERE id=? AND mill_id=? AND status='ACTIVE'").get(body.shiftId, lineRecord.mill_id || 'demo-mill') : null;
     if (!routing || !lineRecord || !shift || !Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ message: 'Active routing, production line, shift and positive FFB quantity are required.' });
     const reserved = Number(db.prepare("SELECT COALESCE(SUM(planned_ffb_qty),0) qty FROM production_runs WHERE line_id=? AND status IN ('PLANNED','IN_PROGRESS')").get(lineRecord.id).qty || 0);
     if (quantity > availability()) return res.status(409).json({ message: `Only ${availability().toFixed(3)} MT of received FFB is available.` });
@@ -359,6 +398,10 @@ export function registerProductionModule(app, db) {
     const cpo = Number(req.body.cpoOutput), pk = Number(req.body.pkOutput || 0);
     if (incomplete) return res.status(409).json({ message: 'Complete every routing stage before completing the production run.' });
     if (!Number.isFinite(cpo) || cpo <= 0 || !Number.isFinite(pk) || pk < 0) return res.status(400).json({ message: 'A positive CPO output and valid Palm Kernel output are required.' });
+    const { tenantId, millId } = requestContext(req);
+    const cpoItem = db.prepare("SELECT inventory_controlled FROM items WHERE tenant_id=? AND mill_id=? AND status='Active' AND (item_code='CPO' OR item_type='CPO' OR name LIKE '%Crude Palm Oil%') LIMIT 1").get(tenantId, millId);
+    const pkItem = db.prepare("SELECT inventory_controlled FROM items WHERE tenant_id=? AND mill_id=? AND status='Active' AND (item_code='PK' OR item_type='Palm Kernel' OR name LIKE '%Palm Kernel%') LIMIT 1").get(tenantId, millId);
+    if (!cpoItem || !cpoItem.inventory_controlled || !pkItem || (pk > 0 && !pkItem.inventory_controlled)) return res.status(409).json({ code: 'INVENTORY_CONTROLLED_REQUIRED', message: 'CPO and Palm Kernel outputs must be Inventory Controlled before production inventory can be posted.' });
     const complete = db.transaction(() => {
       db.prepare("UPDATE production_runs SET status='COMPLETED',cpo_output=?,pk_output=?,completed_at=? WHERE id=?").run(cpo, pk, now(), run.id);
       db.prepare("UPDATE production_inventory SET balance=balance+?,updated_at=? WHERE material='CPO' AND location='CPO Tank 01'").run(cpo, now());
