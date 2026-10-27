@@ -34,3 +34,44 @@ export const DEVELOPMENT_LOADING_PLAN = {
   logisticsAssignedAt: "2026-10-16T08:05:00.000Z",
 };
 export const DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO = "DR-DEMO-STRAITS-CPO-001";
+
+// Coherent Phase 1 development fixture used by the demo tenant. The request
+// and its loading assignment intentionally share one record so both screens
+// demonstrate the same outbound workflow.
+export const PHASE1_SAMPLE_DELIVERY_REQUEST = {
+  id: "PHASE1-DELIVERY-001",
+  requestNo: "DR-20261027-0013",
+  requestDate: "27-10-2026",
+  loadingInstructionNo: "LI-20261027-0013",
+  customerName: "Tanjung Langsat Palm Refinery Sdn. Bhd.",
+  contractNumber: "SC-2026-0013",
+  customerPo: "TLPR-PO-2026-001",
+  deliveryLocation: "Delivery · Lot 27, Jalan Pelabuhan Tanjung Langsat, 81700 Pasir Gudang, Malaysia",
+  deliveryDate: "31-10-2026",
+  deliveryType: "Company Delivery",
+  product: "Crude Palm Oil (CPO)",
+  requestedQuantity: "35.00",
+  deliveryQuantity: "35.00",
+  uom: "MT",
+  loadingQuantity: "35.00",
+  sourceType: "Tank",
+  sourceStorage: "CPO Tank 01",
+  availableStock: 1200,
+  loadingBay: "Loading Bay 01",
+  loadingLine: "Loading Line A",
+  plannedLoadingDate: "31-10-2026",
+  loadingInstructions: "Phase 1 dispatch from CPO Tank 01.",
+  createdBy: "Phase 1 Data",
+  createdAt: "2026-10-27T08:00:00.000Z",
+  transporter: "Kencana Haulage Sdn. Bhd.",
+  vehicle: "KCH-2601",
+  vehicleId: "112",
+  vehicleNo: "KCH-2601",
+  driver: "Ahmad Faizal Rahman",
+  driverId: "3",
+  driverName: "Ahmad Faizal Rahman",
+  itemId: "1",
+  status: "ASSIGNED",
+  loadingPlanStatus: "ASSIGNED",
+  logisticsAssignedAt: "2026-10-27T08:05:00.000Z",
+};

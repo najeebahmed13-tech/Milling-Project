@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { requestContext } from './requestContext.js';
 
 const now = () => new Date().toISOString();
 const normalizeRegistration = (value) => String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
@@ -109,6 +110,7 @@ export function registerLogisticsModule(app, db) {
 
 export function createFfbReceiptHandler(db) {
   return (req, res) => {
+    const { tenantId, millId, actorId } = requestContext(req);
     const body = req.body; const gross = Number(body.grossWeight); const registration = normalizeRegistration(body.vehicleNo);
     const declaredQty = body.supplierDeclaredQty === '' || body.supplierDeclaredQty == null ? null : Number(body.supplierDeclaredQty);
     if (!registration || !body.driverName || !body.supplier || !body.item || !Number.isFinite(gross) || gross <= 0) return res.status(400).json({ code: 'INVALID_RECEIVING', message: 'Driver name, vehicle plate number, supplier, item and a positive gross weight are required.' });
@@ -130,8 +132,8 @@ export function createFfbReceiptHandler(db) {
             .run('Driving License', identity, body.driverName.trim(), '', body.driverLicenseNo.trim(), stamp, stamp, stamp);
           driver = db.prepare('SELECT * FROM drivers WHERE identity_no=?').get(identity);
         }
-        const info = db.prepare(`INSERT INTO ffb_receipts (ticket_no,receipt_code,vehicle_no,vehicle_type,driver_name,driver_phone,delivery_order,supplier,supplier_plant,supplier_category,transporter,product_type,gross_weight,supplier_declared_qty,weight_uom,operator_name,entry_at,remarks,attachments_json,driver_identity_type,driver_identity_no,driver_license_no,driver_id,vehicle_id,gate_status,entry_authorized_at,entry_authorized_by,created_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ticket, receiptCode, registration, vehicleType, body.driverName.trim(), '', '', body.supplier, '', '', '', body.item, gross, declaredQty, body.weightUom || 'MT', 'Sean Shapiro', stamp, body.remarks || '', JSON.stringify(body.attachments || []), driver ? 'Driving License' : null, driver ? body.driverLicenseNo.trim().toUpperCase() : null, body.driverLicenseNo || '', driver?.id || null, vehicle.id, 'AUTHORIZED_INSIDE', stamp, 'Sean Shapiro', stamp);
+        const info = db.prepare(`INSERT INTO ffb_receipts (tenant_id,mill_id,ticket_no,receipt_code,vehicle_no,vehicle_type,driver_name,driver_phone,delivery_order,supplier,supplier_plant,supplier_category,transporter,product_type,gross_weight,supplier_declared_qty,weight_uom,operator_name,entry_at,remarks,attachments_json,driver_identity_type,driver_identity_no,driver_license_no,driver_id,vehicle_id,gate_status,entry_authorized_at,entry_authorized_by,created_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(tenantId, millId, ticket, receiptCode, registration, vehicleType, body.driverName.trim(), '', '', body.supplier, '', '', '', body.item, gross, declaredQty, body.weightUom || 'MT', actorId, stamp, body.remarks || '', JSON.stringify(body.attachments || []), driver ? 'Driving License' : null, driver ? body.driverLicenseNo.trim().toUpperCase() : null, body.driverLicenseNo || '', driver?.id || null, vehicle.id, 'AUTHORIZED_INSIDE', stamp, actorId, stamp);
         return info.lastInsertRowid;
       });
       const id = create(); const saved = db.prepare('SELECT * FROM ffb_receipts WHERE id=?').get(id); const supplier = db.prepare('SELECT id,details_json FROM suppliers WHERE name=?').get(saved.supplier); if (supplier) { let details = {}; try { details = JSON.parse(supplier.details_json || '{}'); } catch {} const vehicles = Array.isArray(details.vehicles) ? details.vehicles : []; const drivers = Array.isArray(details.drivers) ? details.drivers : []; if (!vehicles.some((item) => item.plateNo === saved.vehicle_no)) vehicles.push({ plateNo: saved.vehicle_no, vehicleType: saved.vehicle_type, lastSeenAt: saved.entry_at }); const driverKey = saved.driver_license_no || saved.driver_name; if (driverKey && !drivers.some((item) => (item.licenseNo || item.name) === driverKey)) drivers.push({ name: saved.driver_name, licenseNo: saved.driver_license_no || '', lastSeenAt: saved.entry_at }); db.prepare('UPDATE suppliers SET details_json=? WHERE id=?').run(JSON.stringify({ ...details, vehicles, drivers }), supplier.id); } res.status(201).json(saved);

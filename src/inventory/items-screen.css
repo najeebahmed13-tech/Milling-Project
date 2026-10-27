@@ -1,0 +1,22 @@
+/* Item creation and editing are full-page workflows, not modal overlays. */
+.items-page:has(.items-modal-backdrop) > :not(.items-modal-backdrop) {
+  display: none;
+}
+
+.items-page:has(.items-modal-backdrop) .items-modal-backdrop {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.items-page:has(.items-modal-backdrop) .items-modal-backdrop .items-form {
+  width: 100%;
+  max-width: none;
+  border: 1px solid #e1e5ea;
+  border-radius: 10px;
+  box-shadow: none;
+}

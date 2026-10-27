@@ -1,10 +1,7 @@
 import crypto from 'node:crypto';
+import { requestContext } from './requestContext.js';
 
-const context = (req) => ({
-  tenantId: req.get('X-Tenant-Id') || 'demo-tenant',
-  millId: req.get('X-Mill-Id') || 'demo-mill',
-  actorId: req.get('X-Actor-Id') || 'demo-user',
-});
+const context = (req) => requestContext(req);
 
 export function registerPurchasingModule(app, db) {
   db.exec(`

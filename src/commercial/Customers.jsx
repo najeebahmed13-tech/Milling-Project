@@ -3,6 +3,7 @@ import { ListingActions } from "../components/ListingActions.jsx";
 import "./customer-details-overrides.css";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import { StatusBadge } from "../design-system/index.js";
+import { contextHeaders } from "../services/requestContext.js";
 
 const Section = ({ title, action, children }) => (
   <section className="contract-section">
@@ -192,7 +193,7 @@ export function CustomerForm({ onClose, onSaved }) {
     }
     const response = await fetch("/api/customers", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: contextHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(form),
     });
     const payload = await response.json();
@@ -775,6 +776,7 @@ export function CustomersPage({ rows, onNew, onSelect }) {
                   </tr>
                 );
               })}
+              {!visibleItems.length && <tr><td colSpan="11" className="customer-list-empty">{search ? "No customers match the current search." : "No customers are available in the selected tenant and mill."}</td></tr>}
             </tbody>
           </table>
         </div>

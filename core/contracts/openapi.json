@@ -1,0 +1,132 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ROCKEYE Palm Oil Mill ERP + MES API",
+    "version": "0.1.0",
+    "description": "Versioned API contract for the current ROCKEYE ERP + MES service. Endpoint behavior remains subject to server-side authorization, tenant scope, validation, and transaction rules.",
+    "contact": { "name": "ROCKEYE Engineering" }
+  },
+  "servers": [
+    { "url": "/", "description": "Current deployment" }
+  ],
+  "tags": [
+    { "name": "Platform", "description": "Health and operational overview" },
+    { "name": "Commercial", "description": "Customers, suppliers, sales contracts, and invoices" },
+    { "name": "Procurement", "description": "Purchase contracts and direct purchases" },
+    { "name": "Receiving", "description": "FFB receiving, grading, and vehicle exit" },
+    { "name": "Production", "description": "Lines, routes, runs, stages, and production quality" },
+    { "name": "Quality", "description": "Production quality checkpoints and observations" },
+    { "name": "Inventory", "description": "Items and stock-facing resources" },
+    { "name": "Dispatch", "description": "Outbound loading, weighing, and quality" },
+    { "name": "Finance", "description": "Invoices and payments" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Platform"],
+        "summary": "Check service health",
+        "operationId": "getHealth",
+        "responses": { "200": { "$ref": "#/components/responses/HealthResponse" } }
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "tags": ["Platform"],
+        "summary": "Get dashboard overview",
+        "operationId": "getDashboard",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "$ref": "#/components/responses/JsonResponse" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/customers": {
+      "get": {
+        "tags": ["Commercial"], "summary": "List customers", "operationId": "listCustomers", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/Page" }, { "$ref": "#/components/parameters/PageSize" }],
+        "responses": { "200": { "$ref": "#/components/responses/JsonResponse" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "tags": ["Commercial"], "summary": "Create customer", "operationId": "createCustomer", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "$ref": "#/components/requestBodies/JsonBody" },
+        "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/suppliers": {
+      "get": { "tags": ["Commercial"], "summary": "List suppliers", "operationId": "listSuppliers", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Commercial"], "summary": "Create supplier", "operationId": "createSupplier", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" } } }
+    },
+    "/api/sales-contracts": {
+      "get": { "tags": ["Commercial"], "summary": "List sales contracts", "operationId": "listSalesContracts", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Commercial"], "summary": "Create sales contract", "operationId": "createSalesContract", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/purchase-contracts": {
+      "get": { "tags": ["Procurement"], "summary": "List purchase contracts", "operationId": "listPurchaseContracts", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Procurement"], "summary": "Create purchase contract", "operationId": "createPurchaseContract", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" } } }
+    },
+    "/api/direct-purchases": {
+      "get": { "tags": ["Procurement"], "summary": "List direct purchases", "operationId": "listDirectPurchases", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Procurement"], "summary": "Create direct purchase", "operationId": "createDirectPurchase", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/ffb-receiving": {
+      "get": { "tags": ["Receiving"], "summary": "List FFB receipts", "operationId": "listFfbReceipts", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/Page" }, { "$ref": "#/components/parameters/PageSize" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Receiving"], "summary": "Create FFB receiving record", "operationId": "createFfbReceipt", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/ffb-receiving/{id}/grading": {
+      "post": { "tags": ["Receiving"], "summary": "Record FFB grading", "operationId": "gradeFfbReceipt", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/ResourceId" }, { "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "200": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/api/production/overview": {
+      "get": { "tags": ["Production"], "summary": "Get production overview", "operationId": "getProductionOverview", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } }
+    },
+    "/api/production/runs": {
+      "post": { "tags": ["Production"], "summary": "Create production run", "operationId": "createProductionRun", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/production-quality/checkpoints": {
+      "get": { "tags": ["Quality"], "summary": "List production quality checkpoints", "operationId": "listQualityCheckpoints", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Quality"], "summary": "Create quality checkpoint", "operationId": "createQualityCheckpoint", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/production-quality/observations": {
+      "get": { "tags": ["Quality"], "summary": "List quality observations", "operationId": "listQualityObservations", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/Page" }, { "$ref": "#/components/parameters/PageSize" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Quality"], "summary": "Create quality observation", "operationId": "createQualityObservation", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" } } }
+    },
+    "/api/dispatch-orders": {
+      "get": { "tags": ["Dispatch"], "summary": "List dispatch orders", "operationId": "listDispatchOrders", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/Page" }, { "$ref": "#/components/parameters/PageSize" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Dispatch"], "summary": "Create dispatch order", "operationId": "createDispatchOrder", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/sales-invoices": {
+      "get": { "tags": ["Finance"], "summary": "List sales invoices", "operationId": "listSalesInvoices", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Finance"], "summary": "Create sales invoice", "operationId": "createSalesInvoice", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/api/payments": {
+      "get": { "tags": ["Finance"], "summary": "List payments", "operationId": "listPayments", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }], "responses": { "200": { "$ref": "#/components/responses/JsonResponse" } } },
+      "post": { "tags": ["Finance"], "summary": "Create payment", "operationId": "createPayment", "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/TenantId" }, { "$ref": "#/components/parameters/MillId" }, { "$ref": "#/components/parameters/IdempotencyKey" }], "requestBody": { "$ref": "#/components/requestBodies/JsonBody" }, "responses": { "201": { "$ref": "#/components/responses/JsonResponse" }, "400": { "$ref": "#/components/responses/ValidationError" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Planned production authentication contract. Current prototype routes require authentication hardening before production use." }
+    },
+    "parameters": {
+      "TenantId": { "name": "X-Tenant-Id", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Tenant context. The server must derive or authorize this value from the authenticated principal in production." },
+      "MillId": { "name": "X-Mill-Id", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Operating mill context. The server must verify access to this mill." },
+      "IdempotencyKey": { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string", "minLength": 8, "maxLength": 128 }, "description": "Client-generated key for safe retry of a mutation." },
+      "ResourceId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "Page": { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+      "PageSize": { "name": "pageSize", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } }
+    },
+    "requestBodies": {
+      "JsonBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } }
+    },
+    "responses": {
+      "HealthResponse": { "description": "Service is available", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } },
+      "JsonResponse": { "description": "Successful JSON response", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+      "ValidationError": { "description": "Request validation failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "Authentication is required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Resource was not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "State, uniqueness, idempotency, or concurrency conflict", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    },
+    "schemas": {
+      "Health": { "type": "object", "required": ["ok"], "properties": { "ok": { "type": "boolean" }, "database": { "type": "string" } } },
+      "Error": { "type": "object", "required": ["message"], "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "details": { "type": "object", "additionalProperties": true }, "correlationId": { "type": "string" } } }
+    }
+  }
+}

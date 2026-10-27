@@ -6,7 +6,7 @@ import { formatDate } from "../shared/formatters.js";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import { Alert, Button, DateRangeFilter, DetailValue, FormField, IconButton, StatusBadge } from "../design-system/index.js";
 import { QuantityInput, TextInput } from "../design-system/form-fields.jsx";
-import { DEVELOPMENT_LOADING_PLAN, DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO } from "./development-flow-fixture.js";
+import { DEVELOPMENT_LOADING_PLAN, DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO, PHASE1_SAMPLE_DELIVERY_REQUEST } from "./development-flow-fixture.js";
 
 const STORAGE_KEY = "rockeye.commercial.deliveryRequests";
 const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -93,7 +93,8 @@ const readRequests = () => {
       : [];
     if (import.meta.env.DEV) {
       const migrated = safe.map((item) => item.requestNo === DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO ? { ...item, ...DEVELOPMENT_LOADING_PLAN } : item);
-      const next = migrated.some((item) => item.requestNo === DEVELOPMENT_LOADING_PLAN.requestNo) ? migrated : [DEVELOPMENT_LOADING_PLAN, ...migrated];
+      const withDevelopmentPlan = migrated.some((item) => item.requestNo === DEVELOPMENT_LOADING_PLAN.requestNo) ? migrated : [DEVELOPMENT_LOADING_PLAN, ...migrated];
+      const next = withDevelopmentPlan.some((item) => item.requestNo === PHASE1_SAMPLE_DELIVERY_REQUEST.requestNo) ? withDevelopmentPlan : [PHASE1_SAMPLE_DELIVERY_REQUEST, ...withDevelopmentPlan];
       if (JSON.stringify(next) !== JSON.stringify(safe)) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     }

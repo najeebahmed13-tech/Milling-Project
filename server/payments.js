@@ -1,3 +1,5 @@
+import { requestContext } from './requestContext.js';
+
 export function registerPaymentsModule(app, db) {
   db.exec(`CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, mill_id TEXT NOT NULL,
@@ -7,7 +9,7 @@ export function registerPaymentsModule(app, db) {
     status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','POSTED','VOIDED')), created_at TEXT NOT NULL,
     UNIQUE(tenant_id, mill_id, payment_number)
   );`);
-  const context = (req) => ({ tenantId: req.get('X-Tenant-Id') || 'demo-tenant', millId: req.get('X-Mill-Id') || 'demo-mill' });
+  const context = (req) => requestContext(req);
   const query = `SELECT * FROM payments WHERE tenant_id=? AND mill_id=?`;
   app.get('/api/payments', (req, res) => { const { tenantId, millId } = context(req); res.json(db.prepare(`${query} ORDER BY id DESC`).all(tenantId, millId)); });
   app.get('/api/payments/:id', (req, res) => { const { tenantId, millId } = context(req); const payment = db.prepare(`${query} AND id=?`).get(tenantId, millId, req.params.id); if (!payment) return res.status(404).json({ message: 'Payment not found.' }); res.json(payment); });

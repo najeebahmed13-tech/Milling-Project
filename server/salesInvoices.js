@@ -1,3 +1,5 @@
+import { requestContext } from './requestContext.js';
+
 export function registerSalesInvoicesModule(app, db) {
   db.exec(`CREATE TABLE IF NOT EXISTS sales_invoices (
     id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, mill_id TEXT NOT NULL,
@@ -11,7 +13,7 @@ export function registerSalesInvoicesModule(app, db) {
     id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER NOT NULL REFERENCES sales_invoices(id),
     description TEXT NOT NULL, quantity REAL NOT NULL CHECK(quantity > 0), unit_price REAL NOT NULL CHECK(unit_price >= 0), line_total REAL NOT NULL
   );`);
-  const context = (req) => ({ tenantId: req.get('X-Tenant-Id') || 'demo-tenant', millId: req.get('X-Mill-Id') || 'demo-mill' });
+  const context = (req) => requestContext(req);
   const query = `SELECT * FROM sales_invoices WHERE tenant_id=? AND mill_id=?`;
   app.get('/api/sales-invoices', (req, res) => { const { tenantId, millId } = context(req); res.json(db.prepare(`${query} ORDER BY id DESC`).all(tenantId, millId)); });
   app.get('/api/sales-invoices/:id', (req, res) => { const { tenantId, millId } = context(req); const invoice = db.prepare(`${query} AND id=?`).get(tenantId, millId, req.params.id); if (!invoice) return res.status(404).json({ message: 'Sales invoice not found.' }); const lines = db.prepare('SELECT * FROM sales_invoice_lines WHERE invoice_id=? ORDER BY id').all(invoice.id); res.json({ ...invoice, lines }); });

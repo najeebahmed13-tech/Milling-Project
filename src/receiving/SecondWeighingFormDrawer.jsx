@@ -69,6 +69,11 @@ export function SecondWeighingFormDrawer({ record, error, onClose, onSubmit }) {
                 {tareError && <span id="tare-weight-error" className="ds-field-message" role="alert">{tareError}</span>}
               </label>
               <p className="second-weighing-help">ⓘ Net weight will automatically calculate upon entering tare weight.</p>
+              <div className="second-weighing-disposition-grid">
+                <label className="contract-field">Accepted Quantity (MT)<small>(Optional; defaults to net)</small><input name="acceptedQty" type="number" min="0" step="0.001" placeholder={netWeight !== null ? netWeight.toFixed(3) : "Net weight"} /></label>
+                <label className="contract-field">Rejected Quantity (MT)<small>(Optional; defaults to 0)</small><input name="rejectedQty" type="number" min="0" step="0.001" placeholder="0.000" /></label>
+                <label className="contract-field wide">Rejection Reason <small>(Required when rejected quantity is entered)</small><input name="rejectionReason" maxLength="250" placeholder="Reason for rejected FFB" /></label>
+              </div>
               <label className="contract-field">Remarks <small>(Optional)</small><textarea name="exitRemarks" rows="4" maxLength="500" placeholder="Add vehicle exit notes, exceptions or observations..." /></label>
               <label className="contract-field">Attachments <small>(Optional · multiple image or PDF files)</small><input type="file" multiple accept="image/*,.pdf" /></label>
               <div className="blocked-help">Net Weight = Gross Weight ({grossWeight.toFixed(3)} MT) → Tare Weight. The certified net weight will be locked and printed upon saving.</div>

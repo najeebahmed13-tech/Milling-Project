@@ -19,6 +19,9 @@ import { registerPaymentsModule } from "./server/payments.js";
 import { registerDispatchModule } from "./server/dispatch.js";
 import { registerNotificationModule } from "./server/notifications.js";
 import { registerProductionQualityModule } from "./server/productionQuality.js";
+import { registerApiDocumentation } from "./server/apiDocumentation.js";
+import { attachRequestContext, requestContext } from "./server/requestContext.js";
+import { buildFfbLotNumber, normalizeFfbDisposition } from "./server/ffbReceiptDomain.js";
 
 const hasCompletedFfbGrading = (receipt) => {
   if (receipt.state === "GRADING_COMPLETED") return true;
@@ -60,6 +63,41 @@ db.exec(
 db.exec(
   `CREATE TABLE IF NOT EXISTS ffb_receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_no TEXT NOT NULL UNIQUE, vehicle_no TEXT NOT NULL, vehicle_type TEXT NOT NULL, driver_name TEXT, driver_phone TEXT, delivery_order TEXT, supplier TEXT NOT NULL, supplier_plant TEXT, supplier_category TEXT, transporter TEXT, product_type TEXT NOT NULL DEFAULT 'FFB', gross_weight REAL NOT NULL, tare_weight REAL, net_weight REAL, weight_uom TEXT NOT NULL DEFAULT 'MT', operator_name TEXT NOT NULL, entry_at TEXT NOT NULL, grading_id TEXT UNIQUE, ripeness TEXT, ramp TEXT, grader_name TEXT, grading_result TEXT, accepted_qty REAL, rejected_qty REAL, rejection_reason TEXT, exit_at TEXT, state TEXT NOT NULL DEFAULT 'FIRST_WEIGHT_RECORDED', created_at TEXT NOT NULL);`,
 );
+for (const column of [
+  "tenant_id TEXT NOT NULL DEFAULT 'demo-tenant'",
+  "mill_id TEXT NOT NULL DEFAULT 'demo-mill'",
+]) { try { db.exec(`ALTER TABLE ffb_receipts ADD COLUMN ${column}`); } catch {} }
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ffb_receipt_lots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    receipt_id INTEGER NOT NULL UNIQUE REFERENCES ffb_receipts(id),
+    lot_number TEXT NOT NULL,
+    item TEXT NOT NULL,
+    supplier TEXT NOT NULL,
+    supplier_category TEXT,
+    gross_weight REAL NOT NULL,
+    tare_weight REAL NOT NULL,
+    net_weight REAL NOT NULL,
+    accepted_qty REAL NOT NULL,
+    rejected_qty REAL NOT NULL,
+    rejection_reason TEXT,
+    status TEXT NOT NULL DEFAULT 'AVAILABLE',
+    created_at TEXT NOT NULL,
+    UNIQUE(tenant_id, mill_id, lot_number)
+  );
+  CREATE TABLE IF NOT EXISTS ffb_receipt_audit_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    mill_id TEXT NOT NULL,
+    receipt_id INTEGER NOT NULL,
+    actor_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    details_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+`);
 for (const column of [
   "item_type TEXT NOT NULL DEFAULT 'FFB'",
   "stock_unit TEXT NOT NULL DEFAULT 'MT'",
@@ -952,6 +990,8 @@ db.prepare(
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
+app.use("/api", (req, res, next) => req.path === "/health" ? next() : attachRequestContext(req, res, next));
+registerApiDocumentation(app);
 registerProductionModule(app, db);
 registerProductionQualityModule(app, db);
 registerLogisticsModule(app, db);
@@ -1047,8 +1087,7 @@ app.get("/api/customers", (_req, res) =>
   ),
 );
 app.get("/api/suppliers", (req, res) => {
-  const tenantId = req.get("X-Tenant-Id") || "demo-tenant";
-  const millId = req.get("X-Mill-Id") || "demo-mill";
+  const { tenantId, millId } = requestContext(req);
   const invoiceRows = db.prepare(
     "SELECT i.*, COALESCE(d.purchase_number, i.source_type || ' #' || i.source_id) purchase_number FROM purchase_invoices i LEFT JOIN direct_purchases d ON d.id=i.source_id AND i.source_type='DIRECT_PURCHASE' WHERE i.tenant_id=? AND i.mill_id=? AND i.supplier_id=? ORDER BY i.id DESC",
   );
@@ -1070,20 +1109,22 @@ app.get("/api/suppliers", (req, res) => {
 app.get("/api/items", (_req, res) =>
   res.json(db.prepare("SELECT * FROM items ORDER BY id DESC").all()),
 );
-app.get("/api/ffb-receiving", (_req, res) =>
-  res.json(
+app.get("/api/ffb-receiving", (req, res) => {
+  const { tenantId, millId } = requestContext(req);
+  return res.json(
     db
       .prepare(
-        "SELECT r.*, i.invoice_number AS purchase_invoice_number, i.status AS purchase_invoice_status FROM ffb_receipts r LEFT JOIN purchase_invoices i ON i.id=r.purchase_invoice_id ORDER BY r.id DESC",
+        "SELECT r.*, l.lot_number, l.accepted_qty AS lot_accepted_qty, l.rejected_qty AS lot_rejected_qty, l.status AS lot_status, i.invoice_number AS purchase_invoice_number, i.status AS purchase_invoice_status FROM ffb_receipts r LEFT JOIN ffb_receipt_lots l ON l.receipt_id=r.id AND l.tenant_id=? AND l.mill_id=? LEFT JOIN purchase_invoices i ON i.id=r.purchase_invoice_id WHERE r.tenant_id=? AND r.mill_id=? ORDER BY r.id DESC",
       )
-      .all(),
-  ),
-);
+      .all(tenantId, millId, tenantId, millId),
+  );
+});
 app.post("/api/ffb-receiving", createFfbReceiptHandler(db));
 app.post("/api/ffb-receiving/:id/grading", (req, res) => {
+  const { tenantId, millId, actorId } = requestContext(req);
   const receipt = db
-    .prepare("SELECT * FROM ffb_receipts WHERE id=?")
-    .get(req.params.id);
+    .prepare("SELECT * FROM ffb_receipts WHERE id=? AND tenant_id=? AND mill_id=?")
+    .get(req.params.id, tenantId, millId);
   if (!receipt)
     return res
       .status(404)
@@ -1151,12 +1192,14 @@ app.post("/api/ffb-receiving/:id/grading", (req, res) => {
     "GRADING_COMPLETED",
     receipt.id,
   );
+  db.prepare("INSERT INTO ffb_receipt_audit_events (tenant_id,mill_id,receipt_id,actor_id,action,details_json,created_at) VALUES (?,?,?,?,?,?,?)").run(tenantId, millId, receipt.id, actorId, "GRADING_COMPLETED", JSON.stringify({ gradingId, gradingResult: req.body.gradingResult || "Pending Vehicle Exit" }), new Date().toISOString());
   res.json(db.prepare("SELECT * FROM ffb_receipts WHERE id=?").get(receipt.id));
 });
 app.post("/api/ffb-receiving/:id/vehicle-exit", (req, res) => {
+  const { tenantId, millId, actorId } = requestContext(req);
   const receipt = db
-    .prepare("SELECT * FROM ffb_receipts WHERE id=?")
-    .get(req.params.id);
+    .prepare("SELECT * FROM ffb_receipts WHERE id=? AND tenant_id=? AND mill_id=?")
+    .get(req.params.id, tenantId, millId);
   if (!receipt)
     return res
       .status(404)
@@ -1188,6 +1231,9 @@ app.post("/api/ffb-receiving/:id/vehicle-exit", (req, res) => {
         message:
           "Gross weight must be greater than tare weight and net weight must be positive.",
       });
+  const disposition = normalizeFfbDisposition(net, req.body.acceptedQty, req.body.rejectedQty);
+  if (!disposition.valid) return res.status(400).json({ code: disposition.code, message: disposition.message });
+  if (disposition.rejected > 0 && !String(req.body.rejectionReason || "").trim()) return res.status(400).json({ code: "REJECTION_REASON_REQUIRED", message: "A rejection reason is required when rejected quantity is recorded." });
   const exitAttachments = Array.isArray(req.body.attachments)
     ? req.body.attachments
     : [];
@@ -1201,8 +1247,8 @@ app.post("/api/ffb-receiving/:id/vehicle-exit", (req, res) => {
         net,
         stamp,
         "Sean Shapiro",
-        null,
-        null,
+        disposition.accepted,
+        disposition.rejected,
         req.body.remarks || "",
         JSON.stringify(exitAttachments),
         "READY_TO_POST",
@@ -1211,7 +1257,10 @@ app.post("/api/ffb-receiving/:id/vehicle-exit", (req, res) => {
       const updated = db
         .prepare("SELECT * FROM ffb_receipts WHERE id=?")
         .get(receipt.id);
-      const invoice = createDraftPurchaseInvoiceForFfbReceipt(db, updated);
+      const lotNumber = buildFfbLotNumber(updated.id, stamp);
+      db.prepare("INSERT INTO ffb_receipt_lots (tenant_id,mill_id,receipt_id,lot_number,item,supplier,supplier_category,gross_weight,tare_weight,net_weight,accepted_qty,rejected_qty,rejection_reason,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'AVAILABLE',?)").run(tenantId, millId, updated.id, lotNumber, updated.product_type, updated.supplier, updated.supplier_category || '', updated.gross_weight, updated.tare_weight, updated.net_weight, updated.accepted_qty, updated.rejected_qty, req.body.rejectionReason || '', stamp);
+      db.prepare("INSERT INTO ffb_receipt_audit_events (tenant_id,mill_id,receipt_id,actor_id,action,details_json,created_at) VALUES (?,?,?,?,?,?,?)").run(tenantId, millId, updated.id, actorId, "RECEIPT_LOT_CREATED", JSON.stringify({ lotNumber, netWeight: updated.net_weight, acceptedQty: updated.accepted_qty, rejectedQty: updated.rejected_qty }), stamp);
+      const invoice = createDraftPurchaseInvoiceForFfbReceipt(db, updated, { tenantId, millId, actorId });
       db.prepare(
         "UPDATE ffb_receipts SET purchase_invoice_id=? WHERE id=?",
       ).run(invoice.id, receipt.id);
@@ -1227,6 +1276,7 @@ app.post("/api/ffb-receiving/:id/vehicle-exit", (req, res) => {
       purchase_invoice_id: result.invoice.id,
       purchase_invoice_number: result.invoice.invoice_number,
       purchase_invoice_status: result.invoice.status,
+      lot_number: result.receipt.lot_number || db.prepare("SELECT lot_number FROM ffb_receipt_lots WHERE receipt_id=?").get(result.receipt.id)?.lot_number,
     });
   } catch (error) {
     res

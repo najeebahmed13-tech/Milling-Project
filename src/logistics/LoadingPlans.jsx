@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import "../masters/masters.css";
-import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
 import "./loading-plans.css";
@@ -11,7 +10,7 @@ import { formatDate, formatDateTime, formatVehiclePlate } from "../shared/format
 import { ActionMenu, ActivityTimeline, Badge, DetailValue, DrawerCloseButton, FormField, ImageCarousel, NumberInput, ReadOnlyField, ReadOnlySummary, ReferenceCode, StatusBadge } from "../design-system/index.js";
 import { QuantityInput } from "../design-system/form-fields.jsx";
 import { getLoadingPlanExecutionSteps, getLoadingPlanNextAction } from "./dispatchWorkflow.js";
-import { DEVELOPMENT_LOADING_PLAN, DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO } from "../commercial/development-flow-fixture.js";
+import { DEVELOPMENT_LOADING_PLAN, DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO, PHASE1_SAMPLE_DELIVERY_REQUEST } from "../commercial/development-flow-fixture.js";
 
 const KEY = "rockeye.commercial.deliveryRequests";
 const CONFIRMED_QUANTITY_REPAIRS = {
@@ -74,6 +73,7 @@ const WaybillQr = ({ plan, size = 54 }) => {
   return src ? <img className="waybill-qr" width={size} height={size} src={src} alt={`QR for ${waybillNumber(plan)}`} /> : <span className="waybill-qr-placeholder">QR</span>;
 };
 const downloadWaybill = async (plan) => {
+  const { jsPDF } = await import("jspdf");
   const number = waybillNumber(plan);
   const qr = await QRCode.toDataURL(waybillUrl(plan), { width: 220, margin: 1 });
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -124,7 +124,8 @@ const read = () => {
     const safeRecords = Array.isArray(records) ? records : [];
     if (import.meta.env.DEV) {
       const migrated = safeRecords.map((record) => record.requestNo === DEVELOPMENT_LOADING_PLAN_LEGACY_REQUEST_NO ? { ...record, ...DEVELOPMENT_LOADING_PLAN } : record);
-      const next = migrated.some((record) => record.requestNo === DEVELOPMENT_LOADING_PLAN.requestNo) ? migrated : [DEVELOPMENT_LOADING_PLAN, ...migrated];
+      const withDevelopmentPlan = migrated.some((record) => record.requestNo === DEVELOPMENT_LOADING_PLAN.requestNo) ? migrated : [DEVELOPMENT_LOADING_PLAN, ...migrated];
+      const next = withDevelopmentPlan.some((record) => record.requestNo === PHASE1_SAMPLE_DELIVERY_REQUEST.requestNo) ? withDevelopmentPlan : [PHASE1_SAMPLE_DELIVERY_REQUEST, ...withDevelopmentPlan];
       if (JSON.stringify(next) !== JSON.stringify(safeRecords)) localStorage.setItem(KEY, JSON.stringify(next));
       return next;
     }

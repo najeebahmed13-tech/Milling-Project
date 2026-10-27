@@ -309,6 +309,9 @@ export function FFBGradingPage({ rows, onSaved, focusId }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tareWeight: form.get("tareWeight"),
+        acceptedQty: form.get("acceptedQty") || "",
+        rejectedQty: form.get("rejectedQty") || "",
+        rejectionReason: form.get("rejectionReason") || "",
         remarks: form.get("exitRemarks") || "",
         attachments,
       }),

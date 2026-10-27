@@ -426,6 +426,9 @@ export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tareWeight: data.get("tareWeight"),
+          acceptedQty: data.get("acceptedQty") || "",
+          rejectedQty: data.get("rejectedQty") || "",
+          rejectionReason: data.get("rejectionReason") || "",
           remarks: data.get("exitRemarks") || "",
           attachments,
         }),

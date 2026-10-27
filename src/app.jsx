@@ -56,6 +56,7 @@ import "./design-system/typography.css";
 import "./design-system/search-toggle.css";
 import "./design-system/layout-stability.css";
 import { GlobalSearch } from "./design-system/GlobalSearch.jsx";
+import { contextHeaders } from "./services/requestContext.js";
 
 class DeliveryRequestBoundary extends React.Component {
   state = { error: null };
@@ -877,7 +878,7 @@ function App() {
     const safeFetch = async (url, fallback) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-      try { const response = await fetch(url, { signal: controller.signal }); if (!response.ok) return fallback; return await response.json(); }
+      try { const response = await fetch(url, { signal: controller.signal, headers: contextHeaders() }); if (!response.ok) return fallback; return await response.json(); }
       catch { return fallback; }
       finally { clearTimeout(timeout); }
     };

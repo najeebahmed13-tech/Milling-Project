@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { usePaginatedItems } from "../shared/PaginatedList.jsx";
+import "./items-screen.css";
 
 const emptyItem = { itemCode: "", name: "", category: "Raw Material", itemType: "FFB", unit: "MT", stockUnit: "MT", reorderLevel: "", maxStock: "", leadTimeDays: "", location: "", storageCondition: "Covered / Dry", trackingMethod: "Batch / Lot", qualityInspection: true, specification: "", status: "Active" };
 const categories = ["Raw Material", "Finished Product", "By-product", "Consumable", "Chemical", "MRO Spare Part", "Packaging", "Fuel & Utility"];
