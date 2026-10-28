@@ -10,7 +10,6 @@ export const navigationItems = [
   ] },
   { id: 'production', label: 'Production', icon: '▥', permission: 'production.read', children: [
     { id: 'productionRuns', label: 'Production Runs', icon: 'R', permission: 'production.read' },
-    { id: 'productionPlanning', label: 'Production Planning', icon: 'P', permission: 'production.read' },
     { id: 'productionRouting', label: 'Routing', icon: 'P', permission: 'production.read' }
   ] },
   { id: 'stock', label: 'Stock', icon: '◇', permission: 'inventory.read', children: [

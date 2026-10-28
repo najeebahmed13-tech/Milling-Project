@@ -109,3 +109,31 @@ export function buildPlanningBuckets(from, to, granularity = "month") {
   }
   return buckets;
 }
+
+export function calculateCoProductionFfbRequirement({ cpoQuantity = 0, pkQuantity = 0, oerPercent, kerPercent }) {
+  const cpoFfb = calculateRequiredFfb(cpoQuantity, oerPercent); const pkFfb = calculateRequiredFfb(pkQuantity, kerPercent);
+  if (cpoFfb == null || pkFfb == null) return null;
+  return Math.max(cpoFfb, pkFfb);
+}
+
+export function calculatePlanningCoverage({ demandQuantity = 0, allocatedQuantity = 0 }) {
+  const demand = Number(demandQuantity); const allocated = Number(allocatedQuantity);
+  if (!Number.isFinite(demand) || demand <= 0 || allocated <= 0) return "UNPLANNED";
+  if (allocated > demand) return "OVERPLANNED";
+  if (allocated < demand) return "PARTIALLY_PLANNED";
+  return "FULLY_PLANNED";
+}
+
+export function validatePeriodAllocationReconciliation({ parentQuantity, allocations = [], precision = 3 }) {
+  const expected = Number(parentQuantity); const total = allocations.reduce((sum, row) => sum + Number(row.plannedQuantity || 0), 0);
+  return { valid: Math.abs(Number((expected - total).toFixed(precision))) === 0, expected: Number(expected.toFixed(precision)), allocated: Number(total.toFixed(precision)), difference: Number((total - expected).toFixed(precision)) };
+}
+
+export function calculateRecipeMaterialRequirements({ plannedQuantity = 0, recipeInputs = [] }) {
+  return recipeInputs.map((input) => { const required = Number((Number(plannedQuantity) * Number(input.standardConsumption || 0)).toFixed(3)); const available = Number(input.availableQuantity || 0); const reserved = Number(input.reservedQuantity || 0); const shortfall = Math.max(0, Number((required - available + reserved).toFixed(3))); return { ...input, requiredQuantity: required, shortfallQuantity: shortfall, requirementStatus: shortfall > 0 ? "SHORTFALL" : "AVAILABLE" }; });
+}
+
+export function validateFfbCapacity({ plannedFfbQuantity = 0, throughputPerHour = 0, operatingHours = 0, mode = "WARNING" }) {
+  const capacity = Number(throughputPerHour) * Number(operatingHours); const planned = Number(plannedFfbQuantity); const exceeded = planned > capacity;
+  return { capacity: Number(capacity.toFixed(3)), planned: Number(planned.toFixed(3)), exceeded, severity: exceeded ? String(mode).toUpperCase() : "NONE" };
+}

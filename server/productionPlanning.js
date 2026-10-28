@@ -4,6 +4,7 @@ import {
   canTransitionProductionPlan,
   calculateNetProductionRequirement,
   calculateRequiredFfb,
+  validatePeriodAllocationReconciliation,
   normalizePlanningQuantity,
   validatePlanningLine,
   validatePlanningPeriod,
@@ -27,6 +28,8 @@ export function registerProductionPlanningModule(app, db) {
     CREATE TABLE IF NOT EXISTS production_plans (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, mill_id TEXT NOT NULL, plan_no TEXT NOT NULL UNIQUE, period_type TEXT NOT NULL, period_from TEXT NOT NULL, period_to TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', planning_method TEXT NOT NULL DEFAULT 'DEMAND_CONSOLIDATION', status TEXT NOT NULL DEFAULT 'DRAFT', remarks TEXT NOT NULL DEFAULT '', created_by TEXT NOT NULL, created_at TEXT NOT NULL, approved_by TEXT, approved_at TEXT, revision INTEGER NOT NULL DEFAULT 1, idempotency_key TEXT, UNIQUE(tenant_id,mill_id,plan_no));
     CREATE TABLE IF NOT EXISTS production_plan_lines (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id INTEGER NOT NULL, product TEXT NOT NULL, product_type TEXT NOT NULL DEFAULT 'FINISHED_PRODUCT', uom TEXT NOT NULL DEFAULT 'MT', gross_demand REAL NOT NULL DEFAULT 0, available_inventory REAL NOT NULL DEFAULT 0, reserved_inventory REAL NOT NULL DEFAULT 0, safety_stock REAL NOT NULL DEFAULT 0, already_planned_quantity REAL NOT NULL DEFAULT 0, net_requirement REAL NOT NULL DEFAULT 0, planned_quantity REAL NOT NULL DEFAULT 0, required_by_date TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'NORMAL', expected_yield_percent REAL, estimated_ffb_quantity REAL, planning_remarks TEXT NOT NULL DEFAULT '', FOREIGN KEY(plan_id) REFERENCES production_plans(id));
     CREATE TABLE IF NOT EXISTS production_plan_demand_allocations (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_line_id INTEGER NOT NULL, delivery_request_line_id TEXT NOT NULL, delivery_request_no TEXT NOT NULL DEFAULT '', customer_name TEXT NOT NULL DEFAULT '', contract_number TEXT NOT NULL DEFAULT '', allocated_quantity REAL NOT NULL, uom TEXT NOT NULL DEFAULT 'MT', required_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'ALLOCATED', UNIQUE(plan_line_id,delivery_request_line_id), FOREIGN KEY(plan_line_id) REFERENCES production_plan_lines(id));
+    CREATE TABLE IF NOT EXISTS production_plan_period_allocations (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_line_id INTEGER NOT NULL, period_type TEXT NOT NULL CHECK(period_type IN ('MONTH','WEEK','DAY')), period_start TEXT NOT NULL, period_end TEXT NOT NULL, planned_quantity REAL NOT NULL, estimated_ffb_quantity REAL, status TEXT NOT NULL DEFAULT 'PLANNED', remarks TEXT NOT NULL DEFAULT '', FOREIGN KEY(plan_line_id) REFERENCES production_plan_lines(id), UNIQUE(plan_line_id,period_type,period_start));
+    CREATE TABLE IF NOT EXISTS production_plan_material_requirements (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id INTEGER NOT NULL, plan_line_id INTEGER, recipe_version_id TEXT, requirement_type TEXT NOT NULL CHECK(requirement_type IN ('MATERIAL','UTILITY','RESOURCE')), item_id TEXT NOT NULL, required_quantity REAL NOT NULL, uom TEXT NOT NULL, available_quantity REAL NOT NULL DEFAULT 0, reserved_quantity REAL NOT NULL DEFAULT 0, shortfall_quantity REAL NOT NULL DEFAULT 0, requirement_status TEXT NOT NULL DEFAULT 'AVAILABLE', FOREIGN KEY(plan_id) REFERENCES production_plans(id), FOREIGN KEY(plan_line_id) REFERENCES production_plan_lines(id));
     CREATE TABLE IF NOT EXISTS production_plan_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id INTEGER NOT NULL, tenant_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, details_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, FOREIGN KEY(plan_id) REFERENCES production_plans(id));
   `);
   for (const column of ["revision INTEGER NOT NULL DEFAULT 1", "idempotency_key TEXT"]) {
@@ -104,6 +107,26 @@ export function registerProductionPlanningModule(app, db) {
     return res.json(serialize(db.prepare("SELECT * FROM production_plans WHERE id=?").get(existing.id)));
   };
 
+  app.post(["/api/production-plans/:id/period-allocations", "/api/v1/production-plans/:id/period-allocations"], (req, res) => {
+    if (!requirePermission(req, res, "production.plan.edit")) return;
+    const s = scope(req); const plan = db.prepare("SELECT * FROM production_plans WHERE id=? AND tenant_id=? AND mill_id=?").get(req.params.id, s.tenantId, s.millId);
+    if (!plan) return fail(res, 404, "PRODUCTION_PLAN_NOT_FOUND", "Production Plan not found.");
+    if (["RELEASED", "COMPLETED", "CLOSED", "CANCELLED"].includes(plan.status)) return fail(res, 409, "PRODUCTION_PLAN_LOCKED", "Period allocations cannot be changed after release.");
+    const allocations = Array.isArray(req.body?.allocations) ? req.body.allocations : [];
+    try {
+      db.transaction(() => {
+        const byLine = new Map(); allocations.forEach((row) => { const list = byLine.get(Number(row.planLineId)) || []; list.push(row); byLine.set(Number(row.planLineId), list); });
+        for (const [lineId, rows] of byLine) {
+          const line = db.prepare("SELECT * FROM production_plan_lines WHERE id=? AND plan_id=?").get(lineId, plan.id); if (!line) throw new Error("Period allocation line is not part of this Production Plan.");
+          const reconciliation = validatePeriodAllocationReconciliation({ parentQuantity: line.planned_quantity, allocations: rows }); if (!reconciliation.valid) throw new Error(`Period allocations for line ${lineId} must reconcile to ${reconciliation.expected}.`);
+          db.prepare("DELETE FROM production_plan_period_allocations WHERE plan_line_id=?").run(lineId); const insert = db.prepare("INSERT INTO production_plan_period_allocations (plan_line_id,period_type,period_start,period_end,planned_quantity,estimated_ffb_quantity,status,remarks) VALUES (?,?,?,?,?,?,?,?)");
+          rows.forEach((row) => insert.run(lineId, String(row.periodType || "DAY").toUpperCase(), row.periodStart, row.periodEnd || row.periodStart, Number(row.plannedQuantity), row.estimatedFfbQuantity == null ? null : Number(row.estimatedFfbQuantity), "PLANNED", row.remarks || ""));
+        }
+        audit(plan.id, s, "PRODUCTION_PLAN_PERIOD_ALLOCATIONS_UPDATED", { allocationCount: allocations.length });
+      })();
+      return res.json({ planId: plan.id, allocations: db.prepare("SELECT * FROM production_plan_period_allocations WHERE plan_line_id IN (SELECT id FROM production_plan_lines WHERE plan_id=?) ORDER BY period_start").all(plan.id) });
+    } catch (e) { return fail(res, 400, "PRODUCTION_PLAN_PERIOD_ALLOCATION_INVALID", e.message); }
+  });
   app.get(["/api/production-plans", "/api/v1/production-plans"], getPlans);
   app.get(["/api/production-plans/context", "/api/v1/production-plans/context"], getContext);
   app.post(["/api/production-plans", "/api/v1/production-plans"], createPlan);

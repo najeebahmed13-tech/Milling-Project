@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTransitionProductionPlan, calculateNetProductionRequirement, calculateRequiredFfb, consolidateDemand, calculatePlanVsActual, calculateProjectedStock, planningRiskStatus, buildPlanningBuckets, normalizePlanningQuantity, validatePlanningLine, validatePlanningPeriod } from "../packages/production/productionPlanningDomain.js";
+import { canTransitionProductionPlan, calculateNetProductionRequirement, calculateRequiredFfb, consolidateDemand, calculatePlanVsActual, calculateProjectedStock, planningRiskStatus, buildPlanningBuckets, normalizePlanningQuantity, validatePlanningLine, validatePlanningPeriod, calculateCoProductionFfbRequirement, calculatePlanningCoverage, validatePeriodAllocationReconciliation, calculateRecipeMaterialRequirements, validateFfbCapacity } from "../packages/production/productionPlanningDomain.js";
 
 test("calculates net requirement with inventory, safety stock and existing plans", () => assert.equal(calculateNetProductionRequirement({ grossDemand: 100, availableInventory: 20, reservedInventory: 5, safetyStock: 10, alreadyPlannedQuantity: 15 }), 70));
 test("uses configured yield for FFB requirement", () => assert.equal(calculateRequiredFfb(21, 21), 100));
@@ -15,3 +15,8 @@ test("validates bounded planning periods and line inputs", () => {
   assert.ok(validatePlanningLine({ product: "CPO", uom: "MT", plannedQuantity: -1, requiredByDate: "bad" }).plannedQuantity);
 });
 test("normalizes quantities without accepting invalid values", () => { assert.equal(normalizePlanningQuantity(12.3456), 12.346); assert.equal(normalizePlanningQuantity(-1), null); assert.equal(normalizePlanningQuantity("not-a-number"), null); });
+test("uses one shared FFB quantity for CPO and PK co-production", () => assert.equal(calculateCoProductionFfbRequirement({ cpoQuantity: 21, pkQuantity: 12.6, oerPercent: 21, kerPercent: 12.6 }), 100));
+test("calculates planning coverage without mutating demand lifecycle", () => { assert.equal(calculatePlanningCoverage({ demandQuantity:100, allocatedQuantity:60 }),"PARTIALLY_PLANNED"); assert.equal(calculatePlanningCoverage({ demandQuantity:100, allocatedQuantity:100 }),"FULLY_PLANNED"); assert.equal(calculatePlanningCoverage({ demandQuantity:100, allocatedQuantity:110 }),"OVERPLANNED"); });
+test("requires period allocations to reconcile to the parent quantity", () => { assert.equal(validatePeriodAllocationReconciliation({ parentQuantity:100, allocations:[{plannedQuantity:60},{plannedQuantity:40}]}).valid,true); assert.equal(validatePeriodAllocationReconciliation({ parentQuantity:100, allocations:[{plannedQuantity:60}]}).valid,false); });
+test("calculates recipe-driven material shortfalls", () => { const [row]=calculateRecipeMaterialRequirements({plannedQuantity:100,recipeInputs:[{itemId:"FFB",standardConsumption:1.05,availableQuantity:90,reservedQuantity:5}]}); assert.equal(row.requiredQuantity,105); assert.equal(row.shortfallQuantity,20); });
+test("validates FFB throughput capacity", () => { assert.deepEqual(validateFfbCapacity({plannedFfbQuantity:1300,throughputPerHour:60,operatingHours:20,mode:"WARNING"}),{capacity:1200,planned:1300,exceeded:true,severity:"WARNING"}); });

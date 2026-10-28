@@ -38,7 +38,7 @@ export function registerProductionModule(app, db) {
     );
     CREATE TABLE IF NOT EXISTS production_routings (
       id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
-      input_material TEXT NOT NULL DEFAULT 'FFB', outputs_json TEXT NOT NULL DEFAULT '["CPO","PK"]',
+      input_material TEXT NOT NULL DEFAULT 'FFB', outputs_json TEXT NOT NULL DEFAULT '["CPO","PK"]', output_item_ids_json TEXT NOT NULL DEFAULT '[]',
       status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS production_route_steps (
@@ -85,6 +85,7 @@ export function registerProductionModule(app, db) {
   try { db.exec("ALTER TABLE production_shifts ADD COLUMN mill_id TEXT NOT NULL DEFAULT 'demo-mill'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
   try { db.exec("ALTER TABLE production_shifts ADD COLUMN capacity_uom TEXT NOT NULL DEFAULT 'MT'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
   try { db.exec("ALTER TABLE production_shifts ADD COLUMN description TEXT NOT NULL DEFAULT ''"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
+  try { db.exec("ALTER TABLE production_routings ADD COLUMN output_item_ids_json TEXT NOT NULL DEFAULT '[]'"); } catch (error) { if (!String(error.message).includes('duplicate column')) throw error; }
   const shiftSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='production_shifts'").get()?.sql || "";
   if (shiftSchema.includes('line_id INTEGER NOT NULL')) {
     db.pragma('foreign_keys = OFF');
@@ -203,7 +204,7 @@ export function registerProductionModule(app, db) {
   seedInventory.run('CPO', 'CPO Tank 01', 486.2, 'MT', created);
   seedInventory.run('PK', 'Kernel Silo', 128.7, 'MT', created);
 
-  const routingWithSteps = (routing) => ({ ...routing, outputs: parseJson(routing.outputs_json), steps: db.prepare('SELECT * FROM production_route_steps WHERE routing_id=? ORDER BY sequence').all(routing.id).map((step) => ({ ...step, qualityChecks: db.prepare('SELECT * FROM production_route_quality_checks WHERE route_step_id=? ORDER BY id').all(step.id) })) });
+  const routingWithSteps = (routing) => ({ ...routing, outputs: parseJson(routing.outputs_json), outputItemIds: parseJson(routing.output_item_ids_json), steps: db.prepare('SELECT * FROM production_route_steps WHERE routing_id=? ORDER BY sequence').all(routing.id).map((step) => ({ ...step, qualityChecks: db.prepare('SELECT * FROM production_route_quality_checks WHERE route_step_id=? ORDER BY id').all(step.id) })) });
   const runWithDetails = (run) => ({
     ...run,
     routing: db.prepare('SELECT code,name,version FROM production_routings WHERE id=?').get(run.routing_id),
@@ -227,6 +228,7 @@ export function registerProductionModule(app, db) {
       shifts: db.prepare('SELECT * FROM production_shifts WHERE status=\'ACTIVE\' ORDER BY mill_id,start_time').all(),
       stations: db.prepare('SELECT * FROM production_stations ORDER BY sequence,name').all(),
       machines: db.prepare('SELECT * FROM production_machines ORDER BY station,name').all(),
+      items: db.prepare("SELECT id,item_code,name,unit,item_type,status FROM items WHERE status='Active' ORDER BY name").all(),
       routings: db.prepare('SELECT * FROM production_routings ORDER BY id DESC').all().map(routingWithSteps),
       runs: db.prepare('SELECT * FROM production_runs ORDER BY id DESC').all().map(runWithDetails),
       inventory: db.prepare('SELECT * FROM production_inventory ORDER BY material,location').all()
@@ -320,9 +322,12 @@ export function registerProductionModule(app, db) {
 
   app.post('/api/production/routings', (req, res) => {
     const body = req.body;
+    const outputItemIds = Array.isArray(body.outputItemIds) ? [...new Set(body.outputItemIds.map(Number).filter(Number.isInteger))] : [];
+    const outputItems = outputItemIds.length ? db.prepare(`SELECT id,name FROM items WHERE status='Active' AND id IN (${outputItemIds.map(() => '?').join(',')})`).all(...outputItemIds) : [];
     if (!body.code || !body.name || !Array.isArray(body.steps) || !body.steps.length) return res.status(400).json({ message: 'Routing code, name and at least one stage are required.' });
+    if (!outputItemIds.length || outputItems.length !== outputItemIds.length) return res.status(400).json({ message: 'Select one or more active output Items from Item Master.' });
     const save = db.transaction(() => {
-      const info = db.prepare('INSERT INTO production_routings (code,name,version,input_material,outputs_json,status,created_at) VALUES (?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), Number(body.version || 1), body.inputMaterial || 'FFB', JSON.stringify(body.outputs || ['CPO','PK']), 'ACTIVE', now());
+      const info = db.prepare('INSERT INTO production_routings (code,name,version,input_material,outputs_json,output_item_ids_json,status,created_at) VALUES (?,?,?,?,?,?,?,?)').run(body.code.trim().toUpperCase(), body.name.trim(), Number(body.version || 1), body.inputMaterial || 'FFB', JSON.stringify(outputItems.map((item) => item.name)), JSON.stringify(outputItemIds), 'ACTIVE', now());
       const routingId = Number(info.lastInsertRowid);
       const insert = db.prepare('INSERT INTO production_route_steps (routing_id,sequence,code,name,station,machine,input_material,output_material,planned_duration_minutes,quality_required,quality_frequency_minutes) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
       body.steps.forEach((step, index) => {

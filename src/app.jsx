@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boxes, Building2, CircleDollarSign, ClipboardCheck, Factory, House, LayoutGrid, Search, Settings, Truck, Users, Warehouse, Wrench } from "lucide-react";
 import "./styles.css";
@@ -219,10 +219,10 @@ function Header({ active, setActive, search, setSearch }) {
           ) : id === "production" ? (
             <div
               key={id}
-              className={`nav-group ${["production", "productionOrders", "productionPlanning", "productionPlanningWorkspace", "productionDemandView", "productionPlanActual", "productionRouting", "masterProductionLines"].includes(active) ? "active-group" : ""}`}
+              className={`nav-group ${["production", "productionOrders", "productionPlanning", "productionRouting", "masterProductionLines"].includes(active) ? "active-group" : ""}`}
             >
               <button
-                className={`nav-item ${["production", "productionOrders", "productionPlanning", "productionPlanningWorkspace", "productionDemandView", "productionPlanActual", "productionRouting", "masterProductionLines"].includes(active) ? "active" : ""}`}
+                className={`nav-item ${["production", "productionOrders", "productionPlanning", "productionRouting", "masterProductionLines"].includes(active) ? "active" : ""}`}
                 onClick={() => setActive("production")}
               >
                 <span className="nav-icon"><Icon size={21} strokeWidth={1.8} /></span>
@@ -230,10 +230,7 @@ function Header({ active, setActive, search, setSearch }) {
               </button>
               <div className="header-submenu">
                 <button onClick={() => setActive("production")}>Production Runs</button>
-                <button onClick={() => setActive("productionPlanning")}>Plan Register</button>
-                <button onClick={() => setActive("productionPlanningWorkspace")}>Planning Workspace</button>
-                <button onClick={() => setActive("productionDemandView")}>Demand View</button>
-                <button onClick={() => setActive("productionPlanActual")}>Plan vs Actual</button>
+                <button onClick={() => setActive("productionPlanning")}>Production Planning</button>
                 <button onClick={() => setActive("productionOrders")}>Production Orders</button>
                 <button onClick={() => setActive("productionRouting")}>Routing</button>
                 <button onClick={() => setActive("masterProductionLines")}>Production Line</button>
@@ -848,8 +845,23 @@ function Modal({ onClose, onSaved }) {
     </div>
   );
 }
+const ACTIVE_MODULE_PARAM = "module";
+
+function readActiveModule() {
+  if (typeof window === "undefined") return "dashboard";
+  return new URLSearchParams(window.location.search).get(ACTIVE_MODULE_PARAM) || "dashboard";
+}
+
+function updateActiveModuleUrl(moduleId, replace = false) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.set(ACTIVE_MODULE_PARAM, moduleId);
+  const method = replace ? "replaceState" : "pushState";
+  window.history[method]({ ...(window.history.state || {}), activeModule: moduleId }, "", url);
+}
+
 function App() {
-  const [active, setActive] = useState("dashboard");
+  const [active, setActiveState] = useState(readActiveModule);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -882,6 +894,23 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [loadError, setLoadError] = useState("");
+  const setActive = useCallback((moduleId) => {
+    if (active === moduleId) return;
+    updateActiveModuleUrl(moduleId);
+    setActiveState(moduleId);
+  }, [active]);
+
+  useEffect(() => {
+    const moduleId = readActiveModule();
+    updateActiveModuleUrl(moduleId, true);
+    const handlePopState = () => {
+      setActiveState(readActiveModule());
+      setSearch("");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const load = async () => {
     setLoading(true);
     setLoadError("");
@@ -1032,8 +1061,8 @@ function App() {
         <ProductionQCPage onNavigate={setActive} />
       ) : active.startsWith("master:") ? (
         <MasterDataCenter masterKey={active.split(":")[1]} onNavigate={setActive} />
-              ) : ["productionPlanning", "productionPlanningWorkspace", "productionDemandView", "productionPlanActual"].includes(active) ? (
-        <ProductionPlanningPage initialView={{ productionPlanning: "list", productionPlanningWorkspace: "workspace", productionDemandView: "demand", productionPlanActual: "actual" }[active]} />
+      ) : active === "productionPlanning" ? (
+        <ProductionPlanningPage />
       ) : active === "productionOrders" ? (
         <ProductionOrdersPage />
       ) : active === "production" ? (
@@ -1063,10 +1092,7 @@ function App() {
     <>
       <Header
         active={active}
-        setActive={(id) => {
-          setActive(id);
-          setSearch("");
-        }}
+        setActive={setActive}
         search={search}
         setSearch={setSearch}
       />
