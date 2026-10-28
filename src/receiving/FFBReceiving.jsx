@@ -285,7 +285,11 @@ function FfbReceiptGrid({
               onToggle={() => setOpenActions(openActions === row.id ? null : row.id)}
               items={[
                 { key: "view", label: "View details", icon: <Eye size={15} aria-hidden="true" />, onClick: () => { setOpenActions(null); onSelect(row); } },
-                ...(row.state === "FIRST_WEIGHT_RECORDED" && !gradingComplete(row) ? [{ key: "grading", label: "Grading", icon: <ClipboardCheck size={15} aria-hidden="true" />, onClick: () => { setOpenActions(null); onStage("grading", row); } }] : []),
+                ...(gradingComplete(row)
+                  ? [{ key: "view-grading", label: "View grading", icon: <ClipboardCheck size={15} aria-hidden="true" />, onClick: () => { setOpenActions(null); onOpenGrading?.(row.id); } }]
+                  : row.state === "FIRST_WEIGHT_RECORDED"
+                    ? [{ key: "grading", label: "Grading", icon: <ClipboardCheck size={15} aria-hidden="true" />, onClick: () => { setOpenActions(null); onStage("grading", row); } }]
+                    : []),
                 ...(statusLabel(row.state, row) !== "Completed" ? [{ key: "second-weighing", label: "Second weighing", icon: <Scale size={15} aria-hidden="true" />, disabled: !gradingComplete(row), onClick: () => { if (!gradingComplete(row)) return; setOpenActions(null); onStage("exit", row); } }] : []),
                 ...(row.state === "FIRST_WEIGHT_RECORDED" && !gradingComplete(row) ? [{ key: "cancel", label: "Cancel", icon: <X size={15} aria-hidden="true" />, danger: true, onClick: () => setOpenActions(null) }] : []),
               ]}
@@ -297,7 +301,7 @@ function FfbReceiptGrid({
   );
 }
 
-export function FFBReceivingPage({ rows, suppliers, items = [], onSaved }) {
+export function FFBReceivingPage({ rows, suppliers, items = [], onSaved, onOpenGrading }) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState(null);
   const [selected, setSelected] = useState(null);
